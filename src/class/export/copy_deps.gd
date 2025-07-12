@@ -1,0 +1,92 @@
+extends RefCounted
+
+const UtilsRemote = preload("res://addons/plugin_exporter/src/class/utils_remote.gd")
+const USafeEditor = UtilsRemote.USafeEditor
+
+const UtilsLocal = preload("res://addons/plugin_exporter/src/class/utils_local.gd")
+
+const TEXT_FILE_TYPES = ["gd", "tscn", "tres"]
+
+var parse_gd: UtilsLocal.ParseGD
+var parse_tscn: UtilsLocal.ParseTSCN
+
+func _init() -> void:
+	parse_gd = UtilsLocal.ParseGD.new()
+	parse_tscn = UtilsLocal.ParseTSCN.new()
+
+
+func copy_remote_dependencies(write:bool, remote_file:String, to:String, dependent:String, remote_dir:String="", processed_files={}):
+	if remote_file in processed_files: #TODO handle this for files with different names than remote, Think fs_rem vs filesystem case
+		USafeEditor.print_warn("Duplicate remote file: %s Dependent: %s" % [remote_file, dependent.get_file()])
+		return []
+	processed_files[remote_file] = to
+	if remote_dir == "":
+		remote_dir = to.get_base_dir()
+	var valid_text_file = remote_file.get_extension() in TEXT_FILE_TYPES
+	var file_access = FileAccess.open(remote_file, FileAccess.READ)
+	if not file_access:
+		print("Couldn't open file: %s" % remote_file)
+		return []
+	
+	if valid_text_file:
+		var first_line = file_access.get_line()
+		if first_line.find("#! remote") > -1:
+			while not file_access.eof_reached():
+				var line = file_access.get_line()
+				if line.find("extends") > -1 and line.count('"') == 2:
+					var new_remote_file = line.get_slice("extends", 1)
+					remote_file = new_remote_file.strip_edges().trim_prefix('"').trim_suffix('"')
+					file_access = FileAccess.open(remote_file, FileAccess.READ)
+		
+	file_access.seek(0)
+	var ext = remote_file.get_extension()
+	var file_lines = []
+	var dependencies = {}
+	if valid_text_file:
+		while not file_access.eof_reached():
+			var line = file_access.get_line()
+				
+			if ext == "gd":
+				parse_gd.edit_dep_file(line, to, remote_file, remote_dir, dependencies, file_lines)
+			elif ext == "tscn":
+				parse_tscn.edit_dep_file(line, to, remote_file, remote_dir, dependencies, file_lines)
+			#_edit_dep_file(line, to, remote_file, remote_dir, dependencies, file_lines)
+	
+	if write:
+		if not DirAccess.dir_exists_absolute(to.get_base_dir()):
+			DirAccess.make_dir_recursive_absolute(to.get_base_dir())
+		if valid_text_file:
+			var file_write = FileAccess.open(to, FileAccess.WRITE)
+			for line in file_lines:
+				file_write.store_line(line)
+		else:
+			DirAccess.copy_absolute(remote_file, to)
+	
+	var all_child_deps = []
+	for file_path in dependencies:
+		var data = dependencies.get(file_path)
+		all_child_deps.append(data)
+		var to_path = data.get("to")
+		var from_path = data.get("from")
+		
+		if write:
+			if FileAccess.file_exists(to_path):
+				continue
+			if not DirAccess.dir_exists_absolute(to_path.get_base_dir()):
+				DirAccess.make_dir_recursive_absolute(to_path.get_base_dir())
+			DirAccess.copy_absolute(from_path, to_path)
+			if FileAccess.file_exists(from_path+".uid"):
+				var uid_path = to_path + ".uid"
+				write_new_uid(uid_path)
+		
+		
+		var child_deps = copy_remote_dependencies(write, from_path, to_path, dependent, remote_dir, processed_files)
+		all_child_deps.append_array(child_deps)
+	
+	return all_child_deps
+
+static func write_new_uid(uid_path):
+	var id = ResourceUID.create_id()
+	var uid = ResourceUID.id_to_text(id)
+	var f = FileAccess.open(uid_path, FileAccess.WRITE)
+	f.store_string(uid)
