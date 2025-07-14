@@ -28,6 +28,5 @@ func _exit_tree() -> void:
 func _on_tool_menu_pressed():
 	if is_instance_valid(dock_manager):
 		return
-	var multi_gui = false
 	var can_be_freed = true
-	dock_manager = DockManager.new(self, PLUGIN_EXPORT, DockManager.Slot.BOTTOM_PANEL, can_be_freed, multi_gui)
+	dock_manager = DockManager.new(self, PLUGIN_EXPORT, DockManager.Slot.BOTTOM_PANEL, can_be_freed)

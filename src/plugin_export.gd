@@ -517,7 +517,6 @@ func _parse_export_data(build_tree=true, write=false):
 			var data = other_transfer_data.get(to)
 			var from_files = data.get("from_files")
 			var single_from = data.get("single")
-			print(from_files)
 			for from in from_files:
 				if not FileAccess.file_exists(from):
 					USafeEditor.push_toast("File_doesn't exist, aborting: " + from, 2)
