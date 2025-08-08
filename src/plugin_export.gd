@@ -13,6 +13,9 @@ const USafeEditor = UtilsRemote.USafeEditor
 const ConfirmationDialogHandler = UtilsRemote.ConfirmationDialogHandler
 const EditorFileDialogHandler = UtilsRemote.EditorFileDialogHandler
 
+const ExportFileUtils = UtilsRemote.ExportFileUtils
+const ExportFileKeys = ExportFileUtils.ExportFileKeys
+
 const FileSystem = UtilsRemote.FileSystem
 const PopupHelper = UtilsRemote.PopupHelper
 const UEditorTheme = UtilsRemote.UEditorTheme
@@ -23,9 +26,9 @@ const CopyDeps = UtilsLocal.CopyDeps
 
 const RemoteData = UtilsLocal.ParseBase.RemoteData
 
-const CONFIG_FILE_PATH = "res://addons/plugin_exporter/config/config.json"
-const EXPORT_TEMPLATE_PATH = "res://addons/plugin_exporter/src/template/plugin_export_template.json"
-const PRE_POST_TEMPLATE_PATH = "res://addons/plugin_exporter/src/template/pre_post.gd"
+const CONFIG_FILE_PATH = "res://addons/plugin_exporter/config/plugin_exporter_config.json"
+const EXPORT_TEMPLATE_PATH = "res://addons/plugin_exporter/src/template/plugin_export_template.json" #! dependency
+const PRE_POST_TEMPLATE_PATH = "res://addons/plugin_exporter/src/template/pre_post.gd" #! dependency
 const TEXT_FILE_TYPES = ["gd", "tscn", "tres"]
 
 @onready var file_path_line = %FilePathLine
@@ -34,7 +37,7 @@ const TEXT_FILE_TYPES = ["gd", "tscn", "tres"]
 @onready var file_name_label = %FileNameLabel
 
 @onready var menu_button: MenuButton = %MenuButton
-var PMHelper: PopupHelper.MouseHelper
+var PMHelper: PopupHelper.MouseHelper #>class_inst
 @onready var dock_button: Button = %DockButton
 
 
@@ -50,7 +53,7 @@ var file_data_dict:Dictionary
 var first_tree_build := false
 var filter_text:String = ""
 
-var TreeHelper: TreeHelperClass
+var TreeHelper: TreeHelperClass #>class_inst
 const CALLABLE_KEY = "CALLABLE_KEY"
 var menu_button_dict = {
 	"Read File":{
@@ -74,7 +77,6 @@ var menu_button_dict = {
 		CALLABLE_KEY: _on_new_file_button_pressed
 	},
 }
-
 
 var export_root:String
 var copy_deps : CopyDeps
@@ -161,22 +163,11 @@ func _on_menu_button_item_pressed(id:int, popup:PopupMenu):
 
 func _get_export_data():
 	var export_config_path = file_path_line.text
-	if not FileAccess.file_exists(export_config_path):
-		print("Export file path does not exist.")
-		return
-	var export_file = FileAccess.open(export_config_path, FileAccess.READ)
-	if export_file == null:
-		printerr("Error opening export configuration file: " + export_config_path)
-		return
-	
-	var config_string = export_file.get_as_text()
-	var json = JSON.new()
-	var parse_result = json.parse(config_string)
-	if parse_result != OK:
-		printerr("Error parsing JSON: " + json.get_error_message() + " at line " + str(json.get_error_line()))
-		return
-	return json.data
+	return ExportFileUtils.get_export_data(export_config_path)
 
+func _get_export_root():
+	var export_config_path = file_path_line.text
+	return ExportFileUtils.get_export_root(export_config_path)
 
 func _on_file_line_text_changed(new_text):
 	_set_line_alignment()
@@ -282,7 +273,7 @@ func _on_new_file_button_pressed():
 
 
 func _on_read_file_button_pressed():
-	first_tree_build = false
+	#first_tree_build = false
 	_write_export_tree()
 	first_tree_build = true
 	
@@ -320,7 +311,7 @@ func _parse_export_data(build_tree=true, write=false):
 	export_root = _get_export_root()
 	if export_root == "":
 		return
-	
+	var export_config_path = file_path_line.text
 	
 	var post_script = export_data.get("post_script","")
 	if post_script != "":
@@ -351,17 +342,21 @@ func _parse_export_data(build_tree=true, write=false):
 	var root_item:TreeItem
 	if build_tree:
 		root_item = export_tree.create_item()
-		root_item.set_text(0, export_root.get_file())
+		var root_name = export_root.get_file()
+		if export_root.ends_with("/"):
+			root_name = export_root.get_base_dir().get_file()
+		root_item.set_text(0, root_name)
 		root_item.set_tooltip_text(0, export_root)
 		root_item.set_icon(0, TreeHelper.folder_icon)
 		root_item.set_icon_modulate(0, TreeHelper.folder_color)
 		TreeHelper.parent_item = root_item
 	
-	var options = export_data.get("options")
-	var overwrite = options.get("overwrite", false)
+	var options = export_data.get(ExportFileKeys.options)
 	
-	var include_uid = options.get("include_uid")
-	var include_import = options.get("include_import")
+	var overwrite = options.get(ExportFileKeys.overwrite, false)
+	
+	var include_uid = options.get(ExportFileKeys.include_uid)
+	var include_import = options.get(ExportFileKeys.include_import)
 	if include_uid != null:
 		if not write:
 			uid_check.button_pressed = include_uid
@@ -373,20 +368,20 @@ func _parse_export_data(build_tree=true, write=false):
 		elif import_check.button_pressed != include_import:
 			print("Overiding 'Include Import': ", include_import)
 	
-	var exports = export_data.get("exports")
+	var exports = export_data.get(ExportFileKeys.exports)
 	for export in exports:
-		var source = export.get("source")
+		var source = export.get(ExportFileKeys.source)
 		if not source.ends_with("/"):
 			source = source + "/"
 		if not DirAccess.dir_exists_absolute(source):
-			USafeEditor.push_toast(source +" does not exist.",2)
+			USafeEditor.push_toast(source + " does not exist.",2)
 			_collapse_tree()
 			return
-		var export_folder:String = export.get("export_folder")
+		var export_folder:String = export.get(ExportFileKeys.export_folder)
 		if export_folder == "":
 			export_folder = source.get_base_dir().get_file()
 		
-		export_folder = replace_version(export_folder)
+		export_folder = ExportFileUtils.replace_version(export_folder)
 		if export_folder == "":
 			_collapse_tree()
 			return
@@ -395,10 +390,10 @@ func _parse_export_data(build_tree=true, write=false):
 		if not export_folder.ends_with("/"):
 			export_folder = export_folder + "/"
 		
-		var exclude = export.get("exclude")
-		var directories = exclude.get("directories")
-		var file_extensions = exclude.get("file_extensions")
-		var files = exclude.get("files")
+		var exclude = export.get(ExportFileKeys.exclude)
+		var directories = exclude.get(ExportFileKeys.directories)
+		var file_extensions = exclude.get(ExportFileKeys.file_extensions)
+		var files = exclude.get(ExportFileKeys.files)
 		
 		var source_files = UFile.scan_for_files(source, [])
 		var export_dir_path = export_root.path_join(export_folder)
@@ -415,12 +410,12 @@ func _parse_export_data(build_tree=true, write=false):
 			_add_remote_files_to_array(remote_files, all_remote_files)
 		
 		var other_transfer_data = {}
-		var other_transfers = export.get("other_transfers",[])
+		var other_transfers = export.get(ExportFileKeys.other_transfers, [])
 		for other in other_transfers:
-			var to:String = other.get("to")
+			var to:String = other.get(ExportFileKeys.to)
 			if not to.begins_with(export_dir_path):
 				to = export_dir_path.path_join(to)
-			var from_files = other.get("from")
+			var from_files = other.get(ExportFileKeys.from)
 			var single_from = false
 			if from_files is String:
 				if FileAccess.file_exists(from_files):
@@ -452,9 +447,16 @@ func _parse_export_data(build_tree=true, write=false):
 			for from in from_files:
 				var remote_files = _get_remote_file(from, source, export_dir_path)
 				_add_remote_files_to_array(remote_files, all_remote_files)
+			if to in other_transfer_data.keys():
+				var to_data = other_transfer_data[to]
+				var single = to_data.get("single")
+				if single:
+					printerr("Error with other transfers file, exporting multiple files to single file: %s" % to)
+					return
+				to_data["from_files"].append_array(from_files)
+			else:
+				other_transfer_data[to] = {"from_files":from_files, "single":single_from}
 			
-			other_transfer_data[to] = {"from_files":from_files, "single":single_from}
-		
 		
 		for file in source_files:
 			if file.get_extension() == "uid" or file.get_extension() == "import":
@@ -490,7 +492,7 @@ func _parse_export_data(build_tree=true, write=false):
 						last_item.set_icon(0, file_icon)
 						last_item.set_icon_modulate(0, Color.WHITE)
 				if remote_file_data != null:
-					_tree_remote_file_dependencies(last_item, export_path, remote_file_data, source, export_dir_path, all_remote_files)
+					_tree_remote_file_dependencies(last_item, l_path, export_path, remote_file_data, all_remote_files)
 			
 			if not write:
 				continue
@@ -538,7 +540,7 @@ func _parse_export_data(build_tree=true, write=false):
 							last_item.set_icon_modulate(0, Color.WHITE)
 					
 					if remote_file_data != null:
-						_tree_remote_file_dependencies(last_item, to_path, remote_file_data, source, export_dir_path, all_remote_files)
+						_tree_remote_file_dependencies(last_item, from, to_path, remote_file_data, all_remote_files)
 				
 				if not write:
 					continue
@@ -561,6 +563,18 @@ func _parse_export_data(build_tree=true, write=false):
 			ins.post_export()
 			ins.queue_free()
 		
+		var files = UFile.scan_for_files(export_root, [])
+		#var gd_files = UFile.scan_for_files(export_root, ["gd"])
+		var gd_files = []
+		for file in files:
+			var ext = file.get_extension()
+			if ext == "gd":
+				gd_files.append(file)
+		
+		for file in gd_files:
+			#print(file)
+			_update_file_export_flags(file)
+		
 		var exported_dirs = DirAccess.get_directories_at(export_root)
 		for dir in exported_dirs:
 			var dir_path = export_root.path_join(dir)
@@ -577,51 +591,91 @@ func _collapse_tree():
 	root_item.collapsed = false
 
 
-func _export_file(from, to, export_uid=true):
-	var to_dir = to.get_base_dir()
-	if not DirAccess.dir_exists_absolute(to_dir):
-		DirAccess.make_dir_recursive_absolute(to_dir)
-	DirAccess.copy_absolute(from, to)
-	var from_uid = from + ".uid"
-	var to_uid = to + ".uid"
-	if FileAccess.file_exists(from_uid) and uid_check.button_pressed and export_uid:
-		DirAccess.copy_absolute(from_uid, to_uid)
-	var from_import = from + ".import"
-	var to_import = to + ".import"
-	if FileAccess.file_exists(from_import) and import_check.button_pressed and export_uid:
-		DirAccess.copy_absolute(from_import, to_import)
+func _export_file(from, to, enable_uid_import_export=true):
+	var export_uid = uid_check.button_pressed
+	var export_import = import_check.button_pressed
+	if not enable_uid_import_export:
+		export_uid = false
+		export_import = false
+	
+	ExportFileUtils.export_file(from, to, export_uid, export_import)
+	
+	#var to_dir = to.get_base_dir()
+	#if not DirAccess.dir_exists_absolute(to_dir):
+		#DirAccess.make_dir_recursive_absolute(to_dir)
+	#DirAccess.copy_absolute(from, to)
+	#
+	#var from_uid = from + ".uid"
+	#var to_uid = to + ".uid"
+	#if FileAccess.file_exists(from_uid) and uid_check.button_pressed and export_uid:
+		#DirAccess.copy_absolute(from_uid, to_uid)
+	#var from_import = from + ".import"
+	#var to_import = to + ".import"
+	#if FileAccess.file_exists(from_import) and import_check.button_pressed and export_uid:
+		#DirAccess.copy_absolute(from_import, to_import)
 
 
 func _export_remote_file(original_from, to, remote_file_data):
-	var remote_dir = remote_file_data.get("remote_dir", "")
+	var remote_dir = remote_file_data.get(RemoteData.dir, "")
 	if remote_dir == "":
 		remote_dir = to.get_base_dir()
-	var remote_class = remote_file_data.get("remote_class")
-	var remote_files = remote_file_data.get("remote_files")
+	var remote_class = remote_file_data.get(RemoteData.single_class)
+	var remote_files = remote_file_data.get(RemoteData.files, [])
+	var other_deps = remote_file_data.get(RemoteData.other_deps, [])
+	if remote_files != []:
+		if remote_class == null:
+			_export_file(original_from, to)
+			copy_deps.copy_remote_dependencies(true, original_from, to, to, remote_dir)
+		else: # allows for remote file to have preloads that will be copied to remote dir, will not be present in final file
+			for remote_file in remote_files:
+				var to_path = remote_dir.path_join(remote_file.get_file())
+				_export_file(remote_file, to_path)
+				copy_deps.copy_remote_dependencies(true, remote_file, to_path, to, remote_dir)
+	
 	if remote_class != null:
-		#var to_path = remote_dir.path_join(remote_class.get_file())
 		_export_file(remote_class, to, false)
 		CopyDeps.write_new_uid(to + ".uid")
 		copy_deps.copy_remote_dependencies(true, remote_class, to, to, remote_dir)
-	elif remote_files != null:
-		_export_file(original_from, to)
-		copy_deps.copy_remote_dependencies(true, original_from, to, to, remote_dir)
+	
+	if other_deps != []:
+		for dep in other_deps:
+			var dep_from = dep.get(RemoteData.from)
+			var dep_to = dep.get(RemoteData.to)
+			_export_file(dep_from, dep_to)
 
+func _update_file_export_flags(file_path):
+	if file_path.get_extension() == "gd":
+		var file_access = FileAccess.open(file_path, FileAccess.READ)
+		var file_lines = []
+		while not file_access.eof_reached():
+			var line = file_access.get_line()
+			if line.find("const PLUGIN_EXPORTED = false") > -1:
+				line = line.replace("const PLUGIN_EXPORTED = false", "const PLUGIN_EXPORTED = true")
+			file_lines.append(line)
+		
+		file_access = FileAccess.open(file_path, FileAccess.WRITE)
+		for line in file_lines:
+			file_access.store_line(line)
+	
 
-func _tree_remote_file_dependencies(last_item, export_path, remote_file_data, source, export_dir_path, all_remote_files):
+func _tree_remote_file_dependencies(last_item, last_item_path, export_path, remote_file_data, all_remote_files):
 	var remote_class = remote_file_data.get(RemoteData.single_class)
 	if remote_class != null:
-		_tree_remote_file_single_dependencies(last_item, export_path, remote_file_data, all_remote_files)
-		return
-	var remote_files = remote_file_data.get(RemoteData.files)
-	if remote_files != null:
-		_tree_remote_file_array_dependencies(last_item, export_path, remote_file_data, all_remote_files)
-		return
+		_tree_remote_file_single_dependencies(last_item, last_item_path, export_path, remote_file_data, all_remote_files)
 	
-	push_error("Remote file did not include any files: ")
-	push_error(remote_file_data)
+	var remote_files = remote_file_data.get(RemoteData.files, [])
+	if remote_files != []:
+		_tree_remote_file_array_dependencies(last_item, last_item_path, export_path, remote_file_data, all_remote_files)
+	
+	var other_deps = remote_file_data.get(RemoteData.other_deps, [])
+	if other_deps != []:
+		_tree_remote_other_deps(last_item, last_item_path, export_path, remote_file_data, all_remote_files)
+	
+	if remote_class == null and remote_files == []:
+		push_error("Remote file did not include any files: ")
+		push_error(remote_file_data)
 
-func _tree_remote_file_single_dependencies(last_item, export_path, remote_file_data, all_remote_files):
+func _tree_remote_file_single_dependencies(last_item, last_item_path, export_path, remote_file_data, all_remote_files):
 	var remote_class = remote_file_data.get(RemoteData.single_class)
 	var remote_dir = remote_file_data.get(RemoteData.dir)
 	if remote_dir == "":
@@ -641,18 +695,33 @@ func _tree_remote_file_single_dependencies(last_item, export_path, remote_file_d
 		var dependent = data.get(RemoteData.dependent)
 		_tree_remote_dependency_item(from, to, dependent)
 
-func _tree_remote_file_array_dependencies(last_item, export_path, remote_file_data, all_remote_files):
+func _tree_remote_other_deps(last_item, last_item_path, export_path, remote_file_data, all_remote_files):
+	var other_dep_array = remote_file_data.get(RemoteData.other_deps)
+	var remote_dir = remote_file_data.get(RemoteData.dir)
+	for other_dep in other_dep_array:
+		var from_path = other_dep.get("from")
+		var to_path = other_dep.get("to")
+		var file_data = file_data_dict.get(from_path)
+		var file_nm = from_path.get_file()
+		var remote_item = TreeHelper.new_file_path(to_path, export_root, file_data)
+		var remote_text = "%s (remote dependency: %s)" % [file_nm, export_path.get_file()]
+		remote_item.set_text(0, remote_text)
+		var remote_tool_tip = "Remote: %s\nDependent: %s" % [from_path, last_item_path]
+		remote_item.set_tooltip_text(0, remote_tool_tip)
+		
+
+func _tree_remote_file_array_dependencies(last_item, last_item_path, export_path, remote_file_data, all_remote_files):
 	var remote_file_array = remote_file_data.get(RemoteData.files)
 	var remote_dir = remote_file_data.get(RemoteData.dir)
+	print(remote_dir)
 	for remote_file in remote_file_array:
-		#print(remote_file)
 		var file_data = file_data_dict.get(remote_file)
 		var remote_file_nm = remote_file.get_file()
 		var remote_to_path = remote_dir.path_join(remote_file_nm)
 		var remote_item = TreeHelper.new_file_path(remote_to_path, export_root, file_data)
 		var remote_text = "%s (remote dependency: %s)" % [remote_file_nm, export_path.get_file()]
 		remote_item.set_text(0, remote_text)
-		var remote_tool_tip = "Remote: %s\nDependent: %s" % [remote_file, export_path]
+		var remote_tool_tip = "Remote: %s\nDependent: %s" % [remote_file, last_item_path]
 		remote_item.set_tooltip_text(0, remote_tool_tip)
 		
 		var dependencies = copy_deps.copy_remote_dependencies(false, remote_file, remote_file, export_path, remote_dir)
@@ -692,75 +761,11 @@ static func _write_zip_file(path:String, files):
 	return OK
 
 
-func _get_version(folder):
-	var addons_folder = "res://addons"
-	var target_folder = addons_folder.path_join(folder)
-	var plugin_cfg_path = target_folder.path_join("plugin.cfg")
-	if not FileAccess.file_exists(plugin_cfg_path):
-		plugin_cfg_path = target_folder.path_join("version.cfg")
-	if not FileAccess.file_exists(plugin_cfg_path):
-		USafeEditor.push_toast("Plugin or version file not present: " + plugin_cfg_path + ", Aborting.", 2)
-		return
-	var plugin_data = UConfig.load_config_data(plugin_cfg_path)
-	if not plugin_data:
-		USafeEditor.push_toast("Issue getting plugin data. Aborting.", 2)
-		return 
-	return plugin_data.get_value("plugin", "version", "No version")
 
-func replace_version(input_text: String) -> String:
-	var output_text = ""
-	var slice_count = input_text.get_slice_count("/")
-	var regex = RegEx.new()
-	var pattern = r"\{\{version=([^}]*)\}\}"
-	regex.compile(pattern)
-	for i in range(slice_count):
-		var slice = input_text.get_slice("/", i)
-		var edited_slice
-		if slice.find("{{version=") > -1:
-			var _match = regex.search(slice)
-			var version_target = _match.get_string(1)
-			var version = _get_version(version_target)
-			if version:
-				version = "-" + version
-				edited_slice = regex.sub(slice, version)
-			else:
-				edited_slice = regex.sub(slice, "{{version error}}")
-				return ""
-		elif slice.find("{{version}}") > -1:
-			var version_target = slice.replace("{{version}}", "")
-			var version = _get_version(version_target)
-			if version:
-				version = "-" + version
-				edited_slice = slice.replace("{{version}}", version)
-			else:
-				edited_slice = slice.replace("{{version}}", "{{version error}}")
-				return ""
-		else:
-			edited_slice = slice
-		if edited_slice != "":
-			output_text += edited_slice + "/"
-	
-	return output_text
-
-func _get_export_root():
-	var export_data = _get_export_data()
-	if not export_data:
-		return ""
-	var _export_root = export_data.get("export_root", "No root set.")
-	var plugin_folder = export_data.get("plugin_folder")
-	if plugin_folder:
-		_export_root = _export_root.path_join(plugin_folder)
-	_export_root = replace_version(_export_root)
-	if _export_root == "":
-		return ""
-	if _export_root.ends_with("/"):
-		_export_root = _export_root.trim_suffix("/")
-	if not _export_root.begins_with("/"):
-		_export_root = "/" + _export_root
-	return _export_root
 
 func _get_remote_file(path, source, export_dir_path):
 	var remote_files = []
+	var other_deps = []
 	var remote_file_data = {}
 	
 	if not path.get_extension() in TEXT_FILE_TYPES:
@@ -772,22 +777,50 @@ func _get_remote_file(path, source, export_dir_path):
 			return
 		var remote_dir = remote_dec_line.get_slice("#! remote", 1).strip_edges()
 		if remote_dir != "":
-			#remote_dir = path.get_base_dir()
 			remote_dir = remote_dir.replace(source, export_dir_path)
+		else:
+			remote_dir = path.get_base_dir().replace(source, export_dir_path)
 		
 		remote_file_data[RemoteData.dir] = remote_dir
+		
 		while not file_access.eof_reached():
 			var line = file_access.get_line()
 			if line.find('extends "') > -1:
 				var remote_file = line.replace("extends", "").replace('"',"").strip_edges()
 				remote_file_data[RemoteData.single_class] = remote_file
-				return remote_file_data
+				#return remote_file_data
 			elif line.find("preload(") > -1:
 				var preload_path = UtilsLocal.ParseBase.get_preload_path(line)
 				if preload_path != null:
 					remote_files.append(preload_path)
+			elif line.find("#! remote-dep") > -1 and line.count('"') == 2:
+				var dep_index = line.find("#! remote-dep")
+				var com_index = line.find("#")
+				if com_index < dep_index:
+					continue
+				var dep_path = line.get_slice('"', 1)
+				dep_path = dep_path.get_slice('"', 0)
+				var dep_dest = line.get_slice("#! remote-dep", 1).strip_edges()
+				if dep_dest == "":
+					dep_dest = remote_dir
+					if dep_dest == "":
+						dep_dest = "current"
+				
+				if dep_dest == "current":
+					dep_dest = path.get_base_dir().replace(source, export_dir_path)
+				else:
+					if remote_dir == "":
+						if dep_dest.find(source) == -1:
+							printerr("Dependency destination must be within 'source' folder: %s File: %s" % [dep_dest, dep_path])
+							continue
+						dep_dest = dep_dest.replace(source, export_dir_path)
+				
+				dep_dest = dep_dest.path_join(dep_path.get_file())
+				
+				other_deps.append({"from":dep_path, "to": dep_dest})
 		
 	remote_file_data[RemoteData.files] = remote_files
+	remote_file_data[RemoteData.other_deps] = other_deps
 	return remote_file_data
 
 

@@ -7,8 +7,8 @@ class Data:
 	const nest_in_module = false
 	const name = "Plugins/Plugin Exporter"
 	const use_name_path = true
-	const icons = ["ActionCopy"]
-	const scene_path = "uid://qmcc7q6ktkg" # scene that actually instantiates in browser
+	const icons = ["EditorPlugin", "ActionCopy"]
+	const scene_path = "res://addons/plugin_exporter/src/plugin_export.tscn" # scene that actually instantiates in browser
 	const ui_scene_path = keys.PanelTabData.NONE # ui scene for add panel window, can be none, used with interface
 	const interface_path = keys.PanelTabData.NONE # path to this file, used with ui scene, if not set, defaults to this path
 	const single_instance = SingleInstance.FALSE # if panel must be limited to 1 instance per 'instance' or global

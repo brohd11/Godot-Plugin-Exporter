@@ -112,6 +112,7 @@ theme_override_constants/margin_bottom = 0
 layout_mode = 2
 
 [node name="Control" type="Control" parent="MarginContainer/VBoxContainer"]
+visible = false
 custom_minimum_size = Vector2(0, 1)
 layout_mode = 2
 

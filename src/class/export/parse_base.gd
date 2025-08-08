@@ -28,6 +28,9 @@ static func _check_for_comment(line, check_array):
 
 
 static func get_preload_path(line):
+	if preload_regex == null:
+		preload_regex = UtilsRemote.URegex.get_preload_path()
+	
 	if _check_for_comment(line, "preload("):
 		return
 	var _match = preload_regex.search(line)
@@ -37,10 +40,11 @@ static func get_preload_path(line):
 		return file_path
 
 
-class RemoteData: #>class
+class RemoteData:
 	const dir = "remote_dir"
 	const single_class = "remote_class"
 	const files = "remote_files"
+	const other_deps = "other_deps"
 	const to = "to"
 	const from = "from"
 	const dependent = "dependent"

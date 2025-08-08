@@ -1,8 +1,6 @@
 extends RefCounted
 
 const UtilsRemote = preload("res://addons/plugin_exporter/src/class/utils_remote.gd")
-const USafeEditor = UtilsRemote.USafeEditor
-
 const UtilsLocal = preload("res://addons/plugin_exporter/src/class/utils_local.gd")
 
 const TEXT_FILE_TYPES = ["gd", "tscn", "tres"]
@@ -17,7 +15,7 @@ func _init() -> void:
 
 func copy_remote_dependencies(write:bool, remote_file:String, to:String, dependent:String, remote_dir:String="", processed_files={}):
 	if remote_file in processed_files: #TODO handle this for files with different names than remote, Think fs_rem vs filesystem case
-		USafeEditor.print_warn("Duplicate remote file: %s Dependent: %s" % [remote_file, dependent.get_file()])
+		#print("Duplicate remote file: %s Dependent: %s" % [remote_file, dependent.get_file()])
 		return []
 	processed_files[remote_file] = to
 	if remote_dir == "":
@@ -35,9 +33,12 @@ func copy_remote_dependencies(write:bool, remote_file:String, to:String, depende
 				var line = file_access.get_line()
 				if line.find("extends") > -1 and line.count('"') == 2:
 					var new_remote_file = line.get_slice("extends", 1)
-					remote_file = new_remote_file.strip_edges().trim_prefix('"').trim_suffix('"')
-					file_access = FileAccess.open(remote_file, FileAccess.READ)
-		
+					new_remote_file = new_remote_file.strip_edges().trim_prefix('"').trim_suffix('"')
+					if FileAccess.file_exists(new_remote_file):
+						remote_file = new_remote_file
+						file_access = FileAccess.open(remote_file, FileAccess.READ)
+	
+	
 	file_access.seek(0)
 	var ext = remote_file.get_extension()
 	var file_lines = []
