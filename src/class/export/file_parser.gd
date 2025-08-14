@@ -3,14 +3,24 @@ extends RefCounted
 const UtilsRemote = preload("res://addons/plugin_exporter/src/class/utils_remote.gd")
 const UtilsLocal = preload("res://addons/plugin_exporter/src/class/utils_local.gd")
 
-const TEXT_FILE_TYPES = ["gd", "tscn", "tres"]
+const TEXT_FILE_TYPES = ["gd", "tscn", "tres", "cs"]
 
 var parse_gd: UtilsLocal.ParseGD
 var parse_tscn: UtilsLocal.ParseTSCN
+var parse_cs: UtilsLocal.ParseCS
 
 func _init() -> void:
 	parse_gd = UtilsLocal.ParseGD.new()
 	parse_tscn = UtilsLocal.ParseTSCN.new()
+	parse_cs = UtilsLocal.ParseCS.new()
+
+func set_parser_settings(parser_settings):
+	var gd_settings = parser_settings.get("parse_gd", {})
+	parse_gd.set_parse_settings(gd_settings)
+	var tscn_settings = parser_settings.get("parse_tscn", {})
+	parse_tscn.set_parse_settings(tscn_settings)
+	var cs_settings = parser_settings.get("parse_cs", {})
+	parse_cs.set_parse_settings(cs_settings)
 
 
 func copy_remote_dependencies(write:bool, remote_file:String, to:String, dependent:String, remote_dir:String="", processed_files={}):
@@ -46,12 +56,15 @@ func copy_remote_dependencies(write:bool, remote_file:String, to:String, depende
 	if valid_text_file:
 		while not file_access.eof_reached():
 			var line = file_access.get_line()
-				
 			if ext == "gd":
-				parse_gd.edit_dep_file(line, to, remote_file, remote_dir, dependencies, file_lines)
+				line = parse_gd.edit_dep_file(line, to, remote_file, remote_dir, dependencies)
 			elif ext == "tscn":
-				parse_tscn.edit_dep_file(line, to, remote_file, remote_dir, dependencies, file_lines)
-			#_edit_dep_file(line, to, remote_file, remote_dir, dependencies, file_lines)
+				line = parse_tscn.edit_dep_file(line, to, remote_file, remote_dir, dependencies)
+			elif ext == "cs":
+				line = parse_cs.edit_dep_file(line, to, remote_file, remote_dir, dependencies)
+			
+			file_lines.append(line)
+	
 	
 	if write:
 		if not DirAccess.dir_exists_absolute(to.get_base_dir()):
@@ -85,6 +98,42 @@ func copy_remote_dependencies(write:bool, remote_file:String, to:String, depende
 		all_child_deps.append_array(child_deps)
 	
 	return all_child_deps
+
+func post_export_edit_file(file_path:String):
+	var ext = file_path.get_extension()
+	var file = FileAccess.open(file_path, FileAccess.READ_WRITE)
+	if not file:
+		printerr("Could not open file: %s" % file_path)
+		return
+	var file_lines = []
+	while not file.eof_reached():
+		var line = file.get_line()
+		if ext == "gd":
+			file_lines.append(parse_gd.post_export_edit_line(line))
+		elif ext == "tscn":
+			file_lines.append(parse_tscn.post_export_edit_line(line))
+		elif ext == "cs":
+			file_lines.append(parse_cs.post_export_edit_line(line))
+	
+	file.seek(0)
+	for line in file_lines:
+		file.store_line(line)
+	
+	file.close()
+
+func _update_file_export_flags(file_path):
+	var file_access = FileAccess.open(file_path, FileAccess.READ)
+	var file_lines = []
+	while not file_access.eof_reached():
+		var line = file_access.get_line()
+		if line.find("const PLUGIN_EXPORTED = false") > -1:
+			line = line.replace("const PLUGIN_EXPORTED = false", "const PLUGIN_EXPORTED = true")
+		file_lines.append(line)
+	
+	file_access = FileAccess.open(file_path, FileAccess.WRITE)
+	for line in file_lines:
+		file_access.store_line(line)
+
 
 static func write_new_uid(uid_path):
 	var id = ResourceUID.create_id()

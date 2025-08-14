@@ -1,7 +1,12 @@
 extends "res://addons/plugin_exporter/src/class/export/parse_base.gd"
 
+const PLUGIN_EXPORTED_STRING = "const PLUGIN_EXPORTED = false"
+const PLUGIN_EXPORTED_REPLACE = "const PLUGIN_EXPORTED = true"
 
-func edit_dep_file(line:String, to:String, remote_file:String, remote_dir:String, dependencies:Dictionary, file_lines:Array):
+func set_parse_settings(settings):
+	pass
+
+func edit_dep_file(line:String, to:String, remote_file:String, remote_dir:String, dependencies:Dictionary):
 	#if remote_file.get_file() == "parse_gd.gd":
 		#file_lines.append(line)
 		#return
@@ -10,8 +15,8 @@ func edit_dep_file(line:String, to:String, remote_file:String, remote_dir:String
 	
 	if line.find("extends") > -1 and line.count('"') == 2:
 		if _check_for_comment(line, ["extends", "class"]):
-			file_lines.append(line) 
-			return
+			#file_lines.append(line) 
+			return line
 		var _class
 		if line.find("class ") > -1:
 			_class = line.get_slice("class ", 1)
@@ -32,8 +37,8 @@ func edit_dep_file(line:String, to:String, remote_file:String, remote_dir:String
 	elif line.find("preload(") > -1 and line.count('"') == 2: #TODO make these regexs or somtehitng more robust.
 		var preload_path = get_preload_path(line)
 		if preload_path == null:
-			file_lines.append(line)
-			return
+			#file_lines.append(line)
+			return line
 		var file_name = preload_path.get_file()
 		var to_path = remote_dir.path_join(file_name)
 		var rel_path = UFile.get_relative_path(to, to_path)
@@ -64,4 +69,15 @@ func edit_dep_file(line:String, to:String, remote_file:String, remote_dir:String
 		line = line.replace("const PLUGIN_EXPORT_FLAT = false", "const PLUGIN_EXPORT_FLAT = true")
 	
 	# always append line before return
-	file_lines.append(line)
+	return line
+	#file_lines.append(line)
+
+func post_export_edit_line(line:String):
+	line = _update_file_export_flags(line)
+	return line
+
+
+func _update_file_export_flags(line:String):
+	if line.find(PLUGIN_EXPORTED_STRING) > -1:
+		line = line.replace(PLUGIN_EXPORTED_STRING, PLUGIN_EXPORTED_REPLACE)
+	return line

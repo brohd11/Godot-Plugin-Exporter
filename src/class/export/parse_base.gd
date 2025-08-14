@@ -3,15 +3,27 @@ extends RefCounted
 static var preload_regex:RegEx
 const UtilsRemote = preload("res://addons/plugin_exporter/src/class/utils_remote.gd") #>remote
 const UFile = UtilsRemote.UFile
+const ExportFileUtils = preload("res://addons/plugin_exporter/src/class/export/plugin_exporter_file_utils.gd")
+
+const RemoteData = ExportFileUtils.RemoteData
 
 func _init() -> void:
 	preload_regex = UtilsRemote.URegex.get_preload_path()
 
-func edit_dep_file(line:String, to:String, remote_file:String, remote_dir:String, dependencies:Dictionary, file_lines:Array):
-	file_lines.append(line)
+func set_parse_settings(settings) -> void:
+	pass
+
+func edit_dep_file(line:String, to:String, remote_file:String, remote_dir:String, dependencies:Dictionary) -> String:
+	return line
+
+func post_export_edit_line(line:String) -> String:
+	return line
+
+func _update_file_export_flags(line:String) -> String:
+	return line
 
 
-static func _check_for_comment(line, check_array):
+static func _check_for_comment(line, check_array) -> bool:
 	if check_array is String:
 		check_array = [check_array]
 	var comment_index = line.find("#")
@@ -38,13 +50,3 @@ static func get_preload_path(line):
 		var file_path = _match.get_string(2)
 		file_path = UFile.uid_to_path(file_path)
 		return file_path
-
-
-class RemoteData:
-	const dir = "remote_dir"
-	const single_class = "remote_class"
-	const files = "remote_files"
-	const other_deps = "other_deps"
-	const to = "to"
-	const from = "from"
-	const dependent = "dependent"

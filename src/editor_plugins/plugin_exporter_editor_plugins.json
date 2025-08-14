@@ -1,8 +1,0 @@
-{
-	"code_completion":[],
-	"context_menu":[
-		"res://addons/plugin_exporter/src/editor_plugins/plugin_exporter_context_menus.gd"
-	],
-	"inspector":[],
-	"syntax_highlighter":[]
-}

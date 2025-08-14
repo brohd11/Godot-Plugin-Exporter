@@ -1,5 +1,8 @@
 {
 	"res://addons/plugin_exporter/src/plugin_export.tscn": {
-		"current_dock": -1
+		"current_dock": -1.0
+	},
+	"res://addons/plugin_exporter/src/plugin_export_gui.tscn": {
+		"current_dock": -2
 	}
 }

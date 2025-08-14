@@ -1,6 +1,6 @@
 [gd_scene load_steps=12 format=3 uid="uid://qmcc7q6ktkg"]
 
-[ext_resource type="Script" uid="uid://nvpn4xiueq2y" path="res://addons/plugin_exporter/src/plugin_export.gd" id="1_o3a0h"]
+[ext_resource type="Script" uid="uid://nvpn4xiueq2y" path="res://addons/plugin_exporter/src/plugin_export_gui.gd" id="1_o3a0h"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_sp1lw"]
 content_margin_left = 4.0

@@ -1,7 +1,9 @@
 extends "res://addons/plugin_exporter/src/class/export/parse_base.gd"
 
+func set_parse_settings(settings) -> void:
+	pass
 
-func edit_dep_file(line:String, to:String, remote_file:String, remote_dir:String, dependencies:Dictionary, file_lines:Array):
+func edit_dep_file(line:String, to:String, remote_file:String, remote_dir:String, dependencies:Dictionary) -> String:
 	if line.find('[gd_scene') > -1:
 		var uid = line.get_slice(' uid="', 1)
 		uid = uid.get_slice('"', 0)
@@ -24,4 +26,5 @@ func edit_dep_file(line:String, to:String, remote_file:String, remote_dir:String
 		var rel_path = UFile.get_relative_path(to, to_path)
 		line = '[ext_resource type="%s" path="./%s" id="%s"]' % [type, rel_path, id]
 	
-	file_lines.append(line)
+	return line
+	#file_lines.append(line)

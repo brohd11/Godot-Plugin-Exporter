@@ -47,6 +47,15 @@
 		"overwrite": true,
 		"include_uid": true,
 		"include_import": true,
+		"parser_settings":{
+			"parse_cs":{
+				"namespace_rename":{
+					"MyNameSpace":"MyUniqueNameSpace - So namespaces don't clash if using the same library",
+					}
+				},
+			"parse_gd":{},
+			"parse_tscn":{}
+		}
 	},
 	"pre_script":"path to a script to run before export.",
 	"post_script":"path to a script to run after export."

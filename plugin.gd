@@ -1,15 +1,16 @@
 @tool
 extends EditorPlugin
 
+const PLUGIN_EXPORTED = false
+
 const UtilsRemote = preload("res://addons/plugin_exporter/src/class/utils_remote.gd")
 const DockManager = UtilsRemote.DockManager
 var dock_manager: DockManager
 
-const EditorPluginManager = preload("res://addons/plugin_exporter/src/class/remote/editor_plugin_manager.gd")
-const EDITOR_PLUGINS_PATH = "res://addons/plugin_exporter/src/editor_plugins/plugin_exporter_editor_plugins.json"
-var editor_plugin_manager: EditorPluginManager
+const CONTEXT_MENU_PLUGIN = preload("res://addons/plugin_exporter/src/editor_plugins/plugin_exporter_context_menus.gd")
+var context_plugin_inst:CONTEXT_MENU_PLUGIN
 
-const PLUGIN_EXPORT = preload("res://addons/plugin_exporter/src/plugin_export.tscn")
+const PLUGIN_EXPORT_GUI = preload("res://addons/plugin_exporter/src/plugin_export_gui.tscn")
 
 func _get_plugin_name() -> String:
 	return "Plugin Exporter"
@@ -19,14 +20,19 @@ func _has_main_screen() -> bool:
 	return true
 
 func _enter_tree() -> void:
-	editor_plugin_manager = EditorPluginManager.new(self, EDITOR_PLUGINS_PATH, true)
 	DockManager.hide_main_screen_button(self)
-	#if EditorInterface.is_plugin_enabled("modular_browser"):
-		#return
+	
+	context_plugin_inst = CONTEXT_MENU_PLUGIN.new()
+	add_context_menu_plugin(EditorContextMenuPlugin.CONTEXT_SLOT_SCRIPT_EDITOR_CODE, context_plugin_inst)
+	
+	if not PLUGIN_EXPORTED:
+		return
+	if EditorInterface.is_plugin_enabled("modular_browser"):
+		return
 	add_tool_menu_item("Plugin Exporter", _on_tool_menu_pressed)
 
 func _exit_tree() -> void:
-	editor_plugin_manager.remove_plugins()
+	remove_context_menu_plugin(context_plugin_inst)
 	remove_tool_menu_item("Plugin Exporter")
 	
 	if is_instance_valid(dock_manager):
@@ -36,4 +42,4 @@ func _on_tool_menu_pressed():
 	if is_instance_valid(dock_manager):
 		return
 	var can_be_freed = true
-	dock_manager = DockManager.new(self, PLUGIN_EXPORT, DockManager.Slot.BOTTOM_PANEL, can_be_freed)
+	dock_manager = DockManager.new(self, PLUGIN_EXPORT_GUI, DockManager.Slot.MAIN_SCREEN, can_be_freed)
