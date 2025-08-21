@@ -2,6 +2,7 @@
 const UtilsRemote = preload("res://addons/plugin_exporter/src/class/utils_remote.gd")
 const UtilsLocal = preload("res://addons/plugin_exporter/src/class/utils_local.gd")
 
+const ExportData = UtilsLocal.ExportData
 const FileParser = UtilsLocal.FileParser
 
 const UFile = UtilsRemote.UFile
@@ -25,15 +26,17 @@ static func get_export_data(export_config_path):
 		return
 	return json.data
 
-static func get_file_export_path(file_path:String, export_config_path:String, desired_export:int=-1):
+static func get_file_export_path(file_path:String, export_config_path:String, desired_export:int=-1, export_data:ExportData=null):
 	if not FileAccess.file_exists(file_path):
 		printerr("Plugin Exporter - File doesn't exist: %s" % file_path)
 		return
-	
-	var export_config_data = get_export_data(export_config_path)
-	if export_config_data == null:
+	if export_data == null:
+		export_data = ExportData.new(export_config_path)
+	if not export_data.data_valid:
+		printerr("Issue with export data.")
 		return
-	var exports = export_config_data.get(ExportFileKeys.exports, [])
+	
+	var exports = export_data.exports
 	if exports.size() > 1 and desired_export == -1:
 		USafeEditor.print_warn("Multiple exports, defaulting to first.")
 	if desired_export == -1:
@@ -42,52 +45,15 @@ static func get_file_export_path(file_path:String, export_config_path:String, de
 		printerr("Desired export index greater than exports in file.")
 		return
 	
-	var export_root = get_export_root(export_config_path)
-	
-	var export_data = exports[desired_export]
-	var export_folder = export_data.get(ExportFileKeys.export_folder)
-	export_folder = replace_version(export_folder, export_config_path)
-	var export_dir_path = export_root.path_join(export_folder)
-	var other_transfers = export_data.get(ExportFileKeys.other_transfers, [])
-	for transfer_data in other_transfers:
-		var from = transfer_data.get(ExportFileKeys.from)
-		if DirAccess.dir_exists_absolute(from):
-			if not UFile.is_file_in_directory(file_path, from):
-				continue
-			var to_path = transfer_data.get(ExportFileKeys.to)
-			var file_export_path = export_dir_path.path_join(to_path).path_join(file_path.get_file())
-			return file_export_path
-		else:
-			if not file_path == from:
-				continue
-			var to_path = transfer_data.get(ExportFileKeys.to)
-			var file_export_path = export_dir_path.path_join(to_path)
-			return file_export_path
-	
-	var exclude = export_data.get(ExportFileKeys.exclude, {})
-	var exclude_dirs = exclude.get(ExportFileKeys.directories, [])
-	for dir in exclude_dirs:
-		if UFile.is_file_in_directory(file_path, dir):
-			USafeEditor.print_warn("File dir is excluded from export.")
-			return
-	var exclude_files = export_data.get(ExportFileKeys.files, [])
-	for file in exclude_files:
-		if file == file_path:
-			USafeEditor.print_warn("File is excluded from export.")
-			return
-	var exclude_extensions = export_data.get(ExportFileKeys.file_extensions, [])
-	for ext in exclude_extensions:
-		if file_path.get_extension() == ext:
-			USafeEditor.print_warn("File extension is excluded from export.")
-			return
-	
-	var source = export_data.get(ExportFileKeys.source)
-	if not UFile.is_file_in_directory(file_path, source):
-		USafeEditor.print_warn("File not found in export source folder.")
+	var export = exports[desired_export] as ExportData.Export
+	var local_path = ProjectSettings.localize_path(file_path)
+	if local_path not in export.valid_files_for_transfer.keys():
+		USafeEditor.print_warn("File path not a valid export: %s" % file_path)
 		return
-	
-	var file_export_path = file_path.replace(source, export_dir_path)
-	return file_export_path
+	else:
+		var export_file_data = export.valid_files_for_transfer.get(local_path)
+		var export_path = export_file_data.get(ExportFileKeys.to)
+		return export_path
 
 
 static func get_version(folder, export_config_file):
@@ -148,29 +114,21 @@ static func replace_version(input_text: String, export_config_file) -> String:
 	return output_text
 
 
-static func get_export_root(export_config_path):
-	var export_data = get_export_data(export_config_path)
-	if not export_data:
+static func get_full_export_path(export_root, plugin_folder, export_config_path):
+	export_root = ProjectSettings.globalize_path(export_root)
+	var full_export_path = export_root.path_join(plugin_folder)
+	full_export_path = replace_version(full_export_path, export_config_path)
+	if full_export_path == "":
 		return ""
-	var _export_root = export_data.get(ExportFileKeys.export_root, "No root set.")
-	var plugin_folder = export_data.get(ExportFileKeys.plugin_folder)
-	if plugin_folder:
-		_export_root = _export_root.path_join(plugin_folder)
-	_export_root = replace_version(_export_root, export_config_path)
-	if _export_root == "":
-		return ""
-	#if _export_root.ends_with("/"):
-		#_export_root = _export_root.trim_suffix("/")
-	if not _export_root.ends_with("/"):
-		_export_root = _export_root + "/"
+	if not full_export_path.ends_with("/"):
+		full_export_path = full_export_path + "/"
 	
 	var os_name = OS.get_name()
 	if os_name == "Linux" or os_name == "macOS": # not sure about mac
-		if not _export_root.begins_with("/"):
-			_export_root = "/" + _export_root
+		if not full_export_path.begins_with("/"):
+			full_export_path = "/" + full_export_path
 	
-	return _export_root
-
+	return full_export_path
 
 
 static func run_export_script(script_path, func_name):
@@ -199,22 +157,19 @@ static func _run_export_script(script_path, func_name):
 	script_ins.queue_free()
 
 
-
-
-static func check_ignore(local_path, directories, file_extensions, files):
-	for d in directories:
+static func check_ignore(local_path, export_obj:ExportData.Export):
+	for d in export_obj.exclude_directories:
 		if local_path.find(d) > -1:
 			return true
 	var file_ext = local_path.get_extension()
-	for ext in file_extensions:
+	for ext in export_obj.exclude_file_extensions:
 		if ext == file_ext:
 			return true
-	for f in files:
+	for f in export_obj.exclude_files:
 		if f == local_path:
 			return true
 	
 	return false
-
 
 
 static func export_file(from, to, export_uid_file, export_import_file):
@@ -260,19 +215,68 @@ static func export_remote_file(original_from, to, remote_file_data, include_uid,
 			var dep_to = dep.get(RemoteData.to)
 			export_file(dep_from, dep_to, include_uid, include_import)
 
-static func get_remote_file(path, source, export_dir_path):
-	var remote_files = []
-	var other_deps = []
-	var remote_file_data = {}
+static func pre_export_file_parse(export_obj:ExportData.Export):
+	_get_used_global_classes(export_obj)
+	export_obj.other_transfers_data = get_other_transfer_data(export_obj)
+	export_obj.all_remote_files = _get_all_remote_files(export_obj)
+
+static func _get_used_global_classes(export_obj:ExportData.Export):
+	for file in export_obj.source_files:
+		_scan_file_for_global_class(file, export_obj)
+	
+	for to_path in export_obj.other_transfers_data.keys():
+		var file_data = export_obj.other_transfers_data.get(to_path)
+		var from_files = file_data.get(ExportFileKeys.from_files, [])
+		for file in from_files:
+			_scan_file_for_global_class(file, export_obj)
+	
+
+static func _scan_file_for_global_class(file_path:String, export_obj:ExportData.Export):
+	var file_access = FileAccess.open(file_path, FileAccess.READ)
+	var class_names = export_obj.export_data.class_list.keys()
+	
+	while not file_access.eof_reached():
+		var line = file_access.get_line()
+		var tokens = Tokenizer.words_only(line)
+		for tok:String in tokens:
+			if tok in class_names:
+				var path = export_obj.export_data.class_list.get(tok)
+				if not path in export_obj.global_classes.keys():
+					export_obj.global_classes[tok] = path
+
+
+static func get_remote_file(path, export_obj:ExportData.Export):
 	
 	if not path.get_extension() in FileParser.TEXT_FILE_TYPES:
 		return
 	var file_access = FileAccess.open(path, FileAccess.READ)
 	if file_access:
 		var remote_dec_line = file_access.get_line()
+		file_access.close()
 		if remote_dec_line.find("#! remote") == -1:
-			return
+			return _get_global_remote_files(path, export_obj)
+		else:
+			return _get_declared_remote_file(path, export_obj)
+	
+
+static func _get_declared_remote_file(path, export_obj:ExportData.Export):
+	var source = export_obj.source
+	var export_dir_path = export_obj.export_dir_path
+	var remote_files = []
+	var other_deps = []
+	var remote_file_data = {}
+	
+	if not path.get_extension() in FileParser.TEXT_FILE_TYPES:
+		return
+		
+	var file_access = FileAccess.open(path, FileAccess.READ)
+	if file_access:
+		var remote_dec_line = file_access.get_line()
+		if remote_dec_line.find("#! remote") == -1:
+			return _get_global_remote_files(path, export_obj)
 		var remote_dir = remote_dec_line.get_slice("#! remote", 1).strip_edges()
+		if remote_dir == "":
+			remote_dir = export_obj.remote_dir
 		if remote_dir != "":
 			remote_dir = remote_dir.replace(source, export_dir_path)
 		else:
@@ -320,13 +324,60 @@ static func get_remote_file(path, source, export_dir_path):
 	remote_file_data[RemoteData.other_deps] = other_deps
 	return remote_file_data
 
-static func get_all_remote_files(source_files, source, export_dir_path, all_remote_files=null):
+static func _get_global_remote_files(path, export_obj:ExportData.Export):
+	var file_access = FileAccess.open(path, FileAccess.READ)
+	var is_global_class:= false
+	if not file_access:
+		return
+	while not file_access.eof_reached():
+		var line = file_access.get_line()
+		if line.find("class_name ") > -1:
+			var class_nm = line.get_slice("class_name ", 1).strip_edges()
+			if class_nm in export_obj.export_data.class_list.keys():
+				is_global_class = true
+				break
+	
+	if not is_global_class:
+		return
+	if UFile.is_file_in_directory(path, export_obj.source):
+		return # not remote file, don't need to get deps
+	
+	var remote_file_data = {}
+	var r_dir = export_obj.remote_dir.replace(export_obj.source, export_obj.export_dir_path)
+	remote_file_data[RemoteData.dir] = r_dir
+	remote_file_data[RemoteData.single_class] = path
+	var remote_files = []
+	file_access.seek(0)
+	
+	return remote_file_data
+
+
+static func _get_all_remote_files(export_obj:ExportData.Export):
+	var source_files = export_obj.source_files
+	var source = export_obj.source
+	var export_dir_path = export_obj.export_dir_path
+	var all_remote_files = export_obj.all_remote_files
+	
 	if all_remote_files == null:
 		all_remote_files = []
+	
 	for file in source_files:
 		var local_path = ProjectSettings.localize_path(file)
-		var remote_files = get_remote_file(local_path, source, export_dir_path)
+		var remote_files = get_remote_file(local_path, export_obj)
 		_add_remote_files_to_array(remote_files, all_remote_files)
+	
+	for to_path in export_obj.other_transfers_data.keys():
+		var file_data = export_obj.other_transfers_data.get(to_path)
+		var from_files = file_data.get(ExportFileKeys.from_files, [])
+		for from in from_files:
+			var remote_files = get_remote_file(from, export_obj)
+			_add_remote_files_to_array(remote_files, all_remote_files)
+	
+	## I think redundant, global classes are already remote, unless in source, which is checked
+	#for class_nm in export_obj.global_classes.keys():
+		#var file_path = export_obj.global_classes.get(class_nm)
+		#var remote_files = get_remote_file(file_path, export_obj)
+		#_add_remote_files_to_array(remote_files, all_remote_files)
 	
 	return all_remote_files
 
@@ -343,13 +394,21 @@ static func _add_remote_files_to_array(remote_file_data, all_remote_files):
 			if not remote_file in all_remote_files:
 				all_remote_files.append(remote_file)
 
-static func get_other_transfer_data(other_transfers_array, source, export_dir_path, all_remote_files):
+static func get_other_transfer_data(export_obj:ExportData.Export):
+	var other_transfers_array = export_obj.other_transfers
+	var source = export_obj.source
+	var export_dir_path = export_obj.export_dir_path
+	var all_remote_files = export_obj.all_remote_files
+
 	var other_transfer_data = {}
 	for other in other_transfers_array:
 		var to:String = other.get(ExportFileKeys.to)
 		if not to.begins_with(export_dir_path):
 			to = export_dir_path.path_join(to)
 		var from_files = other.get(ExportFileKeys.from)
+		if from_files == null:
+			if to.get_file() == ".gdignore":
+				from_files = UtilsLocal.DUMMY_GDIGNORE_FILE
 		var single_from = false
 		if from_files is String:
 			if FileAccess.file_exists(from_files):
@@ -378,22 +437,18 @@ static func get_other_transfer_data(other_transfers_array, source, export_dir_pa
 			printerr("Issues with other transfers, destination: %s" % to)
 			return
 		
-		for from in from_files:
-			var remote_files = get_remote_file(from, source, export_dir_path)
-			_add_remote_files_to_array(remote_files, all_remote_files)
-		
-		
 		if to in other_transfer_data.keys():
 			var to_data = other_transfer_data[to]
-			var single = to_data.get("single")
+			var single = to_data.get(ExportFileKeys.single)
 			if single:
 				printerr("Error with other transfers file, exporting multiple files to single file: %s" % to)
 				return
-			to_data["from_files"].append_array(from_files)
+			to_data[ExportFileKeys.from_files].append_array(from_files)
 		else:
-			other_transfer_data[to] = {"from_files":from_files, "single":single_from}
+			other_transfer_data[to] = {ExportFileKeys.from_files:from_files, ExportFileKeys.single:single_from}
 	
 	return other_transfer_data
+
 
 static func write_zip_file(path:String, files):
 	var zip = ZIPPacker.new()
@@ -440,6 +495,8 @@ class ExportFileKeys:
 	const other_transfers = "other_transfers"
 	const from = "from"
 	const to = "to"
+	const from_files = "from_files"
+	const single = "single"
 	
 	const options = "options"
 	const include_import = "include_import"

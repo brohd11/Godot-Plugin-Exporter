@@ -1,11 +1,15 @@
 extends RefCounted
 
 static var preload_regex:RegEx
+const UtilsLocal = preload("res://addons/plugin_exporter/src/class/utils_local.gd")
 const UtilsRemote = preload("res://addons/plugin_exporter/src/class/utils_remote.gd") #>remote
 const UFile = UtilsRemote.UFile
-const ExportFileUtils = preload("res://addons/plugin_exporter/src/class/export/plugin_exporter_file_utils.gd")
+const ExportFileUtils = UtilsLocal.ExportFileUtils
+const ExportFileKeys = ExportFileUtils.ExportFileKeys
 
 const RemoteData = ExportFileUtils.RemoteData
+
+var export_obj: UtilsLocal.ExportData.Export
 
 func _init() -> void:
 	preload_regex = UtilsRemote.URegex.get_preload_path()
@@ -18,6 +22,9 @@ func edit_dep_file(line:String, to:String, remote_file:String, remote_dir:String
 
 func post_export_edit_line(line:String) -> String:
 	return line
+
+func post_export_edit_file(file_path:String) -> Variant:
+	return
 
 func _update_file_export_flags(line:String) -> String:
 	return line

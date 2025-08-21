@@ -2,7 +2,8 @@ extends EditorContextMenuPlugin
 
 const SLOT = EditorContextMenuPlugin.CONTEXT_SLOT_SCRIPT_EDITOR_CODE
 
-const PopupWrapper = preload("res://addons/addon_lib/brohd/popup_wrapper/popup_wrapper.gd")
+const UtilsRemote = preload("res://addons/plugin_exporter/src/class/utils_remote.gd")
+const PopupWrapper = UtilsRemote.PopupWrapper
 
 const DEPENDENCY_TAGS = ["#! remote-dep", "#! dependency"]
 

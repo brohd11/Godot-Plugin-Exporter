@@ -1,5 +1,5 @@
 {
-	"export_root": "/home/brohd/Godot/PluginExport",
+	"export_root": "res://addons/plugin_exporter/export_ignore/exports/",
 	"exports": [
 		{
 			"exclude": {
@@ -9,15 +9,25 @@
 				"file_extensions": [],
 				"files": []
 			},
+			"remote_dir":"res://addons/plugin_exporter/src/class/remote/",
 			"export_folder": "plugin-exporter{{version=plugin_exporter}}/plugin_exporter",
-			"other_transfers": [],
+			"other_transfers": [
+				{"to":"modular_browser/.gdignore"}
+			],
 			"source": "res://addons/plugin_exporter/"
 		}
 	],
 	"options": {
 		"include_import": true,
 		"include_uid": true,
-		"overwrite": true
+		"overwrite": true,
+		"parser_settings":{
+			"parse_cs":{},
+			"parse_gd":{"class_rename_ignore":[
+				"PluginExporter"
+			]},
+			"parse_tscn":{}
+		}
 	},
 	"plugin_folder": "PluginExporter/PluginExporter{{version=plugin_exporter}}",
 	"post_script": "res://addons/plugin_exporter/export_ignore/pre_post_export.gd",

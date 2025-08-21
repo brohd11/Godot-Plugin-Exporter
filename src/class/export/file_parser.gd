@@ -3,7 +3,7 @@ extends RefCounted
 const UtilsRemote = preload("res://addons/plugin_exporter/src/class/utils_remote.gd")
 const UtilsLocal = preload("res://addons/plugin_exporter/src/class/utils_local.gd")
 
-const TEXT_FILE_TYPES = ["gd", "tscn", "tres", "cs"]
+const TEXT_FILE_TYPES = ["gd", "tscn", "cs"] # TODO add tres support
 
 var parse_gd: UtilsLocal.ParseGD
 var parse_tscn: UtilsLocal.ParseTSCN
@@ -33,7 +33,7 @@ func copy_remote_dependencies(write:bool, remote_file:String, to:String, depende
 	var valid_text_file = remote_file.get_extension() in TEXT_FILE_TYPES
 	var file_access = FileAccess.open(remote_file, FileAccess.READ)
 	if not file_access:
-		print("Couldn't open file: %s" % remote_file)
+		print("Couldn't open file: '%s' from: '%s', to: %s" % [remote_file, dependent, to])
 		return []
 	
 	if valid_text_file:
@@ -47,6 +47,7 @@ func copy_remote_dependencies(write:bool, remote_file:String, to:String, depende
 					if FileAccess.file_exists(new_remote_file):
 						remote_file = new_remote_file
 						file_access = FileAccess.open(remote_file, FileAccess.READ)
+						#break
 	
 	
 	file_access.seek(0)
@@ -101,25 +102,50 @@ func copy_remote_dependencies(write:bool, remote_file:String, to:String, depende
 
 func post_export_edit_file(file_path:String):
 	var ext = file_path.get_extension()
-	var file = FileAccess.open(file_path, FileAccess.READ_WRITE)
+	var file = FileAccess.open(file_path, FileAccess.READ)
 	if not file:
 		printerr("Could not open file: %s" % file_path)
 		return
 	var file_lines = []
 	while not file.eof_reached():
-		var line = file.get_line()
-		if ext == "gd":
-			file_lines.append(parse_gd.post_export_edit_line(line))
-		elif ext == "tscn":
-			file_lines.append(parse_tscn.post_export_edit_line(line))
-		elif ext == "cs":
-			file_lines.append(parse_cs.post_export_edit_line(line))
-	
-	file.seek(0)
-	for line in file_lines:
-		file.store_line(line)
+		file_lines.append(file.get_line())
+		#var line = file.get_line()
+		#if ext == "gd":
+			#file_lines.append(parse_gd.post_export_edit_line(line))
+		#elif ext == "tscn":
+			#file_lines.append(parse_tscn.post_export_edit_line(line))
+		#elif ext == "cs":
+			#file_lines.append(parse_cs.post_export_edit_line(line))
 	
 	file.close()
+	
+	var file_lines_edited
+	if ext == "gd":
+		file_lines_edited = parse_gd.post_export_edit_file(file_path)
+	elif ext == "tscn":
+		file_lines_edited = parse_tscn.post_export_edit_file(file_path)
+	elif ext == "cs":
+		file_lines_edited = parse_cs.post_export_edit_file(file_path)
+	if file_lines_edited != null:
+		file_lines = file_lines_edited
+	
+	
+	var final_file_lines = []
+	for line in file_lines:
+		if ext == "gd":
+			final_file_lines.append(parse_gd.post_export_edit_line(line))
+		elif ext == "tscn":
+			final_file_lines.append(parse_tscn.post_export_edit_line(line))
+		elif ext == "cs":
+			final_file_lines.append(parse_cs.post_export_edit_line(line))
+		
+	
+	
+	var write_file_access = FileAccess.open(file_path, FileAccess.WRITE)
+	for line in final_file_lines:
+		write_file_access.store_line(line)
+	
+	write_file_access.close()
 
 func _update_file_export_flags(file_path):
 	var file_access = FileAccess.open(file_path, FileAccess.READ)

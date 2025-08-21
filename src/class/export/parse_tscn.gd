@@ -21,7 +21,7 @@ func edit_dep_file(line:String, to:String, remote_file:String, remote_dir:String
 		
 		var file_name = path.get_file()
 		var to_path = remote_dir.path_join(file_name)
-		var depen_data = {"from": path, "to": to_path, RemoteData.dependent: remote_file}
+		var depen_data = {RemoteData.from: path, RemoteData.to: to_path, RemoteData.dependent: remote_file}
 		dependencies[file_name] = depen_data
 		var rel_path = UFile.get_relative_path(to, to_path)
 		line = '[ext_resource type="%s" path="./%s" id="%s"]' % [type, rel_path, id]
