@@ -93,12 +93,3 @@ static func get_editor_node_by_path(node_path):
 
 
 
-
-
-
-
-
-
-
-
-

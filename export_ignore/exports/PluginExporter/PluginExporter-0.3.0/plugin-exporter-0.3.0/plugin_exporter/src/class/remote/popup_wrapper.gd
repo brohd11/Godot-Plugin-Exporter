@@ -54,7 +54,6 @@ static func popup_wrapper(new_popup:PopupMenu, popup_to_copy:PopupMenu, wrapper_
 	new_popup.id_pressed.connect(wrapper_params.fs_popup_callable.bind(new_popup, popup_to_copy))
 
 
-
 static func _copy_popup(new_popup:PopupMenu, popup_to_copy:PopupMenu, wrapper_params:WrapperParams):
 	var callable = wrapper_params.fs_popup_callable
 	var items_to_skip = wrapper_params.items_to_skip
@@ -72,6 +71,7 @@ static func _copy_popup(new_popup:PopupMenu, popup_to_copy:PopupMenu, wrapper_pa
 		
 		var id = popup_to_copy.get_item_id(i)
 		var text = popup_to_copy.get_item_text(i)
+		
 		if text in items_to_skip:
 			continue
 		new_popup_count += 1
@@ -114,8 +114,9 @@ static func _scan_popup_for_custom_items(popup_to_copy:PopupMenu, custom_item_da
 		var path = text
 		var submenu = popup_to_copy.get_item_submenu_node(i)
 		if is_instance_valid(submenu):
-			custom_item_data[path] = {}
-			custom_item_data[path]["submenu"] = true
+			if id >= custom_item_start_id: # don't want to ignore standard submenus
+				custom_item_data[path] = {}
+				custom_item_data[path]["submenu"] = true
 			var icon = popup_to_copy.get_item_icon(i)
 			var submenu_data = {
 				"popup_path": path,
@@ -312,15 +313,6 @@ static func sort_custom_context_items(all_custom_items, pre_dict, post_dict):
 		var item_path = post_priority_dict[key]
 		post_dict[item_path] = all_custom_items[item_path]
 	
-
-
-
-
-
-
-
-
-
 
 
 

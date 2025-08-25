@@ -23,12 +23,3 @@ static func set_menu_button_to_editor_theme(menu_button:MenuButton):
 
 
 
-
-
-
-
-
-
-
-
-

@@ -1,4 +1,3 @@
-class_name PluginExporter
 extends RefCounted
 
 const UtilsRemote = preload("res://addons/plugin_exporter/src/class/utils_remote.gd") #>remote
@@ -20,7 +19,7 @@ static func export_by_name(plugin_dir_name):
 		return
 	export_plugin(export_config_path)
 
-static func export_plugin(export_config_path, include_uid_overide=null, include_import_overide=null):
+static func export_plugin(export_config_path:String, include_uid_overide=null, include_import_overide=null):
 	var export_data = ExportData.new(export_config_path)
 	if not export_data.data_valid:
 		return
@@ -136,11 +135,15 @@ static func update_git_submodule_details(export_config_path, export_data:ExportD
 		if single_export_git_file_lines.size() == 0:
 			git_details_file_lines.append("\tNo git modules.")
 	
-	var first_export = export_data.exports[0] as ExportData.Export
-	var file_path = first_export.source.path_join(".export_git_details")
-	var file = FileAccess.open(file_path, FileAccess.WRITE)
-	for line in git_details_file_lines:
-		file.store_line(line)
+	for export in export_data.exports:
+		#var first_export = export_data.exports[0] as ExportData.Export
+		var file_path = export.export_dir_path.path_join(".export_git_details")
+		if not DirAccess.dir_exists_absolute(file_path.get_base_dir()):
+			DirAccess.make_dir_recursive_absolute(file_path.get_base_dir())
+		
+		var file = FileAccess.open(file_path, FileAccess.WRITE)
+		for line in git_details_file_lines:
+			file.store_line(line)
 
 static func _get_git_data(dir, git_file_lines, repo_type="Submodule"):
 	var global_dir = ProjectSettings.globalize_path(dir)

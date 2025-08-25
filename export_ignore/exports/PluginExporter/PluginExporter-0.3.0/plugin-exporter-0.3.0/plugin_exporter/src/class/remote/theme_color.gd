@@ -26,12 +26,3 @@ static func get_theme_color(color_type=Type.BASE):
 
 
 
-
-
-
-
-
-
-
-
-

@@ -22,6 +22,41 @@ func set_parser_settings(parser_settings):
 	var cs_settings = parser_settings.get("parse_cs", {})
 	parse_cs.set_parse_settings(cs_settings)
 
+func get_dependencies(file_path:String, all_dependencies:Dictionary, scanned_files:Dictionary):
+	var files_to_scan = [file_path]
+	while not files_to_scan.is_empty():
+		var current_file_path = files_to_scan.pop_front()
+		
+		if scanned_files.has(current_file_path):
+			continue
+		scanned_files[current_file_path] = true
+		
+		var file_deps = {}
+		var ext = current_file_path.get_extension()
+		if ext == "gd":
+			file_deps = parse_gd.get_direct_dependencies(current_file_path)
+		elif ext == "cs":
+			file_deps = parse_cs.get_direct_dependencies(current_file_path)
+		elif ext == "tscn":
+			file_deps = parse_tscn.get_direct_dependencies(current_file_path)
+		else:
+			continue
+		
+		for _name in file_deps:
+			var path = file_deps.get(_name)
+			if _name in all_dependencies and all_dependencies[_name] != path:
+				printerr("WARNING: Filename collision detected for '%s'." % _name)
+				printerr("  Source 1: %s" % all_dependencies[_name])
+				printerr("  Source 2: %s" % path)
+				printerr("  The second file will overwrite the first in the destination directory.")
+			
+			if not parse_gd.export_obj.dependencies_data.has(path):
+				parse_gd.export_obj.dependencies_data[path] = current_file_path
+			all_dependencies[_name] = path
+			if not scanned_files.has(path):
+				files_to_scan.push_back(path)
+			
+	
 
 func copy_remote_dependencies(write:bool, remote_file:String, to:String, dependent:String, remote_dir:String="", processed_files={}):
 	if remote_file in processed_files: #TODO handle this for files with different names than remote, Think fs_rem vs filesystem case

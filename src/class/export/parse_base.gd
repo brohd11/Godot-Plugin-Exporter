@@ -17,6 +17,10 @@ func _init() -> void:
 func set_parse_settings(settings) -> void:
 	pass
 
+func get_direct_dependencies(file_path:String) -> Dictionary:
+	var direct_dependencies = {}
+	return direct_dependencies
+
 func edit_dep_file(line:String, to:String, remote_file:String, remote_dir:String, dependencies:Dictionary) -> String:
 	return line
 

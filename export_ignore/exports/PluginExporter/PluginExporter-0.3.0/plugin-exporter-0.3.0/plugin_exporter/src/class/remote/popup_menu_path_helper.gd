@@ -363,12 +363,3 @@ static func _get_icon(icon_name:String, theme_type:String="EditorIcons"):
 
 
 
-
-
-
-
-
-
-
-
-

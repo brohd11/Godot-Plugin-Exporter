@@ -9,6 +9,7 @@ const _ExportFileKeys = _ExportFileUtils.ExportFileKeys
 
 const _USafeEditor = _UtilsRemote.USafeEditor
 
+var class_list_array = []
 var class_list = {}
 var class_rename_ignore = []
 var class_renames = {}
@@ -164,6 +165,8 @@ func _get_class_list():
 		var _class_name = class_dict.get("class")
 		var path = class_dict.get("path")
 		class_list[String(_class_name)] = path
+		if _class_name not in class_list_array:
+			class_list_array.append(_class_name)
 		if _class_name not in class_rename_ignore:
 			class_renames[_class_name] = ""
 

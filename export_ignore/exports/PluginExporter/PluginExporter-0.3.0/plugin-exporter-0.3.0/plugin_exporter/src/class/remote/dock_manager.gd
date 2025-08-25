@@ -16,7 +16,10 @@ var plugin:EditorPlugin
 var plugin_control:Control
 var dock_button:Button
 var default_dock:int
+var last_dock:int
 var can_be_freed:bool
+
+var _default_window_size:= Vector2i(1200,800)
 
 enum Slot{
 	FLOATING,
@@ -50,7 +53,8 @@ signal free_requested(dock_manager)
 static func hide_main_screen_button(_plugin):
 	_MainScreenHandlerClass.hide_main_screen_button(_plugin)
 
-func _init(_plugin:EditorPlugin, _control, _dock:Slot=Slot.BOTTOM_PANEL, _can_be_freed:=false, _main_screen_handler=null) -> void:
+func _init(_plugin:EditorPlugin, _control, _dock:Slot=Slot.BOTTOM_PANEL, 
+_can_be_freed:=false, _main_screen_handler=null, add_to_tree:=true) -> void:
 	plugin = _plugin
 	if _control is Control:
 		plugin_control = _control
@@ -58,15 +62,17 @@ func _init(_plugin:EditorPlugin, _control, _dock:Slot=Slot.BOTTOM_PANEL, _can_be
 		plugin_control = _control.instantiate()
 	
 	default_dock = _slot.get(_dock)
+	last_dock = default_dock
 	can_be_freed = _can_be_freed
 	
 	if _main_screen_handler != null:
 		MainScreenHandler = _main_screen_handler
 		external_main_screen_flag = true
 	
-	_init_async()
+	if add_to_tree:
+		post_init()
 
-func _init_async():
+func post_init():
 	plugin.add_child(plugin_control)
 	await plugin.get_tree().process_frame
 	plugin.remove_child(plugin_control)
@@ -91,6 +97,9 @@ func _init_async():
 	else:
 		undock_instance()
 
+func set_default_window_size(size:Vector2i):
+	_default_window_size = size
+
 func _ready() -> void:
 	plugin.add_child(self)
 
@@ -107,6 +116,9 @@ func clean_up():
 func free_instance():
 	clean_up()
 
+func get_plugin_control():
+	return plugin_control
+
 func load_layout_data():
 	if not FileAccess.file_exists(_get_layout_file_path()):
 		var dir = _get_layout_file_path().get_base_dir()
@@ -122,8 +134,8 @@ func save_layout_data():
 	if not is_instance_valid(plugin_control):
 		return
 	var current_dock = _get_current_dock()
-	if current_dock == -3:
-		return
+	#if current_dock == -3:
+		#return
 	var data = {}
 	if FileAccess.file_exists(_get_layout_file_path()):
 		data = UFile.read_from_json(_get_layout_file_path())
@@ -162,6 +174,8 @@ func _on_dock_button_pressed():
 		undock_instance()
 	else:
 		dock_instance(handled)
+	
+	save_layout_data()
 
 func dock_instance(target_dock:int):
 	var window = plugin_control.get_window()
@@ -179,12 +193,11 @@ func dock_instance(target_dock:int):
 	if is_instance_valid(window):
 		if window is PanelWindow:
 			window.queue_free()
-	
-	save_layout_data()
+
 
 func undock_instance():
 	_remove_control_from_parent()
-	var window = PanelWindow.new(plugin_control)
+	var window = PanelWindow.new(plugin_control, true, _default_window_size)
 	window.close_requested.connect(window_close_requested)
 	#window.mouse_entered.connect(_on_window_mouse_entered.bind(window))
 	#window.mouse_exited.connect(_on_window_mouse_exited)
@@ -194,6 +207,8 @@ func undock_instance():
 func _remove_control_from_parent():
 	var window = plugin_control.get_window()
 	var current_dock = _get_current_dock()
+	if current_dock != null:
+		last_dock = current_dock
 	var control_parent = plugin_control.get_parent()
 	if is_instance_valid(control_parent):
 		if current_dock > -1:
@@ -220,9 +235,7 @@ func _get_current_dock():
 		return Docks.get_current_dock(plugin_control)
 
 func window_close_requested() -> void:
-	var layout_data = load_layout_data()
-	var current_dock = layout_data.get("current_dock", default_dock)
-	dock_instance(current_dock)
+	dock_instance(last_dock)
 func _on_window_mouse_entered(window):
 	window.grab_focus()
 func _on_window_mouse_exited():
@@ -238,15 +251,6 @@ class PanelWrapper extends PanelContainer:
 		panel_sb.content_margin_left = 4
 		panel_sb.content_margin_right = 4
 		add_theme_stylebox_override("panel", panel_sb)
-
-
-
-
-
-
-
-
-
 
 
 

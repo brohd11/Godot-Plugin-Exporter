@@ -1,6 +1,7 @@
 @tool
 extends Node
 
+const UName = preload("u_name.gd")
 const MainScreen = preload("main_screen.gd")
 
 var editor_plugin:EditorPlugin
@@ -91,16 +92,21 @@ func _on_main_screen_bar_button_pressed(button:Button):
 
 func add_main_screen_control(control):
 	_add_main_screen_button(control)
-	EditorInterface.get_editor_main_screen().add_child(control)
+	#EditorInterface.get_editor_main_screen().add_child(control)
 	control.hide()
 
 func _add_main_screen_button(control):
 	var plugin_button = Button.new()
-	plugin_button.name = control.name
-	plugin_button.text = control.name
+	var main_bar = MainScreen.get_button_container()
+	var unique_name = UName.incremental_name_check_in_nodes(control.name, main_bar)
+	control.name = unique_name
+	plugin_button.name = unique_name
+	plugin_button.text = unique_name
+	EditorInterface.get_editor_main_screen().add_child(control)
+	control.hide()
 	plugin_button.icon = _get_control_icon(control)
 	plugin_button.theme_type_variation = MainScreen.get_button_theme()
-	var main_bar = MainScreen.get_button_container()
+	
 	main_bar.add_child(plugin_button)
 	
 	plugin_buttons[plugin_button] = control
@@ -123,21 +129,15 @@ func _remove_main_screen_button(control):
 			main_screen_button.text = editor_plugin._get_plugin_name()
 		return
 
-func _get_control_icon(control):
-	if "icon" in control: # change load method to allow for editor nodes
-		return control.icon
+func _get_control_icon(panel_control):
+	var plugin_base_control = panel_control.get_child(0)
+	if "icon" in plugin_base_control: # change load method to allow for editor nodes
+		return plugin_base_control.icon
+	elif "plugin_icon" in plugin_base_control:
+		return plugin_base_control.plugin_icon
 	else:
 		return EditorInterface.get_base_control().get_theme_icon("Node", &"EditorIcons")
 	
-
-
-
-
-
-
-
-
-
 
 
 

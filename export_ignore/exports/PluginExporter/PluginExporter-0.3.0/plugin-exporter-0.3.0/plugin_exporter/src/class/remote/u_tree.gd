@@ -90,12 +90,3 @@ class can_drop_data:
 
 
 
-
-
-
-
-
-
-
-
-

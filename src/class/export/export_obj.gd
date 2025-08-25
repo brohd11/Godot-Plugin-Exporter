@@ -1,4 +1,5 @@
 const _ExportData = preload("res://addons/plugin_exporter/src/class/export/export_data.gd")
+
 var export_data: _ExportData
 var source:String
 var source_files:Array
@@ -13,4 +14,10 @@ var exclude_files:Array
 var other_transfers:Array
 var other_transfers_data:Dictionary
 
+var file_parser:_ExportData._UtilsLocal.FileParser
+
 var all_remote_files:Array
+var remote_file_data:Dictionary = {}
+
+var dependencies:Dictionary = {}
+var dependencies_data:Dictionary = {}

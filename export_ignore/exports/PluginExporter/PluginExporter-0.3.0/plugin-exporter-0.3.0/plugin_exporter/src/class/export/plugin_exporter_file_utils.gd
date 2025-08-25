@@ -3,16 +3,13 @@ const UtilsRemote = preload("res://addons/plugin_exporter/src/class/utils_remote
 const UtilsLocal = preload("res://addons/plugin_exporter/src/class/utils_local.gd")
 
 const ExportData = UtilsLocal.ExportData
-
-### Plugin Exporter Global Classes
-const Tokenizer = preload("res://addons/plugin_exporter/src/class/remote/alib_tokenizer.gd")
-### Plugin Exporter Global Classes
-
 const FileParser = UtilsLocal.FileParser
 
 const UFile = UtilsRemote.UFile
 const UConfig = UtilsRemote.UConfig
 const USafeEditor = UtilsRemote.USafeEditor
+const EditorFileDialogHandler = UtilsRemote.EditorFileDialogHandler
+
 
 static func get_export_data(export_config_path):
 	if not FileAccess.file_exists(export_config_path):
@@ -224,6 +221,7 @@ static func pre_export_file_parse(export_obj:ExportData.Export):
 	_get_used_global_classes(export_obj)
 	export_obj.other_transfers_data = get_other_transfer_data(export_obj)
 	export_obj.all_remote_files = _get_all_remote_files(export_obj)
+	
 
 static func _get_used_global_classes(export_obj:ExportData.Export):
 	for file in export_obj.source_files:
@@ -473,6 +471,91 @@ static func write_zip_file(path:String, files):
 	zip.close()
 	return OK
 
+static func plugin_init(plugin_name:=""):
+	if not FileAccess.file_exists(UtilsLocal.EXPORT_TEMPLATE_PATH):
+		printerr("Export template missing: %s" % UtilsLocal.EXPORT_TEMPLATE_PATH)
+		return
+	
+	if not FileAccess.file_exists(UtilsLocal.CONFIG_FILE_PATH):
+		UFile.write_to_json({}, UtilsLocal.CONFIG_FILE_PATH)
+	
+	var plugin_dir = ""
+	if plugin_name != "":
+		plugin_dir = "res://addons".path_join(plugin_name)
+		if not DirAccess.dir_exists_absolute(plugin_dir):
+			printerr("Plugin directory does not exist: %s" % plugin_dir)
+			return
+	else:
+		var dialog = EditorFileDialogHandler.Dir.new()
+		dialog.dialog.title = "Pick plugin folder..."
+		var handled = await dialog.handled
+		if handled == dialog.cancel_string:
+			return
+		plugin_dir = handled
+	
+	var export_dir:String = ProjectSettings.localize_path(plugin_dir)
+	var export_ignore_dir = export_dir.path_join("export_ignore")
+	if not DirAccess.dir_exists_absolute(export_ignore_dir):
+		DirAccess.make_dir_recursive_absolute(export_ignore_dir)
+	
+	var export_config_path = export_ignore_dir.path_join("plugin_export.json")
+	if FileAccess.file_exists(export_config_path):
+		var conf = ConfirmationDialogHandler.new("Overwrite: %s?" % export_config_path)
+		var conf_handled = await conf.handled
+		if not conf_handled:
+			return
+	
+	var export_pre_post = export_ignore_dir.path_join("pre_post_export.gd")
+	if FileAccess.file_exists(export_pre_post):
+		var conf = ConfirmationDialogHandler.new("Overwrite: %s?" % export_pre_post)
+		var conf_handled = await conf.handled
+		if not conf_handled:
+			return
+	
+	DirAccess.copy_absolute(UtilsLocal.PRE_POST_TEMPLATE_PATH, export_pre_post)
+	
+	var export_dir_name = export_dir.trim_suffix("/").get_file()
+	var template_data = UFile.read_from_json(UtilsLocal.EXPORT_TEMPLATE_PATH)
+	#template_data["export_root"] = root_handled
+	template_data["export_root"] = export_ignore_dir.path_join("exports")
+	var plugin_folder = export_dir_name.capitalize().replace(" ", "")
+	template_data["plugin_folder"] = "%s{{version=%s}}" % [plugin_folder, export_dir_name]
+	
+	var parser_settings = {
+		"parse_cs":{"namespace_rename":{}},
+		"parse_gd":{"class_rename_ignore":{}},
+		"parse_tscn":{}
+	}
+	template_data["options"]["parser_settings"] = parser_settings
+	
+	var export = template_data.get("exports")[0]
+	export["source"] = export_dir
+	export["remote_dir"] = export_dir.path_join("src/remote")
+	var export_dir_name_dash = export_dir_name.replace("_", "-")
+	var export_folder = "%s{{version=%s}}/%s" % [export_dir_name_dash, export_dir_name, export_dir_name]
+	#export_folder = export_folder.path_join(export_dir_name)
+	export["export_folder"] = export_folder
+	var exclude = export.get("exclude")
+	exclude["directories"] = [export_ignore_dir]
+	
+	template_data["pre_script"] = export_pre_post
+	template_data["post_script"] = export_pre_post
+	
+	UFile.write_to_json(template_data, export_config_path)
+	var git_ignore_path = export_ignore_dir.path_join(".gitignore")
+	var f_access = FileAccess.open(git_ignore_path, FileAccess.WRITE)
+	f_access.store_line("exports/*")
+	for i in range(10):
+		f_access.store_line("")
+	f_access.store_line("exports/**/*.zip")
+	
+	EditorInterface.get_resource_filesystem().scan()
+	
+	print("Plugin init complete: %s" % plugin_dir)
+	return export_config_path
+
+
+
 
 class RemoteData:
 	const dir = "remote_dir"
@@ -507,4 +590,11 @@ class ExportFileKeys:
 	const include_import = "include_import"
 	const include_uid = "include_uid"
 	const overwrite = "overwrite"
+
+
+
+### Plugin Exporter Global Classes
+const Tokenizer = preload("res://addons/plugin_exporter/src/class/remote/alib_tokenizer.gd")
+const ConfirmationDialogHandler = preload("res://addons/plugin_exporter/src/class/remote/confirmation_dialog_handler.gd")
+### Plugin Exporter Global Classes
 

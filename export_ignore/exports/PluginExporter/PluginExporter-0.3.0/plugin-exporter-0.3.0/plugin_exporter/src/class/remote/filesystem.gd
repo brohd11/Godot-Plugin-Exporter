@@ -113,12 +113,3 @@ static func _recursive_scan_tree_item(item: TreeItem, FileSystemItemDict, FileDa
 
 
 
-
-
-
-
-
-
-
-
-

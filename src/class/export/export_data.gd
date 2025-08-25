@@ -26,6 +26,8 @@ var options:Dictionary = {}
 var overwrite:bool = true
 var include_uid:bool = true
 var include_import:bool = true
+
+var file_parser: _UtilsLocal.FileParser
 var parser_settings:Dictionary = {}
 
 var exports:Array[Export]
@@ -92,8 +94,13 @@ func _init(export_config_path):
 		export_obj.export_dir_path = full_export_path.path_join(export_obj.export_folder)
 		export_obj.other_transfers = export.get(_ExportFileKeys.other_transfers, [])
 		
-		_ExportFileUtils.pre_export_file_parse(export_obj)
+		export_obj.file_parser = _UtilsLocal.FileParser.new()
+		export_obj.file_parser.set_parser_settings(parser_settings)
+		export_obj.file_parser.parse_cs.export_obj = export_obj
+		export_obj.file_parser.parse_gd.export_obj = export_obj
+		export_obj.file_parser.parse_tscn.export_obj = export_obj
 		
+		_ExportFileUtils.pre_export_file_parse(export_obj)
 		
 		
 		export_obj.valid_files_for_transfer = {}
@@ -153,6 +160,19 @@ func _init(export_config_path):
 			export_obj.valid_files_for_transfer[file_path] = {_ExportFileKeys.to:export_path}
 			if class_nm in class_renames:
 				class_renames[class_nm] = local_export_path
+		
+		#for name in export_obj.dependencies:
+			#var file_path = export_obj.dependencies.get(name)
+			#var remote_dir_path = export_obj.remote_dir.path_join(name)
+			#var export_path = remote_dir_path.replace(export_obj.source, export_obj.export_dir_path)
+			#
+			#if FileAccess.file_exists(export_path) and not overwrite:
+				#_USafeEditor.push_toast("File exists, aborting: " + export_path, 2)
+				#return
+			##if export_obj.valid_files_for_transfer.has(file_path): ## overwrites global classes?
+				##printerr("Valid transfers has file path: %s - Overwriting with dependency" % [file_path])
+				#
+			#export_obj.valid_files_for_transfer[file_path] = {_ExportFileKeys.to:export_path}
 		
 		
 		exports.append(export_obj)

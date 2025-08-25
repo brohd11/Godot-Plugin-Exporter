@@ -1,4 +1,5 @@
 @tool
+
 extends "handler_base.gd"
 
 var cancel_button:Button
@@ -33,6 +34,9 @@ func _create_dialog(dialog_text) -> void:
 func is_acknowledge():
 	cancel_button.hide()
 
+func non_exclusive():
+	dialog.exclusive = false
+
 func _on_confirmed():
 	self.handled.emit(true)
 	dialog.queue_free()
@@ -40,15 +44,5 @@ func _on_confirmed():
 func _on_canceled():
 	self.handled.emit(false)
 	dialog.queue_free()
-
-
-
-
-
-
-
-
-
-
 
 

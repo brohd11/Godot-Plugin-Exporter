@@ -85,12 +85,3 @@ static func set_theme_setters_in_scene(root_node):
 
 
 
-
-
-
-
-
-
-
-
-

@@ -19,7 +19,7 @@ const UEditorTheme = UtilsRemote.UEditorTheme
 const TreeHelperClass = preload("uid://madlgh38c6lh") #>import tree_helper.gd
 
 const UtilsLocal = preload("res://addons/plugin_exporter/src/class/utils_local.gd")
-#const PluginExporter = UtilsLocal.PluginExporter
+const PluginExporterStatic = UtilsLocal.PluginExporterStatic
 const ExportData = UtilsLocal.ExportData
 const Export = ExportData.Export
 const FileParser = UtilsLocal.FileParser
@@ -29,7 +29,7 @@ const RemoteData = UtilsLocal.ParseBase.RemoteData
 const CONFIG_FILE_PATH = "res://.godot/addons/plugin_exporter/plugin_exporter_config.json"
 const EXPORT_TEMPLATE_PATH = "res://addons/plugin_exporter/src/template/plugin_export_template.json" #! dependency
 const PRE_POST_TEMPLATE_PATH = "res://addons/plugin_exporter/src/template/pre_post.gd" #! dependency
-const TEXT_FILE_TYPES = ["gd", "tscn", "tres"]
+#const TEXT_FILE_TYPES = ["gd", "tscn", "tres"]
 
 @onready var file_path_line = %FilePathLine
 @onready var search_line = %SearchLine
@@ -44,6 +44,8 @@ var ab_lib # Modular Browser integration
 
 var preload_regex:RegEx
 var file_icon
+
+var plugin_icon:Texture2D
 
 var FileSystemItemDict:Dictionary
 var file_data_dict:Dictionary
@@ -84,6 +86,9 @@ var file_parser:FileParser
 
 var is_mb_panel_flag:= false
 
+func _init() -> void:
+	plugin_icon = EditorInterface.get_base_control().get_theme_icon("ActionCopy", &"EditorIcons")
+
 func _ready() -> void:
 	file_path_line.text_changed.connect(_on_file_line_text_changed)
 	search_line.text_changed.connect(_on_search_line_text_changed)
@@ -102,6 +107,8 @@ func _ready() -> void:
 	TreeHelper = TreeHelperClass.new(export_tree)
 	
 	file_icon = EditorInterface.get_editor_theme().get_icon("File", &"EditorIcons")
+	
+	plugin_icon = EditorInterface.get_base_control().get_theme_icon("ActionCopy", &"EditorIcons")
 	
 	if not is_part_of_edited_scene():
 		UEditorTheme.ThemeSetter.set_theme_setters_in_scene(self)
@@ -191,78 +198,23 @@ func _on_set_file_button_pressed():
 	_set_line_alignment()
 	file_path_line.caret_column = handled.length()
 
+func load_export_file(file_path, read:=true):
+	_set_file_line_text(file_path)
+	await get_tree().process_frame
+	_set_line_alignment()
+	file_path_line.caret_column = file_path.length()
+	if read:
+		_write_export_tree()
+		first_tree_build = true
+
 
 func _on_new_file_button_pressed():
-	if not FileAccess.file_exists(EXPORT_TEMPLATE_PATH):
-		printerr("Export template missing: %s" % EXPORT_TEMPLATE_PATH)
+	
+	var new_file_path = await ExportFileUtils.plugin_init()
+	if new_file_path == null:
 		return
 	
-	if not FileAccess.file_exists(CONFIG_FILE_PATH):
-		UFile.write_to_json({}, CONFIG_FILE_PATH)
-	
-	var config_data = UFile.read_from_json(CONFIG_FILE_PATH)
-	var _export_root = config_data.get("export_root", "")
-	if _export_root != "":
-		if not _export_root.ends_with("/"):
-			_export_root = _export_root + "/"
-	
-	var root_dialog = EditorFileDialogHandler.Dir.new(self, _export_root)
-	root_dialog.dialog.title = "Pick export folder..."
-	var root_handled = await root_dialog.handled
-	if root_handled == root_dialog.cancel_string:
-		return
-	
-	config_data["export_root"] = root_handled
-	UFile.write_to_json(config_data, CONFIG_FILE_PATH)
-	
-	
-	var dialog = EditorFileDialogHandler.Dir.new(self)
-	dialog.dialog.title = "Pick plugin folder..."
-	var handled = await dialog.handled
-	if handled == dialog.cancel_string:
-		return
-	
-	var export_dir:String = ProjectSettings.localize_path(handled)
-	var export_ignore_dir = export_dir.path_join("export_ignore")
-	if not DirAccess.dir_exists_absolute(export_ignore_dir):
-		DirAccess.make_dir_recursive_absolute(export_ignore_dir)
-	
-	var export_config_path = export_ignore_dir.path_join("plugin_export.json")
-	if FileAccess.file_exists(export_config_path):
-		var conf = ConfirmationDialogHandler.new("Overwrite: %s?" % export_config_path, self)
-		var conf_handled = await conf.handled
-		if not conf_handled:
-			return
-	
-	var export_pre_post = export_ignore_dir.path_join("pre_post_export.gd")
-	if FileAccess.file_exists(export_pre_post):
-		var conf = ConfirmationDialogHandler.new("Overwrite: %s?" % export_pre_post, self)
-		var conf_handled = await conf.handled
-		if not conf_handled:
-			return
-	
-	DirAccess.copy_absolute(PRE_POST_TEMPLATE_PATH, export_pre_post)
-	
-	var export_dir_name = export_dir.get_base_dir().get_file()
-	var template_data = UFile.read_from_json(EXPORT_TEMPLATE_PATH)
-	template_data["export_root"] = root_handled
-	var plugin_folder = export_dir_name.capitalize().replace(" ", "")
-	template_data["plugin_folder"] = "%s/%s{{version=%s}}" % [plugin_folder, plugin_folder, export_dir_name]
-	var export = template_data.get("exports")[0]
-	export["source"] = export_dir
-	var export_dir_name_dash = export_dir_name.replace("_", "-")
-	var export_folder = "%s{{version=%s}}/%s" % [export_dir_name_dash, export_dir_name, export_dir_name]
-	#export_folder = export_folder.path_join(export_dir_name)
-	export["export_folder"] = export_folder
-	var exclude = export.get("exclude")
-	exclude["directories"] = [export_ignore_dir]
-	
-	template_data["pre_script"] = export_pre_post
-	template_data["post_script"] = export_pre_post
-	
-	UFile.write_to_json(template_data, export_config_path)
-	EditorInterface.get_resource_filesystem().scan()
-	_set_file_line_text(export_config_path)
+	_set_file_line_text(new_file_path)
 
 
 func _on_read_file_button_pressed():
@@ -294,7 +246,7 @@ func _on_export_button_pressed():
 	var export_config_path = file_path_line.text
 	var include_uid = uid_check.button_pressed
 	var include_import = import_check.button_pressed
-	PluginExporter.export_plugin(export_config_path, include_uid, include_import)
+	PluginExporterStatic.export_plugin(export_config_path, include_uid, include_import)
 
 
 func _write_export_tree():
@@ -318,6 +270,7 @@ func _parse_export_data():#, write=false):
 	import_check.button_pressed = export_data.include_import
 	file_parser.set_parser_settings(export_data.parser_settings)
 	
+	
 	var pre_script = export_data.pre_script
 	if pre_script != "":
 		ExportFileUtils.run_export_script(pre_script, "pre_export")
@@ -338,6 +291,11 @@ func _parse_export_data():#, write=false):
 	for export:Export in export_data.exports:
 		var source = export.source
 		var export_dir_path = export.export_dir_path
+		
+		file_parser.parse_cs.export_obj = export
+		file_parser.parse_gd.export_obj = export
+		file_parser.parse_tscn.export_obj = export
+		
 		# build tree
 		var export_folder_item:TreeItem
 		TreeHelper.parent_item = root_item
@@ -496,4 +454,10 @@ func _drop_data(at_position: Vector2, data: Variant) -> void:
 		return
 	var file = files[0]
 	file_path_line.text = file
+
+
+
+### Plugin Exporter Global Classes
+const ConfirmationDialogHandler = preload("res://addons/plugin_exporter/src/class/remote/confirmation_dialog_handler.gd")
+### Plugin Exporter Global Classes
 

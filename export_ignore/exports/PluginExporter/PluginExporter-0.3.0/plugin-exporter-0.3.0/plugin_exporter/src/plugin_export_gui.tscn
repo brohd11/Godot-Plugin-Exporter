@@ -74,7 +74,7 @@ data = {
 [sub_resource type="ImageTexture" id="ImageTexture_46r0b"]
 image = SubResource("Image_p07nu")
 
-[node name="PluginExport" type="Control"]
+[node name="PluginExporter" type="Control"]
 clip_contents = true
 layout_mode = 3
 anchors_preset = 15

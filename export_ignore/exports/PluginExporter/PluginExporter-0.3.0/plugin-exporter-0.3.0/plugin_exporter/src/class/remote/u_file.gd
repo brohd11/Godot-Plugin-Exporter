@@ -84,7 +84,7 @@ static func _case_insensitive_compare(a: String, b: String) -> int:
 static func write_to_json_exported(data:Variant, path:String, export_flag, access=FileAccess.WRITE_READ):
 	if export_flag:
 		path = path_from_relative(path, true)
-	print(path)
+	
 	write_to_json(data, path, access)
 
 static func write_to_json(data:Variant,path:String,access=FileAccess.WRITE_READ) -> void:
@@ -281,15 +281,6 @@ static func is_dir_in_or_equal_to_dir(file_path: String, dir_path: String) -> bo
 		#return true
 	return absolute_file_path.begins_with(absolute_dir_path)
 	
-
-
-
-
-
-
-
-
-
 
 
 

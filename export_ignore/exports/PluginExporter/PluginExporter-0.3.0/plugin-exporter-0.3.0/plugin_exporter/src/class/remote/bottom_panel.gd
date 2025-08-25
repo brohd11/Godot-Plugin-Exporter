@@ -51,12 +51,3 @@ static func get_filter_line_edit():
 
 
 
-
-
-
-
-
-
-
-
-

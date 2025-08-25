@@ -15,3 +15,5 @@ var other_transfers_data:Dictionary
 
 var all_remote_files:Array
 
+var dependencies:Dictionary
+

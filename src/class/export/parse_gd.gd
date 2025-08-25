@@ -13,6 +13,52 @@ func set_parse_settings(settings):
 		#class_renames[name] = ""
 	pass
 
+func get_direct_dependencies(file_path:String) -> Dictionary:
+	var file_access = FileAccess.open(file_path, FileAccess.READ)
+	if not file_access:
+		printerr("Could not open file: %s" % file_path)
+		return {}
+	var direct_dependencies = {}
+	while not file_access.eof_reached():
+		var line = file_access.get_line()
+		
+		var tokens = Tokenizer.words_only(line)
+		for tok:String in tokens: ## Check for global classes
+			if tok in export_obj.export_data.class_list_array:
+				var path = export_obj.export_data.class_list.get(tok)
+				var file_name = path.get_file()
+				direct_dependencies[file_name] = path
+				if not path in export_obj.global_classes.keys():
+					export_obj.global_classes[tok] = path
+					
+					var local_export_path = export_obj.remote_dir.path_join(file_name)
+					export_obj.export_data.class_renames[tok] = local_export_path
+		
+		if line.find("extends") > -1 and line.count('"') == 2:
+			if not _check_for_comment(line, ["extends", "class"]):
+				var _class
+				if line.find("class ") > -1:
+					_class = line.get_slice("class ", 1)
+					_class = _class.get_slice(" ", 0)
+				var extend_path = line.get_slice('extends', 1).strip_edges().trim_prefix('"')
+				extend_path = extend_path.get_slice('"', 0)
+				if FileAccess.file_exists(extend_path):
+					var file_name = extend_path.get_file()
+					direct_dependencies[file_name] = extend_path
+		elif line.find("preload(") > -1 and line.count('"') == 2: #TODO make these regexs or something more robust.
+			var preload_path = get_preload_path(line)
+			if preload_path != null:
+				direct_dependencies[preload_path.get_file()] = preload_path
+		elif line.find("#! dependency") > -1 and line.count('"') == 2:
+			var dep_path = line.get_slice('"', 1)
+			dep_path = dep_path.get_slice('"', 0)
+			if FileAccess.file_exists(dep_path):
+				var file_name = dep_path.get_file()
+				direct_dependencies[file_name] = dep_path
+	
+	return direct_dependencies
+
+
 
 func edit_dep_file(line:String, to:String, remote_file:String, remote_dir:String, dependencies:Dictionary):
 	
@@ -64,11 +110,13 @@ func edit_dep_file(line:String, to:String, remote_file:String, remote_dir:String
 		var new_preload_call = 'preload("%s")' % rel_path # "" stop false positive parsing this file
 		line = line.replace(original_preload_call, new_preload_call)
 		var depen_data = {RemoteData.from: preload_path, RemoteData.to: to_path, RemoteData.dependent: remote_file}
-		if dependencies.has(file_name) and dependencies[file_name].from != remote_file:
-			printerr("WARNING: Filename collision detected for '%s'." % file_name)
-			printerr("  Source 1: %s" % dependencies[file_name].from)
-			printerr("  Source 2: %s" % preload_path)
-			printerr("  The second file will overwrite the first in the destination directory.")
+		#if dependencies.has(file_name) and dependencies[file_name].from != remote_file:
+		#if dependencies.has(file_name) and dependencies[file_name].from != preload_path:
+			#printerr("WARNING: Filename collision detected for '%s'." % file_name)
+			#printerr("  Source 1: %s" % dependencies[file_name].from)
+			#printerr("  Source 2: %s" % preload_path)
+			#printerr("  The second file will overwrite the first in the destination directory.")
+			#printerr("  Remote file: %s" % remote_file)
 		dependencies[file_name] = depen_data
 		
 	elif line.find("#! dependency") > -1 and line.count('"') == 2:
@@ -105,7 +153,7 @@ func post_export_edit_file(file_path:String):
 	while not file_access.eof_reached():
 		var line:String = file_access.get_line()
 		
-		# TODO
+		# TODO why is this todo?
 		classes_used.append_array(UtilsLocal.get_global_classes_in_text(line, class_list_keys))
 		# TODO
 		
@@ -127,13 +175,30 @@ func post_export_edit_file(file_path:String):
 		elif line.find("extends ") > -1 and line.count('"') == 2:
 			if line.find("class ") == -1:
 				var extend_file_path = line.get_slice('"', 1)
-				extend_file_path = line.get_slice('"', 0)
+				extend_file_path = extend_file_path.get_slice('"', 0)
+				if not FileAccess.file_exists(extend_file_path):
+					extend_file_path = export_obj.dependencies.get(extend_file_path, extend_file_path)
+					if not FileAccess.file_exists(extend_file_path):
+						printerr("Could not find file: %s" % extend_file_path)
+				
 				var inherited_used_classes = _recursive_get_globals(extend_file_path)
 				classes_preloaded.append_array(inherited_used_classes)
-				#classes_preloaded.append_array(class_renames_keys)
-			pass
+				
+		elif line.find("extends ") > -1: # "" 
+			if line.find("class ") == -1: # i think this could work for both class types
+				var global_class = line.get_slice("extends ", 1).strip_edges()
+				if global_class.find(" ") > -1:
+					global_class = global_class.get_slice(" ", 0)
+				if global_class in global_class_names:
+					var path = export_obj.export_data.class_list.get(global_class)
+					var inherited_used_classes = _recursive_get_globals(path)
+					classes_preloaded.append_array(inherited_used_classes)
+					if global_class in class_renames_keys:
+						line = line.replace(global_class, '"%s"' % path)
+		
 		
 		adjusted_file_lines.append(line)
+	##
 	
 	if not classes_used.is_empty():
 		print(file_path)
@@ -155,18 +220,20 @@ func post_export_edit_file(file_path:String):
 		var line = 'const %s' % name 
 		line = line + ' = preload("%s")' % export_path # "" <- stop parse issue. Get export path
 		rename_lines.append(line)
+		
 	
 	if not rename_lines.is_empty():
-		var i = 5
-		adjusted_file_lines.insert(i, ""); i += 1
-		adjusted_file_lines.insert(i, "### Plugin Exporter Global Classes"); i += 1
-		for line in rename_lines:
-			adjusted_file_lines.insert(i, line)
-			i += 1
-		adjusted_file_lines.insert(i, "### Plugin Exporter Global Classes"); i += 1
-		adjusted_file_lines.insert(i, "")
-		#adjusted_file_lines.append("")
-		#adjusted_file_lines.append_array(rename_lines)
+		if file_path.get_file() == "console_global_class.gd":
+			print("%#&^%#&^%#")
+			print(rename_lines)
+		
+		adjusted_file_lines.append("")
+		adjusted_file_lines.append("")
+		adjusted_file_lines.append("### Plugin Exporter Global Classes")
+		adjusted_file_lines.append_array(rename_lines)
+		adjusted_file_lines.append("### Plugin Exporter Global Classes")
+		adjusted_file_lines.append("")
+	
 	
 	return adjusted_file_lines
 
@@ -175,10 +242,15 @@ func _recursive_get_globals(file_path) -> Array:
 	var classes = []
 	var file_access = FileAccess.open(file_path, FileAccess.READ)
 	if not file_access:
+		print("ERROR OPENING: %s" % file_path)
 		return []
 	while not file_access.eof_reached():
 		var line = file_access.get_line()
-		classes.append_array(UtilsLocal.get_global_classes_in_text(line, class_list_keys))
+		var global_classes = UtilsLocal.get_global_classes_in_text(line, class_list_keys)
+		for _class in global_classes:
+			if not _class in classes:
+				classes.append(_class)
+	
 	file_access.close()
 	return classes
 

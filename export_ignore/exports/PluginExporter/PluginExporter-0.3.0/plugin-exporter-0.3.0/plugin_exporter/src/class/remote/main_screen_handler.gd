@@ -82,12 +82,3 @@ func remove_main_screen_control(control):
 
 
 
-
-
-
-
-
-
-
-
-
