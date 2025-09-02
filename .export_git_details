@@ -1,8 +1,0 @@
-Main Repo: plugin-dev
-	Dir: res://
-	Commit: d9a4937dbd89d7a012d6c18ba5fc008efa4f6d5f
-
-Export: plugin-exporter-0.3.0/plugin_exporter/
-	Submodule: brohd
-		Dir: res://addons/addon_lib/brohd
-		Commit: 9a90b5b994a2f971705487bb0c3aa94539807d5e

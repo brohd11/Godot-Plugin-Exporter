@@ -11,6 +11,7 @@ const _USafeEditor = _UtilsRemote.USafeEditor
 
 var class_list_array = []
 var class_list = {}
+
 var class_rename_ignore = []
 var class_renames = {}
 
@@ -100,80 +101,12 @@ func _init(export_config_path):
 		export_obj.file_parser.parse_gd.export_obj = export_obj
 		export_obj.file_parser.parse_tscn.export_obj = export_obj
 		
-		_ExportFileUtils.pre_export_file_parse(export_obj)
 		
-		
-		export_obj.valid_files_for_transfer = {}
-		
-		for file in export_obj.source_files:
-			if file.get_extension() == "uid" or file.get_extension() == "import":
-				continue
-			
-			var l_path = ProjectSettings.localize_path(file)
-			if _ExportFileUtils.check_ignore(l_path, export_obj):
-				continue
-			
-			var export_path = l_path.replace(export_obj.source, export_obj.export_dir_path)
-			if FileAccess.file_exists(export_path) and not overwrite:
-				_USafeEditor.push_toast("File exists, aborting: "+export_path, 2)
-				return
-			
-			if FileAccess.file_exists(l_path): # check that it is file vs dir
-				export_obj.valid_files_for_transfer[l_path] = {"to":export_path}
-				
-		
-		#next step
-		var other_transfer_data = export_obj.other_transfers_data
-		for to in other_transfer_data.keys():
-			var data = other_transfer_data.get(to)
-			var from_files = data.get(_ExportFileKeys.from_files)
-			var single_from = data.get(_ExportFileKeys.single)
-			for from in from_files:
-				if not FileAccess.file_exists(from):
-					_USafeEditor.push_toast("File_doesn't exist, aborting: " + from, 2)
-					return
-				
-				var to_path = to
-				if not single_from:
-					to_path = to.path_join(from.get_file())
-				
-				if FileAccess.file_exists(to_path) and not overwrite:
-					_USafeEditor.push_toast("File exists, aborting: " + to_path, 2)
-					return
-				export_obj.valid_files_for_transfer[from] = {_ExportFileKeys.to:to_path}
-		
-		var global_classes = export_obj.global_classes
-		for class_nm in global_classes:
-			var file_path = global_classes.get(class_nm)
-			var remote_dir_path = export_obj.remote_dir.path_join(file_path.get_file())
-			var file_in_source = _UtilsRemote.UFile.is_file_in_directory(file_path, export_obj.source)
-			#var file_rename_ignored = class_nm in class_rename_ignore # dont think I need this?
-			var export_path = remote_dir_path.replace(export_obj.source, export_obj.export_dir_path)
-			var local_export_path = remote_dir_path
-			if file_in_source:
-				export_path = file_path.replace(export_obj.source, export_obj.export_dir_path)
-				local_export_path = file_path
-			
-			if FileAccess.file_exists(export_path) and not overwrite:
-				_USafeEditor.push_toast("File exists, aborting: " + export_path, 2)
-				return
-			export_obj.valid_files_for_transfer[file_path] = {_ExportFileKeys.to:export_path}
-			if class_nm in class_renames:
-				class_renames[class_nm] = local_export_path
-		
-		#for name in export_obj.dependencies:
-			#var file_path = export_obj.dependencies.get(name)
-			#var remote_dir_path = export_obj.remote_dir.path_join(name)
-			#var export_path = remote_dir_path.replace(export_obj.source, export_obj.export_dir_path)
-			#
-			#if FileAccess.file_exists(export_path) and not overwrite:
-				#_USafeEditor.push_toast("File exists, aborting: " + export_path, 2)
-				#return
-			##if export_obj.valid_files_for_transfer.has(file_path): ## overwrites global classes?
-				##printerr("Valid transfers has file path: %s - Overwriting with dependency" % [file_path])
-				#
-			#export_obj.valid_files_for_transfer[file_path] = {_ExportFileKeys.to:export_path}
-		
+		export_obj.get_valid_files_for_transfer()
+		export_obj.sort_valid_files()
+		export_obj.get_global_classes_used_in_valid_files()
+		export_obj.get_file_dependencies()
+		export_obj.get_global_class_export_paths()
 		
 		exports.append(export_obj)
 	

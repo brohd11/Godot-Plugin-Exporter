@@ -7,7 +7,6 @@ const UFile = UtilsRemote.UFile
 const ExportFileUtils = UtilsLocal.ExportFileUtils
 const ExportFileKeys = ExportFileUtils.ExportFileKeys
 
-const RemoteData = ExportFileUtils.RemoteData
 
 var export_obj: UtilsLocal.ExportData.Export
 
@@ -21,8 +20,6 @@ func get_direct_dependencies(file_path:String) -> Dictionary:
 	var direct_dependencies = {}
 	return direct_dependencies
 
-func edit_dep_file(line:String, to:String, remote_file:String, remote_dir:String, dependencies:Dictionary) -> String:
-	return line
 
 func post_export_edit_line(line:String) -> String:
 	return line

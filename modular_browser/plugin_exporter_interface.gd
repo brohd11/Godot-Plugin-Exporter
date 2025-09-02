@@ -46,3 +46,4 @@ class UIData: # this class can be used to store keys for ui data, don't use the 
 #const ui_scene_path = "panel_ui_scene_path"
 #const single_instance = "single_instance"
 #const editable = "editable"
+

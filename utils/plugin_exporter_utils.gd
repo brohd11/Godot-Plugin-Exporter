@@ -18,3 +18,4 @@ static func get_exported_file_path(file_path:String) ->String:
 	else:
 		printerr("Missing file path: %s" % new_path)
 		return ""
+

@@ -72,10 +72,11 @@ static func add_remote_dep_tag(script_editor):
 static func add_exported_flag(script_editor):
 	var line = script_editor.get_caret_line()
 	var text = script_editor.get_line(line)
-	script_editor.insert_text("const PLUGIN_EXPORTED = false", line, 0)
+	script_editor.insert_text("const PLUGIN_EXPORTED = true", line, 0)
 
 
 static func add_export_flat_flag(script_editor):
 	var line = script_editor.get_caret_line()
 	var text = script_editor.get_line(line)
 	script_editor.insert_text("const PLUGIN_EXPORT_FLAT = false", line, 0)
+

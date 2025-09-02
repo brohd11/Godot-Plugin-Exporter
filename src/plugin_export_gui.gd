@@ -7,7 +7,6 @@ const UFile = UtilsRemote.UFile
 const UTree = UtilsRemote.UTree
 const URegex = UtilsRemote.URegex
 const USafeEditor = UtilsRemote.USafeEditor
-const ConfirmationDialogHandler = UtilsRemote.ConfirmationDialogHandler
 const EditorFileDialogHandler = UtilsRemote.EditorFileDialogHandler
 
 const ExportFileUtils = UtilsLocal.ExportFileUtils
@@ -24,39 +23,34 @@ const ExportData = UtilsLocal.ExportData
 const Export = ExportData.Export
 const FileParser = UtilsLocal.FileParser
 
-const RemoteData = UtilsLocal.ParseBase.RemoteData
-
 const CONFIG_FILE_PATH = "res://.godot/addons/plugin_exporter/plugin_exporter_config.json"
 const EXPORT_TEMPLATE_PATH = "res://addons/plugin_exporter/src/template/plugin_export_template.json" #! dependency
 const PRE_POST_TEMPLATE_PATH = "res://addons/plugin_exporter/src/template/pre_post.gd" #! dependency
-#const TEXT_FILE_TYPES = ["gd", "tscn", "tres"]
 
 @onready var file_path_line = %FilePathLine
 @onready var search_line = %SearchLine
 @onready var export_tree:Tree = %ExportTree
 @onready var file_name_label = %FileNameLabel
-
 @onready var menu_button: MenuButton = %MenuButton
-var PMHelper: PopupHelper.MouseHelper #>class_inst
+@onready var uid_check = %UIDCheck
+@onready var import_check = %ImportCheck
+
 @onready var dock_button: Button = %DockButton
 
 var ab_lib # Modular Browser integration
 
-var preload_regex:RegEx
 var file_icon
-
 var plugin_icon:Texture2D
-
-var FileSystemItemDict:Dictionary
-var file_data_dict:Dictionary
-
-@onready var uid_check = %UIDCheck
-@onready var import_check = %ImportCheck
 
 var first_tree_build := false
 var filter_text:String = ""
 
-var TreeHelper: TreeHelperClass #>class_inst
+var FileSystemItemDict:Dictionary
+var file_data_dict:Dictionary
+
+var TreeHelper: TreeHelperClass
+var PMHelper: PopupHelper.MouseHelper
+
 const CALLABLE_KEY = "CALLABLE_KEY"
 var menu_button_dict = {
 	"Read File":{
@@ -82,9 +76,8 @@ var menu_button_dict = {
 }
 
 var full_export_path:String
-var file_parser:FileParser
-
 var is_mb_panel_flag:= false
+
 
 func _init() -> void:
 	plugin_icon = EditorInterface.get_base_control().get_theme_icon("ActionCopy", &"EditorIcons")
@@ -100,14 +93,9 @@ func _ready() -> void:
 	popup.clear()
 	PopupHelper.parse_dict_static(menu_button_dict, popup, _on_menu_button_item_pressed, PMHelper)
 	
-	preload_regex = URegex.get_preload_path()
-	
-	file_parser = FileParser.new()
-	
 	TreeHelper = TreeHelperClass.new(export_tree)
 	
 	file_icon = EditorInterface.get_editor_theme().get_icon("File", &"EditorIcons")
-	
 	plugin_icon = EditorInterface.get_base_control().get_theme_icon("ActionCopy", &"EditorIcons")
 	
 	if not is_part_of_edited_scene():
@@ -218,7 +206,6 @@ func _on_new_file_button_pressed():
 
 
 func _on_read_file_button_pressed():
-	#first_tree_build = false
 	_write_export_tree()
 	first_tree_build = true
 	
@@ -268,8 +255,6 @@ func _parse_export_data():#, write=false):
 	
 	uid_check.button_pressed = export_data.include_uid
 	import_check.button_pressed = export_data.include_import
-	file_parser.set_parser_settings(export_data.parser_settings)
-	
 	
 	var pre_script = export_data.pre_script
 	if pre_script != "":
@@ -292,21 +277,21 @@ func _parse_export_data():#, write=false):
 		var source = export.source
 		var export_dir_path = export.export_dir_path
 		
-		file_parser.parse_cs.export_obj = export
-		file_parser.parse_gd.export_obj = export
-		file_parser.parse_tscn.export_obj = export
-		
 		# build tree
 		var export_folder_item:TreeItem
 		TreeHelper.parent_item = root_item
 		export_folder_item = TreeHelper.new_file_path(export_dir_path, full_export_path)
 		# /build tree
 		
-		var all_remote_files = export.all_remote_files
-		for local_file_path in export.valid_files_for_transfer:
-			var export_file_data = export.valid_files_for_transfer.get(local_file_path)
+		
+		var files_to_copy = export.files_to_copy.keys()
+		#files_to_copy.sort() # figure this out later, to sort added files
+		for local_file_path in files_to_copy:
+			var export_file_data = export.files_to_copy.get(local_file_path)
 			var export_path = export_file_data.get(ExportFileKeys.to)
-			var remote_file_data = ExportFileUtils.get_remote_file(local_file_path, export)
+			var replace_with = export_file_data.get(ExportFileKeys.replace_with)
+			var dependent = export_file_data.get(ExportFileKeys.dependent)
+			#var remote_file_data = ExportFileUtils.get_remote_file(local_file_path, export)
 			# build tree
 			var file_data = file_data_dict.get(local_file_path)
 			var last_item = TreeHelper.new_file_path(export_path, full_export_path, file_data) as TreeItem
@@ -315,16 +300,18 @@ func _parse_export_data():#, write=false):
 					last_item.set_icon(0, file_icon)
 					last_item.set_icon_modulate(0, Color.WHITE)
 			
-			#if export.dependencies_data.has(local_file_path):
-				#var item_text = last_item.get_text(0)
-				#var dependent = export.dependencies_data.get(local_file_path)
-				#last_item.set_text(0, "%s - dependent: %s" % [item_text, dependent.get_file()])
-			
-			if remote_file_data != null:
-				_tree_remote_file_dependencies(last_item, local_file_path, export_path, remote_file_data, all_remote_files)
-		
-		
-		
+			if replace_with != null:
+				var text = last_item.get_text(0)
+				var new_text = text + " <- (remote file: %s)" % replace_with.get_file()
+				last_item.set_text(0, new_text)
+				var new_tooltip = text + " <- (remote file: %s)" % replace_with
+				last_item.set_tooltip_text(0, new_tooltip)
+			elif dependent != null:
+				var text = last_item.get_text(0)
+				var new_text = text + " -> (dependency to: %s)" % dependent.get_file()
+				last_item.set_text(0, new_text)
+				var new_tooltip = text + " -> (dependency to: %s)" % dependent
+				last_item.set_tooltip_text(0, new_tooltip)
 		
 		# /build tree
 	
@@ -337,90 +324,6 @@ func _collapse_tree():
 	var root_item = export_tree.get_root()
 	root_item.set_collapsed_recursive(true)
 	root_item.collapsed = false
-
-
-func _tree_remote_file_dependencies(last_item, last_item_path, export_path, remote_file_data, all_remote_files):
-	var remote_class = remote_file_data.get(RemoteData.single_class)
-	if remote_class != null:
-		_tree_remote_file_single_dependencies(last_item, last_item_path, export_path, remote_file_data, all_remote_files)
-	
-	var remote_files = remote_file_data.get(RemoteData.files, [])
-	if remote_files != []:
-		_tree_remote_file_array_dependencies(last_item, last_item_path, export_path, remote_file_data, all_remote_files)
-	
-	var other_deps = remote_file_data.get(RemoteData.other_deps, [])
-	if other_deps != []:
-		_tree_remote_other_deps(last_item, last_item_path, export_path, remote_file_data, all_remote_files)
-	
-	if remote_class == null and remote_files == []:
-		push_error(export_path)
-		push_error("Remote file did not include any files: ")
-		push_error(remote_file_data)
-
-func _tree_remote_file_single_dependencies(last_item, last_item_path, export_path, remote_file_data, all_remote_files):
-	var remote_class = remote_file_data.get(RemoteData.single_class)
-	var remote_dir = remote_file_data.get(RemoteData.dir)
-	if remote_dir == "":
-		remote_dir = export_path.get_base_dir()
-	var remote_file_path = remote_dir.path_join(remote_class.get_file())
-	var tool_tip = "Remote: %s" % remote_class
-	last_item.set_tooltip_text(0, tool_tip)
-	var text = last_item.get_text(0)
-	text = "%s (remote: %s)" % [text, remote_class.get_file()]
-	last_item.set_text(0, text)
-	var dependencies = file_parser.copy_remote_dependencies(false, remote_class, remote_class, export_path, remote_dir)
-	for data in dependencies:
-		var from = data.get(ExportFileKeys.from)
-		if from in all_remote_files:
-			continue
-		var to = data.get(ExportFileKeys.to)
-		var dependent = data.get(RemoteData.dependent)
-		_tree_remote_dependency_item(from, to, dependent)
-
-func _tree_remote_other_deps(last_item, last_item_path, export_path, remote_file_data, all_remote_files):
-	var other_dep_array = remote_file_data.get(RemoteData.other_deps)
-	var remote_dir = remote_file_data.get(RemoteData.dir)
-	for other_dep in other_dep_array:
-		var from_path = other_dep.get(ExportFileKeys.from)
-		var to_path = other_dep.get(ExportFileKeys.to)
-		var file_data = file_data_dict.get(from_path)
-		var file_nm = from_path.get_file()
-		var remote_item = TreeHelper.new_file_path(to_path, full_export_path, file_data)
-		var remote_text = "%s (remote dependency: %s)" % [file_nm, export_path.get_file()]
-		remote_item.set_text(0, remote_text)
-		var remote_tool_tip = "Remote: %s\nDependent: %s" % [from_path, last_item_path]
-		remote_item.set_tooltip_text(0, remote_tool_tip)
-		
-
-func _tree_remote_file_array_dependencies(last_item, last_item_path, export_path, remote_file_data, all_remote_files):
-	var remote_file_array = remote_file_data.get(RemoteData.files)
-	var remote_dir = remote_file_data.get(RemoteData.dir)
-	for remote_file in remote_file_array:
-		var file_data = file_data_dict.get(remote_file)
-		var remote_file_nm = remote_file.get_file()
-		var remote_to_path = remote_dir.path_join(remote_file_nm)
-		var remote_item = TreeHelper.new_file_path(remote_to_path, full_export_path, file_data)
-		var remote_text = "%s (remote dependency: %s)" % [remote_file_nm, export_path.get_file()]
-		remote_item.set_text(0, remote_text)
-		var remote_tool_tip = "Remote: %s\nDependent: %s" % [remote_file, last_item_path]
-		remote_item.set_tooltip_text(0, remote_tool_tip)
-		
-		var dependencies = file_parser.copy_remote_dependencies(false, remote_file, remote_file, export_path, remote_dir)
-		for data in dependencies:
-			var from = data.get(ExportFileKeys.from)
-			if from in all_remote_files:
-				continue
-			var to = data.get(ExportFileKeys.to)
-			var dependent = data.get(RemoteData.dependent)
-			_tree_remote_dependency_item(from, to, dependent)
-
-func _tree_remote_dependency_item(from, to, dependent):
-	if to in TreeHelper.item_dict:
-		return
-	var d_file_data = file_data_dict.get(from)
-	var item = TreeHelper.new_file_path(to, full_export_path, d_file_data)
-	item.set_text(0, "%s (remote dependency: %s)" % [to.get_file(), dependent.get_file()])
-	item.set_tooltip_text(0, "Remote: %s\nDependent: %s" % [from, dependent])
 
 
 func _on_search_line_text_changed(new_text):
@@ -450,6 +353,7 @@ func _check_filter(text):
 	if UTree.check_filter_split(text, filter_text):
 		return true
 	return false
+
 
 func _can_drop_data(at_position: Vector2, data: Variant) -> bool:
 	var type = data.get("type")

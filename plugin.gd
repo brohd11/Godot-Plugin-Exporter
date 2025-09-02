@@ -23,10 +23,12 @@ func _has_main_screen() -> bool:
 	return true
 
 func _enable_plugin() -> void:
-	SubPluginManager.toggle_plugins("res://addons/plugin_exporter/sub_plugins", "plugin_exporter/sub_plugins", true)
+	if PLUGIN_EXPORTED:
+		SubPluginManager.toggle_plugins("res://addons/plugin_exporter/sub_plugins", "plugin_exporter/sub_plugins", true)
 
 func _disable_plugin() -> void:
-	SubPluginManager.toggle_plugins("res://addons/plugin_exporter/sub_plugins", "plugin_exporter/sub_plugins", false)
+	if PLUGIN_EXPORTED:
+		SubPluginManager.toggle_plugins("res://addons/plugin_exporter/sub_plugins", "plugin_exporter/sub_plugins", false)
 
 func _enter_tree() -> void:
 	instance = self

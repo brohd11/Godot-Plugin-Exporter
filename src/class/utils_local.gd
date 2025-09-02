@@ -27,3 +27,4 @@ static func get_global_classes_in_text(line:String, class_list_keys:Array):
 				if not tok in classes:
 					classes.append(tok)
 	return classes
+

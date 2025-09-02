@@ -174,69 +174,11 @@ static func check_ignore(local_path, export_obj:ExportData.Export):
 	return false
 
 
-static func export_file(from, to, export_uid_file, export_import_file):
-	var to_dir = to.get_base_dir()
-	if not DirAccess.dir_exists_absolute(to_dir):
-		DirAccess.make_dir_recursive_absolute(to_dir)
-	DirAccess.copy_absolute(from, to)
-	
-	var from_uid = from + ".uid"
-	var to_uid = to + ".uid"
-	if FileAccess.file_exists(from_uid) and export_uid_file:
-		DirAccess.copy_absolute(from_uid, to_uid)
-	var from_import = from + ".import"
-	var to_import = to + ".import"
-	if FileAccess.file_exists(from_import) and export_uid_file:
-		DirAccess.copy_absolute(from_import, to_import)
-
-static func export_remote_file(original_from, to, remote_file_data, include_uid, include_import, file_parser):
-	var remote_dir = remote_file_data.get(RemoteData.dir, "")
-	if remote_dir == "":
-		remote_dir = to.get_base_dir()
-	var remote_class = remote_file_data.get(RemoteData.single_class)
-	var remote_files = remote_file_data.get(RemoteData.files, [])
-	var other_deps = remote_file_data.get(RemoteData.other_deps, [])
-	if remote_files != []:
-		if remote_class == null:
-			export_file(original_from, to, include_uid, include_import)
-			file_parser.copy_remote_dependencies(true, original_from, to, to, remote_dir)
-		else: # allows for remote file to have preloads that will be copied to remote dir, will not be present in final file
-			for remote_file in remote_files:
-				var to_path = remote_dir.path_join(remote_file.get_file())
-				export_file(remote_file, to_path, include_uid, include_import)
-				file_parser.copy_remote_dependencies(true, remote_file, to_path, to, remote_dir)
-	
-	if remote_class != null:
-		export_file(remote_class, to, false, false) # do not include uid and import files
-		FileParser.write_new_uid(to + ".uid")
-		file_parser.copy_remote_dependencies(true, remote_class, to, to, remote_dir)
-	
-	if other_deps != []:
-		for dep in other_deps:
-			var dep_from = dep.get(RemoteData.from)
-			var dep_to = dep.get(RemoteData.to)
-			export_file(dep_from, dep_to, include_uid, include_import)
-
-static func pre_export_file_parse(export_obj:ExportData.Export):
-	_get_used_global_classes(export_obj)
-	export_obj.other_transfers_data = get_other_transfer_data(export_obj)
-	export_obj.all_remote_files = _get_all_remote_files(export_obj)
-	get_all_dependencies(export_obj)
-
-static func _get_used_global_classes(export_obj:ExportData.Export):
-	for file in export_obj.source_files:
-		_scan_file_for_global_class(file, export_obj)
-	
-	for to_path in export_obj.other_transfers_data.keys():
-		var file_data = export_obj.other_transfers_data.get(to_path)
-		var from_files = file_data.get(ExportFileKeys.from_files, [])
-		for file in from_files:
-			_scan_file_for_global_class(file, export_obj)
-	
-
-static func _scan_file_for_global_class(file_path:String, export_obj:ExportData.Export):
+static func scan_file_for_global_classes(file_path:String, export_obj:ExportData.Export):
 	var file_access = FileAccess.open(file_path, FileAccess.READ)
 	var class_names = export_obj.export_data.class_list.keys()
+	
+	var classes_used = {}
 	
 	while not file_access.eof_reached():
 		var line = file_access.get_line()
@@ -244,165 +186,16 @@ static func _scan_file_for_global_class(file_path:String, export_obj:ExportData.
 		for tok:String in tokens:
 			if tok in class_names:
 				var path = export_obj.export_data.class_list.get(tok)
-				if not path in export_obj.global_classes.keys():
-					export_obj.global_classes[tok] = path
+				#export_obj.global_classes_used[tok] = path
+				classes_used[tok] = path
+	
+	return classes_used
 
-
-static func get_remote_file(path, export_obj:ExportData.Export):
-	
-	if not path.get_extension() in FileParser.TEXT_FILE_TYPES:
-		return
-	var file_access = FileAccess.open(path, FileAccess.READ)
-	if file_access:
-		var remote_dec_line = file_access.get_line()
-		file_access.close()
-		if remote_dec_line.find("#! remote") == -1:
-			return _get_global_remote_files(path, export_obj)
-		else:
-			return _get_declared_remote_file(path, export_obj)
-	
-
-static func _get_declared_remote_file(path, export_obj:ExportData.Export):
-	var source = export_obj.source
-	var export_dir_path = export_obj.export_dir_path
-	var remote_files = []
-	var other_deps = []
-	var remote_file_data = {}
-	
-	if not path.get_extension() in FileParser.TEXT_FILE_TYPES:
-		return
-		
-	var file_access = FileAccess.open(path, FileAccess.READ)
-	if file_access:
-		var remote_dec_line = file_access.get_line()
-		var remote_dir = remote_dec_line.get_slice("#! remote", 1).strip_edges()
-		if remote_dir == "":
-			remote_dir = export_obj.remote_dir
-		if remote_dir != "":
-			remote_dir = remote_dir.replace(source, export_dir_path)
-		else:
-			remote_dir = path.get_base_dir().replace(source, export_dir_path)
-		
-		remote_file_data[RemoteData.dir] = remote_dir
-		
-		while not file_access.eof_reached():
-			var line = file_access.get_line()
-			if line.find('extends "') > -1:
-				var remote_file = line.replace("extends", "").replace('"',"").strip_edges()
-				remote_file_data[RemoteData.single_class] = remote_file
-				#return remote_file_data
-			elif line.find("preload(") > -1:
-				var preload_path = UtilsLocal.ParseBase.get_preload_path(line)
-				if preload_path != null:
-					remote_files.append(preload_path)
-			elif line.find("#! remote-dep") > -1 and line.count('"') == 2:
-				var dep_index = line.find("#! remote-dep")
-				var com_index = line.find("#")
-				if com_index < dep_index:
-					continue
-				var dep_path = line.get_slice('"', 1)
-				dep_path = dep_path.get_slice('"', 0)
-				var dep_dest = line.get_slice("#! remote-dep", 1).strip_edges()
-				if dep_dest == "":
-					dep_dest = remote_dir
-					if dep_dest == "":
-						dep_dest = "current"
-				
-				if dep_dest == "current":
-					dep_dest = path.get_base_dir().replace(source, export_dir_path)
-				else:
-					if remote_dir == "":
-						if dep_dest.find(source) == -1:
-							printerr("Dependency destination must be within 'source' folder: %s File: %s" % [dep_dest, dep_path])
-							continue
-						dep_dest = dep_dest.replace(source, export_dir_path)
-				
-				dep_dest = dep_dest.path_join(dep_path.get_file())
-				
-				other_deps.append({"from":dep_path, "to": dep_dest})
-		
-	remote_file_data[RemoteData.files] = remote_files
-	remote_file_data[RemoteData.other_deps] = other_deps
-	return remote_file_data
-
-static func _get_global_remote_files(path, export_obj:ExportData.Export):
-	var file_access = FileAccess.open(path, FileAccess.READ)
-	var is_global_class:= false
-	if not file_access:
-		return
-	while not file_access.eof_reached():
-		var line = file_access.get_line()
-		if line.find("class_name ") > -1:
-			var class_nm = line.get_slice("class_name ", 1).strip_edges()
-			if class_nm in export_obj.export_data.class_list.keys():
-				is_global_class = true
-				break
-	
-	if not is_global_class:
-		return
-	if UFile.is_file_in_directory(path, export_obj.source):
-		return # not remote file, don't need to get deps
-	
-	var remote_file_data = {}
-	var r_dir = export_obj.remote_dir.replace(export_obj.source, export_obj.export_dir_path)
-	remote_file_data[RemoteData.dir] = r_dir
-	remote_file_data[RemoteData.single_class] = path
-	var remote_files = []
-	file_access.seek(0)
-	
-	return remote_file_data
-
-
-static func _get_all_remote_files(export_obj:ExportData.Export):
-	var source_files = export_obj.source_files
-	var source = export_obj.source
-	var export_dir_path = export_obj.export_dir_path
-	var all_remote_files = export_obj.all_remote_files
-	
-	if all_remote_files == null:
-		all_remote_files = []
-	
-	for file in source_files:
-		var local_path = ProjectSettings.localize_path(file)
-		var remote_files = get_remote_file(local_path, export_obj)
-		export_obj.remote_file_data[local_path] = remote_files
-		_add_remote_files_to_array(remote_files, all_remote_files)
-	
-	for to_path in export_obj.other_transfers_data.keys():
-		var file_data = export_obj.other_transfers_data.get(to_path)
-		var from_files = file_data.get(ExportFileKeys.from_files, [])
-		for from in from_files:
-			var remote_files = get_remote_file(from, export_obj)
-			export_obj.remote_file_data[from] = remote_files
-			_add_remote_files_to_array(remote_files, all_remote_files)
-	
-	## I think redundant, global classes are already remote, unless in source, which is checked
-	#for class_nm in export_obj.global_classes.keys():
-		#var file_path = export_obj.global_classes.get(class_nm)
-		#var remote_files = get_remote_file(file_path, export_obj)
-		#_add_remote_files_to_array(remote_files, all_remote_files)
-	
-	return all_remote_files
-
-static func _add_remote_files_to_array(remote_file_data, all_remote_files):
-	if remote_file_data == null:
-		return
-	var remote_class = remote_file_data.get(RemoteData.single_class)
-	var remote_files = remote_file_data.get(RemoteData.files)
-	if remote_class != null:
-		if not remote_class in all_remote_files:
-			all_remote_files.append(remote_class)
-	elif remote_files != null:
-		for remote_file in remote_files:
-			if not remote_file in all_remote_files:
-				all_remote_files.append(remote_file)
 
 static func get_other_transfer_data(export_obj:ExportData.Export):
 	var other_transfers_array = export_obj.other_transfers
-	var source = export_obj.source
 	var export_dir_path = export_obj.export_dir_path
-	var all_remote_files = export_obj.all_remote_files
-
+	
 	var other_transfer_data = {}
 	for other in other_transfers_array:
 		var to:String = other.get(ExportFileKeys.to)
@@ -452,15 +245,6 @@ static func get_other_transfer_data(export_obj:ExportData.Export):
 	
 	return other_transfer_data
 
-static func get_all_dependencies(export_obj:ExportData.Export):
-	var scanned_files = {}
-	var dependencies = {}
-	for file_path in export_obj.all_remote_files:
-		
-		export_obj.file_parser.get_dependencies(file_path, dependencies, scanned_files)
-	
-	export_obj.dependencies = dependencies
-	
 
 
 static func write_zip_file(path:String, files):
@@ -565,17 +349,6 @@ static func plugin_init(plugin_name:=""):
 	return export_config_path
 
 
-
-
-class RemoteData:
-	const dir = "remote_dir"
-	const single_class = "remote_class"
-	const files = "remote_files"
-	const other_deps = "other_deps"
-	const to = "to"
-	const from = "from"
-	const dependent = "dependent"
-
 class ExportFileKeys:
 	const export_root = "export_root"
 	const plugin_folder = "plugin_folder"
@@ -595,6 +368,12 @@ class ExportFileKeys:
 	const to = "to"
 	const from_files = "from_files"
 	const single = "single"
+	
+	const path = "path"
+	const replace_with = "replace_with"
+	const adjusted_remote_path = "adjusted_remote_path"
+	const dependent = "dependent"
+	const dependency_dir = "dependency_dir"
 	
 	const options = "options"
 	const include_import = "include_import"

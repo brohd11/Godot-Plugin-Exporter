@@ -26,10 +26,6 @@ static func export_plugin(export_config_path:String, include_uid_overide=null, i
 	
 	update_git_submodule_details(export_config_path, export_data)
 	
-	var file_parser = FileParser.new()
-	file_parser.set_parser_settings(export_data.parser_settings)
-	
-	
 	if export_data.pre_script != "":
 		if not ExportFileUtils.check_export_script_valid(export_data.pre_script, "pre_export"):
 			return
@@ -39,6 +35,10 @@ static func export_plugin(export_config_path:String, include_uid_overide=null, i
 	
 	var options = export_data.get(ExportFileKeys.options)
 	var overwrite = options.get(ExportFileKeys.overwrite, false)
+	if overwrite:
+		_clear_export_dir(full_export_path)
+	
+	
 	var include_uid = export_data.include_uid
 	var include_import = export_data.include_import
 	
@@ -51,33 +51,16 @@ static func export_plugin(export_config_path:String, include_uid_overide=null, i
 			print("Overiding 'Include Import': %s -> %s" % [include_import_overide, not include_import_overide])
 		include_import = include_import_overide
 	
+	export_data.include_uid = include_uid
+	export_data.include_import = include_import
+	
 	for export:ExportData.Export in export_data.exports:
-		var source = export.source
-		var export_dir_path = export.export_dir_path
-		
-		file_parser.parse_cs.export_obj = export
-		file_parser.parse_gd.export_obj = export
-		file_parser.parse_tscn.export_obj = export
-		
-		for local_file_path in export.valid_files_for_transfer:
-			var global_file_path = ProjectSettings.globalize_path(local_file_path)
-			var remote_file_data = ExportFileUtils.get_remote_file(local_file_path, export)
-			var file_data = export.valid_files_for_transfer.get(local_file_path)
-			var export_path = file_data.get(ExportFileKeys.to)
-			if remote_file_data == null:
-				ExportFileUtils.export_file(global_file_path, export_path, include_uid, include_import)
-			else:
-				ExportFileUtils.export_remote_file(global_file_path, export_path, remote_file_data, include_uid, include_import, file_parser)
+		export.file_parser.set_export_obj(export)
+		export.export_files()
 	
 	
 	if export_data.post_script != "":
 		ExportFileUtils.run_export_script(export_data.post_script, "post_export")
-	
-	var files = UFile.scan_for_files(full_export_path, [])
-	for file in files:
-		var ext = file.get_extension()
-		if ext in FileParser.TEXT_FILE_TYPES:
-			file_parser.post_export_edit_file(file)
 	
 	var exported_dirs = DirAccess.get_directories_at(full_export_path)
 	for dir in exported_dirs:
@@ -91,9 +74,33 @@ static func export_plugin(export_config_path:String, include_uid_overide=null, i
 			var file = FileAccess.open(gdignore_path, FileAccess.WRITE)
 			file.close()
 			print("Created .gdignore for in-resource file system export.")
+	
 	var plugin_name = export_data.full_export_path.trim_suffix("/").get_file()
 	var accent_color = EditorInterface.get_editor_theme().get_color("accent_color", &"Editor").to_html()
 	print_rich("'[color=%s]%s[/color]' [color=25c225]exported[/color]" % [accent_color, plugin_name])
+
+
+static func _clear_export_dir(full_export_path):
+	var dir_array_2d:Array = UFile.scan_for_dirs(full_export_path, true)
+	for dir_array:Array in dir_array_2d:
+		dir_array.reverse()
+		for dir in dir_array:
+			var dir_access = DirAccess.open(dir)
+			dir_access.include_hidden = true
+			var files = dir_access.get_files()
+			for file in files:
+				var path = dir.path_join(file)
+				DirAccess.remove_absolute(path)
+			#var gd_ignore_path = dir.path_join(".gdignore")
+			#if FileAccess.file_exists(gd_ignore_path):
+				#DirAccess.remove_absolute(gd_ignore_path)
+			DirAccess.remove_absolute(dir)
+	var dir_access = DirAccess.open(full_export_path)
+	dir_access.include_hidden = true
+	var files = dir_access.get_files()
+	for f in files:
+		var path = full_export_path.path_join(f)
+		DirAccess.remove_absolute(path)
 
 
 static func update_git_submodule_details(export_config_path, export_data:ExportData=null):
@@ -115,7 +122,7 @@ static func update_git_submodule_details(export_config_path, export_data:ExportD
 	for export:ExportData.Export in export_data.exports:
 		var single_export_git_file_lines = []
 		git_details_file_lines.append("\nExport: " + export.export_folder)
-		for file in export.all_remote_files:
+		for file in export.file_dependencies.keys():
 			var dir = file.get_base_dir()
 			while dir != "res://":
 				var git_path = dir.path_join(".git")

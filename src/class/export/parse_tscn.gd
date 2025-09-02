@@ -15,31 +15,42 @@ func get_direct_dependencies(file_path:String) -> Dictionary:
 			var path = line.get_slice('path="', 1)
 			path = path.get_slice('"', 0)
 			var file_name = path.get_file()
-			direct_dependencies[file_name] = path
+			direct_dependencies[path] = {}
 	
 	return direct_dependencies
 
-func edit_dep_file(line:String, to:String, remote_file:String, remote_dir:String, dependencies:Dictionary) -> String:
-	if line.find('[gd_scene') > -1:
-		var uid = line.get_slice(' uid="', 1)
-		uid = uid.get_slice('"', 0)
-		var new_uid = ResourceUID.id_to_text(ResourceUID.create_id())
-		var old_uid_line = 'uid="%s"' % uid
-		var new_uid_line = 'uid="%s"' % new_uid
-		line = line.replace(old_uid_line, new_uid_line)
-	elif line.find('[ext_resource') > -1:
-		var type = line.get_slice(' type="', 1)
-		type = type.get_slice('"', 0)
-		var path = line.get_slice('path="', 1)
-		path = path.get_slice('"', 0)
-		var id = line.get_slice(' id="', 1)
-		id = id.get_slice('"', 0)
-		
-		var file_name = path.get_file()
-		var to_path = remote_dir.path_join(file_name)
-		var depen_data = {RemoteData.from: path, RemoteData.to: to_path, RemoteData.dependent: remote_file}
-		dependencies[file_name] = depen_data
-		var rel_path = UFile.get_relative_path(to, to_path)
-		line = '[ext_resource type="%s" path="./%s" id="%s"]' % [type, rel_path, id]
+
+func post_export_edit_file(file_path:String) -> Array:
+	var file_access = FileAccess.open(file_path, FileAccess.READ)
 	
-	return line
+	if not file_access:
+		printerr("ParseTSCN - Issue reading file: %s" % file_path)
+		return []
+	
+	var adjusted_file_lines = []
+	while not file_access.eof_reached():
+		var line = file_access.get_line()
+	
+		if line.find('[gd_scene') > -1:
+			var uid = line.get_slice(' uid="', 1)
+			uid = uid.get_slice('"', 0)
+			var path = UFile.uid_to_path(uid)
+			if path in export_obj.file_dependencies.keys():
+				var new_uid = ResourceUID.id_to_text(ResourceUID.create_id())
+				var old_uid_line = 'uid="%s"' % uid
+				var new_uid_line = 'uid="%s"' % new_uid
+				line = line.replace(old_uid_line, new_uid_line)
+		elif line.find('[ext_resource') > -1:
+			var type = line.get_slice(' type="', 1)
+			type = type.get_slice('"', 0)
+			var path = line.get_slice('path="', 1)
+			path = path.get_slice('"', 0)
+			var id = line.get_slice(' id="', 1)
+			id = id.get_slice('"', 0)
+			var new_path = export_obj.adjusted_remote_paths.get(path)
+			if new_path != null:
+				line = '[ext_resource type="%s" path="%s" id="%s"]' % [type, new_path, id]
+		
+		adjusted_file_lines.append(line)
+	
+	return adjusted_file_lines
