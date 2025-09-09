@@ -1,4 +1,4 @@
-#! remote res://addons/plugin_exporter/src/class/remote/
-extends "res://addons/godot_console/plugin.gd"
+#! remote
+extends "res://addons/editor_console/plugin.gd"
 
-const PLUGIN_CFG = "res://addons/godot_console/plugin.cfg"  #! dependency current
+const PLUGIN_CFG = "res://addons/editor_console/plugin.cfg"  #! dependency current

@@ -45,7 +45,6 @@ func _enter_tree() -> void:
 	add_tool_menu_item("Plugin Exporter", _on_tool_menu_pressed)
 
 func _exit_tree() -> void:
-	
 	remove_context_menu_plugin(context_plugin_inst)
 	remove_tool_menu_item("Plugin Exporter")
 	

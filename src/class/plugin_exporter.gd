@@ -5,7 +5,7 @@ const UtilsLocal = preload("res://addons/plugin_exporter/src/class/utils_local.g
 const PluginExporterStatic = UtilsLocal.PluginExporterStatic
 
 static func get_completion(raw_text, cmds, args, console):
-	if " --" and "-call" in raw_text:
+	if " --" and "call" in raw_text:
 		if args.size() == 1:
 			var data = {}
 			var addons = DirAccess.get_directories_at("res://addons")
@@ -33,6 +33,4 @@ static func gui_open(plugin_name:String):
 	var dock_manager = Plugin.instance.new_gui_instance()
 	var gui_instance = dock_manager.get_plugin_control()
 	
-	
 	gui_instance.load_export_file(export_file_path)
-	

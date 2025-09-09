@@ -61,7 +61,7 @@ func _init(export_config_path):
 	parser_settings = options.get("parser_settings", {})
 	
 	var parse_gd_settings = parser_settings.get("parse_gd", {})
-	class_rename_ignore = parse_gd_settings.get("class_rename_ignore", {})
+	class_rename_ignore = parse_gd_settings.get("class_rename_ignore", [])
 	_get_class_list()
 	
 	var exports_array = export_data.get(_ExportFileKeys.exports)
@@ -97,9 +97,7 @@ func _init(export_config_path):
 		
 		export_obj.file_parser = _UtilsLocal.FileParser.new()
 		export_obj.file_parser.set_parser_settings(parser_settings)
-		export_obj.file_parser.parse_cs.export_obj = export_obj
-		export_obj.file_parser.parse_gd.export_obj = export_obj
-		export_obj.file_parser.parse_tscn.export_obj = export_obj
+		export_obj.file_parser.set_export_obj(export_obj)
 		
 		
 		export_obj.get_valid_files_for_transfer()

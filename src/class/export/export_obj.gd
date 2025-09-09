@@ -83,13 +83,12 @@ func sort_valid_files():
 		if first_line.find("#! remote") == -1:
 			#files_to_copy[file] = {_ExportFileKeys.to: standard_export_path}
 			files_to_copy[file] = valid_files_for_transfer.get(file)
-			pass
 		else:
 			var is_remote = false
 			while not file_access.eof_reached():
 				var line = file_access.get_line()
-				var extend_idx = line.find("extends")
-				var class_idx = line.find("class")
+				var extend_idx = line.find("extends ") # ""
+				var class_idx = line.find("class ") # ""
 				
 				if extend_idx > -1 and line.count('"') == 2 and (class_idx == -1 or class_idx > extend_idx):
 					var remote_file_path = line.get_slice('"', 1)
@@ -126,7 +125,8 @@ func get_global_classes_used_in_valid_files():
 				_ExportFileKeys.path: remote_path
 				}
 			if _UtilsRemote.UFile.is_file_in_directory(remote_path, source):
-				continue
+				if not _is_remote_file(remote_path):
+					continue
 			files_to_process_for_paths[remote_path] = {}
 
 
@@ -141,14 +141,17 @@ func get_file_dependencies():
 		var dependency_dir = data.get(_ExportFileKeys.dependency_dir)
 		if _UtilsRemote.UFile.is_file_in_directory(remote_path, source):
 			continue
-		if dependent.get_file() == remote_path.get_file():
+		#if dependent.get_file() == remote_path.get_file():
+			#continue
+		if dependent == remote_path: # new system has full paths, can use full path? ^^
 			continue
 		var stripped_path = remote_path.trim_prefix("res://")
 		var remote_dir_path = remote_dir.path_join(stripped_path)
 		if dependency_dir == "current":
 			remote_dir_path = dependent.get_base_dir().path_join(remote_path.get_file())
-		elif dependency_dir != null:
+		elif dependency_dir != null and dependency_dir != "":
 			remote_dir_path = dependency_dir.path_join(remote_path.get_file())
+		
 		adjusted_remote_paths[remote_path] = remote_dir_path
 		
 		var export_path = remote_dir_path.replace(source, export_dir_path)
@@ -166,6 +169,13 @@ func get_global_class_export_paths():
 			var dependent = data.get(_ExportFileKeys.dependent)
 			var stripped_path = remote_path.trim_prefix("res://")
 			var remote_dir_path = remote_dir.path_join(stripped_path)
+			
+			if _UtilsRemote.UFile.is_file_in_directory(remote_path, source):
+				remote_dir_path = remote_path # if in plugin, do not move to remote
+				dependent = null # if in plugin, no dependent, will be transferred regardless
+			elif dependent == remote_path:
+				dependent = null # if global class was found in self, no dependent
+			
 			adjusted_remote_paths[remote_path] = remote_dir_path
 			export_data.class_renames[name] = remote_path
 			
@@ -193,7 +203,7 @@ func export_files():
 			if file_path in file_dep_keys:
 				is_dep = true
 				file_uid = false
-				file_import = false
+				file_import = false # should this be?
 			
 			_simple_export(file_path, export_path, file_uid, file_import)
 			
@@ -229,3 +239,12 @@ static func _simple_export(from, export_path, export_uid_file, export_import_fil
 	var export_path_import = export_path + ".import"
 	if FileAccess.file_exists(from_import) and export_uid_file:
 		DirAccess.copy_absolute(from_import, export_path_import)
+
+static func _is_remote_file(file_path:String):
+	var file_access = FileAccess.open(file_path, FileAccess.READ)
+	var first_line = file_access.get_line()
+	file_access.close()
+	if first_line.find("#! remote") == -1:
+		return false
+	return true
+	

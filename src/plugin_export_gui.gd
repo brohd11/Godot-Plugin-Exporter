@@ -53,7 +53,7 @@ var PMHelper: PopupHelper.MouseHelper
 
 const CALLABLE_KEY = "CALLABLE_KEY"
 var menu_button_dict = {
-	"Read File":{
+	"Read":{
 		PopupHelper.ParamKeys.ICON_KEY: ["FileAccess"],
 		PopupHelper.ParamKeys.TOOL_TIP_KEY: ["Read export file."],
 		CALLABLE_KEY: _on_read_file_button_pressed
@@ -68,7 +68,7 @@ var menu_button_dict = {
 		PopupHelper.ParamKeys.TOOL_TIP_KEY: ["Choose export json file."],
 		CALLABLE_KEY: _on_set_file_button_pressed
 	},
-	"New File":{
+	"Plugin Init":{
 		PopupHelper.ParamKeys.ICON_KEY: ["New"],
 		PopupHelper.ParamKeys.TOOL_TIP_KEY: ["Create new export json file."],
 		CALLABLE_KEY: _on_new_file_button_pressed

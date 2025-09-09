@@ -38,7 +38,6 @@ static func export_plugin(export_config_path:String, include_uid_overide=null, i
 	if overwrite:
 		_clear_export_dir(full_export_path)
 	
-	
 	var include_uid = export_data.include_uid
 	var include_import = export_data.include_import
 	
@@ -57,7 +56,6 @@ static func export_plugin(export_config_path:String, include_uid_overide=null, i
 	for export:ExportData.Export in export_data.exports:
 		export.file_parser.set_export_obj(export)
 		export.export_files()
-	
 	
 	if export_data.post_script != "":
 		ExportFileUtils.run_export_script(export_data.post_script, "post_export")
@@ -135,6 +133,7 @@ static func update_git_submodule_details(export_config_path, export_data:ExportD
 					var lines = _get_git_data(dir, single_export_git_file_lines, "Repo")
 					if lines:
 						single_export_git_file_lines.append_array(lines)
+					break
 				else:
 					dir = dir.get_base_dir()
 		
