@@ -19,6 +19,10 @@ var other_transfers:Array
 var other_transfers_data:Dictionary
 var valid_files_for_transfer:Dictionary = {}
 
+var rename_plugin := false
+var plugin_name := ""
+var new_plugin_name := ""
+
 var file_parser:_FileParser
 
 var files_to_copy:Dictionary = {}
@@ -38,12 +42,17 @@ func get_valid_files_for_transfer():
 			continue
 		
 		var export_path = l_path.replace(source, export_dir_path)
+		#if rename_plugin:
+			#adjusted_remote_paths[l_path] = l_path.replace(plugin_name, new_plugin_name)
+		
 		if FileAccess.file_exists(export_path) and not export_data.overwrite:
 			_USafeEditor.push_toast("File exists, aborting: " + export_path, 2)
 			return
 		
 		if FileAccess.file_exists(l_path): # check that it is file vs dir
 			valid_files_for_transfer[l_path] = {_ExportFileKeys.to:export_path}
+			
+			
 			
 	
 	other_transfers_data = _ExportFileUtils.get_other_transfer_data(self)
@@ -71,7 +80,10 @@ func get_valid_files_for_transfer():
 func sort_valid_files():
 	for file:String in valid_files_for_transfer.keys():
 		var standard_export_path = file.replace(source, export_dir_path)
-		if not file.get_extension() in _FileParser.TEXT_FILE_TYPES:
+		if rename_plugin:
+			adjusted_remote_paths[file] = file.replace(plugin_name, new_plugin_name)
+		
+		if not file_parser.check_file_valid(file):
 			files_to_copy[file] = valid_files_for_transfer.get(file)
 			#files_to_copy[file] = {_ExportFileKeys.to: standard_export_path}
 			continue
@@ -81,7 +93,6 @@ func sort_valid_files():
 		
 		
 		if first_line.find("#! remote") == -1:
-			#files_to_copy[file] = {_ExportFileKeys.to: standard_export_path}
 			files_to_copy[file] = valid_files_for_transfer.get(file)
 		else:
 			var is_remote = false
@@ -141,8 +152,14 @@ func get_file_dependencies():
 		var dependency_dir = data.get(_ExportFileKeys.dependency_dir)
 		if _UtilsRemote.UFile.is_file_in_directory(remote_path, source):
 			continue
-		#if dependent.get_file() == remote_path.get_file():
-			#continue
+		
+		if dependent != "":
+			var dep_data = files_to_copy.get(dependent, {})
+			var replace_with = dep_data.get(_ExportFileKeys.replace_with)
+			if replace_with != null:
+				if replace_with == remote_path:
+					continue # stop remote classes from creating extra copy in remote
+		
 		if dependent == remote_path: # new system has full paths, can use full path? ^^
 			continue
 		var stripped_path = remote_path.trim_prefix("res://")
@@ -152,7 +169,10 @@ func get_file_dependencies():
 		elif dependency_dir != null and dependency_dir != "":
 			remote_dir_path = dependency_dir.path_join(remote_path.get_file())
 		
-		adjusted_remote_paths[remote_path] = remote_dir_path
+		var adjusted_path = remote_dir_path
+		if rename_plugin:
+			adjusted_path = adjusted_path.replace(plugin_name, new_plugin_name)
+		adjusted_remote_paths[remote_path] = adjusted_path
 		
 		var export_path = remote_dir_path.replace(source, export_dir_path)
 		files_to_copy[remote_path] = {
@@ -175,8 +195,10 @@ func get_global_class_export_paths():
 				dependent = null # if in plugin, no dependent, will be transferred regardless
 			elif dependent == remote_path:
 				dependent = null # if global class was found in self, no dependent
-			
-			adjusted_remote_paths[remote_path] = remote_dir_path
+			var adjusted_path = remote_dir_path
+			if rename_plugin:
+				adjusted_path = adjusted_path.replace(plugin_name, new_plugin_name)
+			adjusted_remote_paths[remote_path] = adjusted_path
 			export_data.class_renames[name] = remote_path
 			
 			var export_path = remote_dir_path.replace(source, export_dir_path)
@@ -208,17 +230,12 @@ func export_files():
 			_simple_export(file_path, export_path, file_uid, file_import)
 			
 			if is_dep and FileAccess.file_exists(file_path + ".uid"):
-				file_parser.write_new_uid(export_path + ".uid")
+				_ExportFileUtils.write_new_uid(export_path + ".uid")
 			
 		else:
 			_simple_export(replace_with, export_path, false, false)
 			if FileAccess.file_exists(replace_with + ".uid"):
-				file_parser.write_new_uid(export_path + ".uid")
-		
-		#if not file_path in files_to_process_keys:
-			#continue
-		if not file_path.get_extension() in file_parser.TEXT_FILE_TYPES:
-			continue
+				_ExportFileUtils.write_new_uid(export_path + ".uid")
 		
 		file_parser.post_export_edit_file(export_path)
 	##

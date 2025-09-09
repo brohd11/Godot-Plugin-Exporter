@@ -7,27 +7,76 @@ const ExportFileKeys = UtilsLocal.ExportFileUtils.ExportFileKeys
 
 const TEXT_FILE_TYPES = ["gd", "tscn", "cs"] # TODO add tres support
 
+var custom_text_types:Array = []
+
+var custom_parse_data:Dictionary = {}
+
+var default_parsers:Dictionary = {}
+
 var parse_gd: UtilsLocal.ParseGD
 var parse_tscn: UtilsLocal.ParseTSCN
 var parse_cs: UtilsLocal.ParseCS
 
 func _init() -> void:
-	parse_gd = UtilsLocal.ParseGD.new()
-	parse_tscn = UtilsLocal.ParseTSCN.new()
-	parse_cs = UtilsLocal.ParseCS.new()
+	var default_parse_files = DirAccess.get_files_at(UtilsLocal.PARSE_FOLDER_PATH)
+	for f in default_parse_files:
+		if f == "parse_base.gd" or f == "template.gd":
+			continue
+		if f.get_extension() == "uid":
+			continue
+		var full_path = UtilsLocal.PARSE_FOLDER_PATH.path_join(f)
+		var script = load(full_path)
+		if not script is Script:
+			printerr("Error loading parse script, resource is not script: %s" % full_path)
+			continue
+		var parse_ext = f.trim_prefix("parse_").trim_suffix(".gd")
+		var instance = script.new()
+		if parse_ext in default_parsers.keys():
+			printerr("Parse already loaded, may be duplicate parsers: %s" % full_path)
+			continue
+		
+		default_parsers[parse_ext] = instance
+	
+	
+	var parse_dirs = DirAccess.get_directories_at(UtilsLocal.PARSE_FOLDER_PATH)
+	custom_text_types = parse_dirs
+	for dir in parse_dirs:
+		var dir_path = UtilsLocal.PARSE_FOLDER_PATH.path_join(dir)
+		var files = DirAccess.get_files_at(dir_path)
+		var parse_ins_array = []
+		for file in files:
+			var full_path = dir_path.path_join(file)
+			var script = load(full_path)
+			if script is Script:
+				var instance = script.new()
+				parse_ins_array.append(instance)
+			else:
+				printerr("Issue getting parse script: %s" % full_path)
+		
+		custom_parse_data[dir] = parse_ins_array
 
 func set_parser_settings(parser_settings):
-	var gd_settings = parser_settings.get("parse_gd", {})
-	parse_gd.set_parse_settings(gd_settings)
-	var tscn_settings = parser_settings.get("parse_tscn", {})
-	parse_tscn.set_parse_settings(tscn_settings)
-	var cs_settings = parser_settings.get("parse_cs", {})
-	parse_cs.set_parse_settings(cs_settings)
+	for parser_ext in default_parsers.keys():
+		var parse_ins = default_parsers.get(parser_ext)
+		var settings = parser_settings.get("parse_%s" % parser_ext, {})
+		parse_ins.set_parse_settings(settings)
+	
+	for parser_ext in custom_parse_data.keys():
+		var parse_ins_array = custom_parse_data.get(parser_ext, [])
+		var settings = parser_settings.get("parse_%s" % parser_ext, {})
+		for parse_ins in parse_ins_array:
+			parse_ins.set_parse_settings(settings)
 
 func set_export_obj(export_obj):
-	parse_gd.export_obj = export_obj
-	parse_cs.export_obj = export_obj
-	parse_tscn.export_obj = export_obj
+	for parser_ext in default_parsers.keys():
+		var parse_ins = default_parsers.get(parser_ext)
+		parse_ins.export_obj = export_obj
+	
+	for parser_ext in custom_parse_data.keys():
+		var parse_ins_array = custom_parse_data.get(parser_ext, [])
+		for parse_ins in parse_ins_array:
+			parse_ins.export_obj = export_obj
+
 
 func get_dependencies(file_path:String, all_dependencies:Dictionary, scanned_files:Dictionary):
 	var files_to_scan = [file_path]
@@ -40,14 +89,16 @@ func get_dependencies(file_path:String, all_dependencies:Dictionary, scanned_fil
 		
 		var file_deps = {}
 		var ext = current_file_path.get_extension()
-		if ext == "gd":
-			file_deps = parse_gd.get_direct_dependencies(current_file_path)
-		elif ext == "cs":
-			file_deps = parse_cs.get_direct_dependencies(current_file_path)
-		elif ext == "tscn":
-			file_deps = parse_tscn.get_direct_dependencies(current_file_path)
-		else:
-			continue
+		if ext in TEXT_FILE_TYPES:
+			var parse_ins = default_parsers.get(ext)
+			file_deps = parse_ins.get_direct_dependencies(current_file_path)
+		
+		if ext in custom_text_types:
+			var parse_ins_array = custom_parse_data.get(ext)
+			for parse_ins in parse_ins_array:
+				var deps = parse_ins.get_direct_dependencies(current_file_path)
+				file_deps.merge(deps, true)
+		
 		
 		for path in file_deps.keys():
 			var data = file_deps.get(path)
@@ -60,7 +111,10 @@ func get_dependencies(file_path:String, all_dependencies:Dictionary, scanned_fil
 
 
 func post_export_edit_file(file_path:String):
+	if not check_file_valid(file_path):
+		return
 	var ext = file_path.get_extension()
+	
 	var file = FileAccess.open(file_path, FileAccess.READ)
 	if not file:
 		printerr("Could not open file: %s" % file_path)
@@ -71,26 +125,27 @@ func post_export_edit_file(file_path:String):
 	
 	file.close()
 	
+	var valid_parsers = []
+	if ext in TEXT_FILE_TYPES:
+		valid_parsers.append(default_parsers.get(ext))
+	if ext in custom_text_types:
+		var parse_ins_array = custom_parse_data.get(ext, [])
+		valid_parsers.append_array(parse_ins_array)
+	
 	var file_lines_edited
-	if ext == "gd":
-		file_lines_edited = parse_gd.post_export_edit_file(file_path)
-	elif ext == "tscn":
-		file_lines_edited = parse_tscn.post_export_edit_file(file_path)
-	elif ext == "cs":
-		file_lines_edited = parse_cs.post_export_edit_file(file_path)
+	
+	for parse_ins in valid_parsers:
+		file_lines_edited = parse_ins.post_export_edit_file(file_path, file_lines_edited)
+	
 	if file_lines_edited != null:
 		file_lines = file_lines_edited
 	
-	
 	var final_file_lines = []
 	for line in file_lines:
-		if ext == "gd":
-			final_file_lines.append(parse_gd.post_export_edit_line(line))
-		elif ext == "tscn":
-			final_file_lines.append(parse_tscn.post_export_edit_line(line))
-		elif ext == "cs":
-			final_file_lines.append(parse_cs.post_export_edit_line(line))
+		for parse_ins in valid_parsers:
+			line = parse_ins.post_export_edit_line(line)
 		
+		final_file_lines.append(line)
 	
 	
 	var write_file_access = FileAccess.open(file_path, FileAccess.WRITE)
@@ -99,22 +154,8 @@ func post_export_edit_file(file_path:String):
 	
 	write_file_access.close()
 
-func _update_file_export_flags(file_path):
-	var file_access = FileAccess.open(file_path, FileAccess.READ)
-	var file_lines = []
-	while not file_access.eof_reached():
-		var line = file_access.get_line()
-		if line.find("const PLUGIN_EXPORTED = true") > -1:
-			line = line.replace("const PLUGIN_EXPORTED = true", "const PLUGIN_EXPORTED = true")
-		file_lines.append(line)
-	
-	file_access = FileAccess.open(file_path, FileAccess.WRITE)
-	for line in file_lines:
-		file_access.store_line(line)
-
-
-static func write_new_uid(uid_path):
-	var id = ResourceUID.create_id()
-	var uid = ResourceUID.id_to_text(id)
-	var f = FileAccess.open(uid_path, FileAccess.WRITE)
-	f.store_string(uid)
+func check_file_valid(file_path:String) -> bool:
+	var ext = file_path.get_extension() 
+	if ext in TEXT_FILE_TYPES or ext in custom_text_types:
+		return true
+	return false

@@ -265,6 +265,13 @@ static func write_zip_file(path:String, files):
 	zip.close()
 	return OK
 
+static func write_new_uid(uid_path):
+	var id = ResourceUID.create_id()
+	var uid = ResourceUID.id_to_text(id)
+	var f = FileAccess.open(uid_path, FileAccess.WRITE)
+	f.store_string(uid)
+
+
 static func plugin_init(plugin_name:=""):
 	if not FileAccess.file_exists(UtilsLocal.EXPORT_TEMPLATE_PATH):
 		printerr("Export template missing: %s" % UtilsLocal.EXPORT_TEMPLATE_PATH)

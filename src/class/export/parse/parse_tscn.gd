@@ -1,4 +1,4 @@
-extends "res://addons/plugin_exporter/src/class/export/parse_base.gd"
+extends "res://addons/plugin_exporter/src/class/export/parse/parse_base.gd"
 
 func set_parse_settings(settings) -> void:
 	pass
@@ -20,12 +20,12 @@ func get_direct_dependencies(file_path:String) -> Dictionary:
 	return direct_dependencies
 
 
-func post_export_edit_file(file_path:String) -> Array:
+func post_export_edit_file(file_path:String, file_lines:Variant=null) -> Variant:
 	var file_access = FileAccess.open(file_path, FileAccess.READ)
 	
 	if not file_access:
 		printerr("ParseTSCN - Issue reading file: %s" % file_path)
-		return []
+		return
 	
 	var adjusted_file_lines = []
 	while not file_access.eof_reached():

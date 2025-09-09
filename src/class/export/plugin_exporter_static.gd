@@ -17,7 +17,15 @@ static func export_by_name(plugin_dir_name):
 	if not FileAccess.file_exists(export_config_path):
 		printerr("Plugin Export config not found at: %s" % addon_dir)
 		return
-	export_plugin(export_config_path)
+	var success = export_plugin(export_config_path)
+	
+	var plugin_version = ExportFileUtils.get_version(plugin_dir_name, export_config_path)
+	var plugin_name = "%s - %s" % [plugin_dir_name.capitalize(), plugin_version] 
+	var accent_color = EditorInterface.get_editor_theme().get_color("accent_color", &"Editor").to_html()
+	if success:
+		print_rich("'[color=%s]%s[/color]' [color=25c225]exported[/color]" % [accent_color, plugin_name])
+	else:
+		print_rich("'[color=%s]%s[/color]' [color=b20f0f]export failed[/color]" % [accent_color, plugin_name])
 
 static func export_plugin(export_config_path:String, include_uid_overide=null, include_import_overide=null):
 	var export_data = ExportData.new(export_config_path)
@@ -73,9 +81,8 @@ static func export_plugin(export_config_path:String, include_uid_overide=null, i
 			file.close()
 			print("Created .gdignore for in-resource file system export.")
 	
-	var plugin_name = export_data.full_export_path.trim_suffix("/").get_file()
-	var accent_color = EditorInterface.get_editor_theme().get_color("accent_color", &"Editor").to_html()
-	print_rich("'[color=%s]%s[/color]' [color=25c225]exported[/color]" % [accent_color, plugin_name])
+	return true
+	
 
 
 static func _clear_export_dir(full_export_path):
@@ -89,10 +96,9 @@ static func _clear_export_dir(full_export_path):
 			for file in files:
 				var path = dir.path_join(file)
 				DirAccess.remove_absolute(path)
-			#var gd_ignore_path = dir.path_join(".gdignore")
-			#if FileAccess.file_exists(gd_ignore_path):
-				#DirAccess.remove_absolute(gd_ignore_path)
+			
 			DirAccess.remove_absolute(dir)
+	
 	var dir_access = DirAccess.open(full_export_path)
 	dir_access.include_hidden = true
 	var files = dir_access.get_files()
@@ -179,3 +185,65 @@ static func _get_git_data(dir, git_file_lines, repo_type="Submodule"):
 		"\t\tCommit: %s" % commit,
 	]
 	return lines
+
+
+static func new_plugin(plugin_dir_name, create_export:=true):
+	var new_plugin_path = "res://addons/%s" % plugin_dir_name
+	if DirAccess.dir_exists_absolute(new_plugin_path):
+		print("Plugin already exists.")
+		return
+	
+	DirAccess.make_dir_recursive_absolute(new_plugin_path)
+	var plugin_cap_name = plugin_dir_name.capitalize()
+	
+	var plugin_gd_path = new_plugin_path.path_join("plugin.gd")
+	var file_access = FileAccess.open(plugin_gd_path, FileAccess.WRITE)
+	file_access.store_string(_NewPluginText.PLUGIN_GD_TEXT % plugin_cap_name)
+	file_access.close()
+	
+	var plugin_cfg_path = new_plugin_path.path_join("plugin.cfg")
+	
+	var cfg_file_access = FileAccess.open(plugin_cfg_path, FileAccess.WRITE)
+	cfg_file_access.store_string(_NewPluginText.PLUGIN_CFG_TEXT % plugin_cap_name)
+	cfg_file_access.close()
+	
+	print("Created plugin: %s" % plugin_cap_name)
+	
+	if create_export:
+		ExportFileUtils.plugin_init(plugin_dir_name)
+	
+	EditorInterface.get_resource_filesystem().scan()
+
+
+class _NewPluginText:
+	const PLUGIN_GD_TEXT = \
+'@tool
+extends EditorPlugin
+
+func _get_plugin_name() -> String:
+	return "%s"
+func _get_plugin_icon() -> Texture2D:
+	return EditorInterface.get_base_control().get_theme_icon("Node", &"EditorIcons")
+func _has_main_screen() -> bool:
+	return true
+
+func _enable_plugin() -> void:
+	pass
+
+func _disable_plugin() -> void:
+	pass
+
+func _enter_tree() -> void:
+	pass
+
+func _exit_tree() -> void:
+	pass'
+
+	const PLUGIN_CFG_TEXT = \
+'[plugin]
+
+name="%s"
+description=""
+author=""
+version="0.0.0"
+script="plugin.gd"'

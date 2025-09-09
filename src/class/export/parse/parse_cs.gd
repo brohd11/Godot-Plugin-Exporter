@@ -1,4 +1,4 @@
-extends "res://addons/plugin_exporter/src/class/export/parse_base.gd"
+extends "res://addons/plugin_exporter/src/class/export/parse/parse_base.gd"
 
 const PLUGIN_EXPORTED_STRING = "const bool PLUGIN_EXPORTED = false"
 const PLUGIN_EXPORTED_REPLACE = "const bool PLUGIN_EXPORTED = true"

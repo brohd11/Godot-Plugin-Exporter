@@ -24,8 +24,8 @@ func get_direct_dependencies(file_path:String) -> Dictionary:
 func post_export_edit_line(line:String) -> String:
 	return line
 
-func post_export_edit_file(file_path:String) -> Variant:
-	return
+func post_export_edit_file(file_path:String, file_lines:Variant=null) -> Variant:
+	return file_lines
 
 func _update_file_export_flags(line:String) -> String:
 	return line

@@ -69,6 +69,7 @@ func _init(export_config_path):
 		var export_obj:Export = Export.new()
 		export_obj.export_data = self
 		export_obj.source = export.get(_ExportFileKeys.source)
+		
 		if not export_obj.source.ends_with("/"):
 			export_obj.source = export_obj.source + "/"
 		
@@ -82,6 +83,13 @@ func _init(export_config_path):
 		export_obj.export_folder = _ExportFileUtils.replace_version(export_obj.export_folder, export_config_path)
 		if export_obj.export_folder == "":
 			return
+		
+		var plugin_name = export_obj.source.trim_suffix("/").get_file()
+		var export_plugin_name = export_obj.export_folder.trim_suffix("/").get_file()
+		if plugin_name != export_plugin_name and true: # add bool in json?
+			export_obj.rename_plugin = true
+			export_obj.plugin_name = "res://addons/%s/" % plugin_name
+			export_obj.new_plugin_name = "res://addons/%s/" % export_plugin_name
 		
 		if not export_obj.export_folder.ends_with("/"):
 			export_obj.export_folder = export_obj.export_folder + "/"

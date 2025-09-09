@@ -10,7 +10,7 @@
 				"files": []
 			},
 			"remote_dir":"res://addons/plugin_exporter/src/class/remote/",
-			"export_folder": "plugin-exporter{{version=plugin_exporter}}/plugin_exporter",
+			"export_folder": "plugin-exporter{{version=plugin_exporter}}/plugin_exporter_rename",
 			"other_transfers": [
 				{"to":"modular_browser/.gdignore"}
 			],

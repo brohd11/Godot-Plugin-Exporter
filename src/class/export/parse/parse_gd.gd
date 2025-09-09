@@ -1,4 +1,4 @@
-extends "res://addons/plugin_exporter/src/class/export/parse_base.gd"
+extends "res://addons/plugin_exporter/src/class/export/parse/parse_base.gd"
 
 const PLUGIN_EXPORTED_STRING = "const PLUGIN_EXPORTED = false"
 const PLUGIN_EXPORTED_REPLACE = "const PLUGIN_EXPORTED = true"
@@ -13,8 +13,9 @@ func _init() -> void:
 	
 	
 	path_regex = RegEx.new()
-	var pattern = r"""(?:\bextends\b\s+|preload\s*\(|load\s*\()[\s"']*\K((?:res|uid)://[^"'\)]+)"""
-	path_regex.compile(pattern)
+	#var pattern = r"""(?:\bextends\b\s+|preload\s*\(|load\s*\()[\s"']*\K((?:res|uid)://[^"'\)]+)"""
+	var all_string_paths_pattern = "[\"']((?:res:\\/\\/|uid:\\/\\/|user:\\/\\/).*?)[\"']"
+	path_regex.compile(all_string_paths_pattern)
 	
 	const_name_regex = UtilsRemote.URegex.get_const_name()
 
@@ -83,7 +84,7 @@ func get_direct_dependencies(file_path:String) -> Dictionary:
 	return direct_dependencies
 
 
-func post_export_edit_file(file_path:String):
+func post_export_edit_file(file_path:String, file_lines:Variant=null):
 	var class_list_keys = export_obj.export_data.class_list.keys()
 	var class_renames = export_obj.export_data.class_renames
 	var class_renames_keys = class_renames.keys()
@@ -188,20 +189,27 @@ func post_export_edit_file(file_path:String):
 
 
 func _update_paths(line:String):
+	var comment_index = line.find("#")
 	var matches = path_regex.search_all(line)
 	for i in range(matches.size() - 1, -1, -1):
 		var _match:RegExMatch = matches[i]
+		var start = _match.get_start(1)
+		var end = _match.get_end(1)
+		if comment_index > -1 and comment_index < start:
+			return line
 		
 		var old_path = _match.get_string(1)
-		if old_path.begins_with("uid:"):
+		if old_path.begins_with("uid://"):
+			if old_path == "uid://" or old_path == "uid://<invalid>":
+				continue
 			old_path = UFile.uid_to_path(old_path)
 		var new_path = export_obj.adjusted_remote_paths.get(old_path)
 		if not new_path:
-			#printerr("Could not find adjusted path for: %s" % old_path)
-			pass
+			if export_obj.rename_plugin:
+				if old_path.find(export_obj.plugin_name) > -1:
+					new_path = old_path.replace(export_obj.plugin_name, export_obj.new_plugin_name)
+					line = line.substr(0, start) + new_path + line.substr(end)
 		else:
-			var start = _match.get_start(1)
-			var end = _match.get_end(1)
 			line = line.substr(0, start) + new_path + line.substr(end)
 	
 	return line

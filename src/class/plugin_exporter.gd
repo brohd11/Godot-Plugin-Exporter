@@ -6,7 +6,7 @@ const PluginExporterStatic = UtilsLocal.PluginExporterStatic
 
 static func get_completion(raw_text, cmds, args, console):
 	if " --" and "call" in raw_text:
-		if args.size() == 1:
+		if args.size() == 1 and args[0] != "new_plugin":
 			var data = {}
 			var addons = DirAccess.get_directories_at("res://addons")
 			for dir in addons:
@@ -17,6 +17,9 @@ static func get_completion(raw_text, cmds, args, console):
 
 static func export(plugin_name:String):
 	PluginExporterStatic.export_by_name(plugin_name)
+
+static func new_plugin(plugin_name:String):
+	PluginExporterStatic.new_plugin(plugin_name)
 
 static func plugin_init(plugin_name:String):
 	UtilsLocal.ExportFileUtils.plugin_init(plugin_name)
