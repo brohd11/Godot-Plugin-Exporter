@@ -356,7 +356,7 @@ func process_line_for_external(line: String, rules: Array) -> String:
 			var full_match_text = _match.get_string(1) # The full "Plugin.instance"
 			var object_chain = _match.get_string(2)    # The "Plugin" part
 			var var_name = _match.get_string(3)        # The "instance" part
-			print(var_name)
+			#print(var_name)
 			# Build the replacement string manually, just like in the test
 			var replacement_text = "{obj}.get_{var}()".format({
 				"obj": object_chain,

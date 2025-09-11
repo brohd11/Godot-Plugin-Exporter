@@ -4,13 +4,41 @@ extends "res://addons/plugin_exporter/src/class/export/parse/parse_base.gd"
 const EI_BACKPORT_PATH = "res://addons/plugin_exporter/src/class/export/backport/ei_backport.gd"
 const EI_BACKPORT = "_EIBackport"
 
+const VALID_4_0_WINDOW_POSITIONS = [
+	"Window.WINDOW_INITIAL_POSITION_ABSOLUTE",
+	"Window.WINDOW_INITIAL_POSITION_CENTER_MAIN_WINDOW_SCREEN",
+	"Window.WINDOW_INITIAL_POSITION_CENTER_OTHER_SCREEN",
+	"Window.WINDOW_INITIAL_POSITION_CENTER_PRIMARY_SCREEN"
+]
+const DEFAULT_POSITION = "Window.WINDOW_INITIAL_POSITION_CENTER_PRIMARY_SCREEN"
 
+const VALID_4_0_EI_METHODS = [
+	"edit_node", "edit_resource", "edit_script", "get_base_control",
+	"get_command_palette", "get_current_directory", "get_current_path",
+	"get_edited_scene_root", "get_editor_main_screen", "get_editor_paths",
+	"get_editor_scale", "get_editor_settings", "get_file_system_dock",
+	"get_inspector", "get_open_scenes", "get_playing_scene",
+	"get_resource_filesystem", "get_resource_previewer", "get_script_editor", "get_selected_paths",
+	"get_selection", "inspect_object", "is_movie_maker_enabled", "is_playing_scene",
+	"is_plugin_enabled", "make_mesh_previews", "open_scene_from_path", "play_current_scene",
+	"play_custom_scene", "play_main_scene", "reload_scene_from_path", "restart_editor", "save_scene", "save_scene_as",
+	"select_file", "set_main_screen_editor", "set_movie_maker_enabled", "set_plugin_enabled", "stop_playing_scene"
+]
+
+
+
+var _indent_regex:= RegEx.new()
 var _is_not_regex:= RegEx.new()
 var _for_loop_type_regex:= RegEx.new()
+var _ei_method_validate_regex:= RegEx.new()
+var _ei_method_chain_regex:= RegEx.new()
 var _ei_regex:= RegEx.new()
-var _raw_string_regex := RegEx.new()
+
 
 var _raw_string_regexes = []
+
+var _window_regex:= RegEx.new()
+var _is_part_of_edited_scene_regex:= RegEx.new()
 
 
 var backport:= false
@@ -18,17 +46,23 @@ var backport:= false
 func _init() -> void:
 	_string_regex = URegex.get_strings()
 	
+	var indent_pattern = "^(\\t*)( *)(.*)"
+	_indent_regex.compile(indent_pattern)
+	
 	var is_not_pattern = "(\\S+)\\s+is\\s+not\\s+(\\S+)"
 	_is_not_regex.compile(is_not_pattern)
 	
 	var for_loop_pattern = "^(\\s*for\\s+)(\\S+)\\s*:\\s*.*?(\\s+in\\s+.*)"
 	_for_loop_type_regex.compile(for_loop_pattern)
 	
+	var ei_method_validate_pattern = "(\\bEditorInterface\\b)\\.(\\w+)"
+	_ei_method_validate_regex.compile(ei_method_validate_pattern)
+	
+	var ei_method_chain_pattern = "(\\bEditorInterface\\b[\\w\\s\\.\\(\\)\\[\\]\"',]*)"
+	_ei_method_chain_regex.compile(ei_method_chain_pattern)
+	
 	var ei_pattern = "\\bEditorInterface\\b"
 	_ei_regex.compile(ei_pattern)
-	
-	var raw_string_pattern = "(?s)r(\"\"\"|'''|\"|')(.*?)(\\1)"
-	_raw_string_regex.compile(raw_string_pattern)
 	
 	var raw_string_patterns = [
 	"(?s)(?<!\\w)r(\"\"\")(.*?)(\"\"\")", # 1. r"""..."""
@@ -40,6 +74,12 @@ func _init() -> void:
 		var regex = RegEx.new()
 		regex.compile(pattern)
 		_raw_string_regexes.append(regex)
+	
+	var window_pattern = "Window\\.WINDOW_INITIAL_POSITION_[A-Z_]+"
+	_window_regex.compile(window_pattern)
+	
+	var is_part_pattern = "(?:(\\S+)\\.)?is_part_of_edited_scene\\(\\)"
+	_is_part_of_edited_scene_regex.compile(is_part_pattern)
 	
 	#run_editor_interface_tests()
 	#run_is_not_tests()
@@ -88,14 +128,66 @@ func post_export_edit_line(line:String) -> String:
 	if not backport:
 		return line
 	
+	line = fix_mixed_indent(line)
 	
+	line = replace_ei_methods(line)
+	validate_ei_methods(line)
 	line = replace_editor_interface(line)
 	line = remove_for_loop_type_hint(line)
 	line = convert_all_is_not_syntax(line)
-	
+	line = check_window_line(line)
+	line = replace_is_part_of_edited_scene(line)
 	
 	return line
 
+
+func fix_mixed_indent(line: String) -> String:
+	# The replacement string "$1$3" means:
+	# - $1: the tabs
+	# - $3: the code
+	# deliberately leave out the spaces
+	return _indent_regex.sub(line, "$1$3", true)
+
+func validate_ei_methods(line: String):
+	_string_safe_regex_sub(line, _validate_ei_methods)
+
+func _validate_ei_methods(line: String):
+	var matches = _ei_method_validate_regex.search_all(line)
+	
+	for _match in matches:
+		var full_chain = _match.get_string(1).strip_edges()
+		var method_name = _match.get_string(2) # Group 2 is the method name
+		if not VALID_4_0_EI_METHODS.has(method_name):
+			var file_path = export_obj.file_parser.current_file_path_parsing
+			print("Found non valid 4.0 method 'EditorInterface.%s()' in: %s." % [method_name, file_path])
+	
+	return line
+
+func replace_ei_methods(line: String) -> String:
+	return _string_safe_regex_sub(line, _replace_ei_methods)
+
+func _replace_ei_methods(line: String) -> String:
+	var matches = _ei_method_chain_regex.search_all(line)
+	
+	for i in range(matches.size() - 1, -1, -1):
+		var full_match: RegExMatch = matches[i]
+		var chain_string = full_match.get_string(1)
+		
+		if "get_editor_theme" in chain_string:
+			chain_string = chain_string.replace("get_editor_theme", "get_base_control")
+			if "get_color" in chain_string:
+				chain_string = chain_string.replace("get_color", "get_theme_color")
+			if "get_icon" in chain_string:
+				chain_string = chain_string.replace("get_icon", "get_theme_icon")
+		
+		
+		var start_pos = full_match.get_start(1)
+		var end_pos = full_match.get_end(1)
+		line = line.substr(0, start_pos) + chain_string + line.substr(end_pos)
+	
+	
+	
+	return line
 
 func replace_editor_interface(line: String) -> String:
 	var replacement_text = "%s.get_ins().ei" % EI_BACKPORT
@@ -130,19 +222,55 @@ func backport_raw_strings(script_content: String) -> String:
 			var new_literal = _create_escaped_literal(raw_content)
 			
 			script_content = script_content.left(_match.get_start()) \
-						   + new_literal \
-						   + script_content.substr(_match.get_end())
+						+ new_literal \
+						+ script_content.substr(_match.get_end())
 	
 	return script_content
 
 
 func _create_escaped_literal(raw_content: String) -> String:
-	# 1. First, escape all backslashes.
-	var escaped_content = raw_content.replace("\\", "\\\\")
-	# 2. Second, escape all double-quotes that might be inside the string.
-	escaped_content = escaped_content.replace("\"", "\\\"")
-	# 3. Finally, wrap the result in double-quotes to make it a full string literal.
-	return '"' + escaped_content + '"'
+	var escaped_content = raw_content.replace("\\", "\\\\") # escape all backslashes.
+	escaped_content = escaped_content.replace("\"", "\\\"") # escape all double-quotes
+	return '"' + escaped_content + '"' # make string literal
+
+
+func check_window_line(line):
+	return _string_safe_regex_sub(line, _check_window)
+
+func _check_window(line: String) -> String:
+	var result: RegExMatch = _window_regex.search(line)
+	if result:
+		var found_constant: String = result.get_string(0)
+		if not VALID_4_0_WINDOW_POSITIONS.has(found_constant):
+			#print("Found invalid constant: '%s'" % found_constant)
+			#print("Replacing with default: '%s'" % DEFAULT_POSITION)
+			return line.replace(found_constant, DEFAULT_POSITION)
+	
+	return line
+
+func replace_is_part_of_edited_scene(line: String) -> String:
+	var matches = _is_part_of_edited_scene_regex.search_all(line)
+	
+	for i in range(matches.size() - 1, -1, -1):
+		var _match: RegExMatch = matches[i]
+		var subject_obj: String
+		var replacement_text: String
+		
+		var captured_obj = _match.get_string(1)
+		
+		if captured_obj.is_empty():
+			subject_obj = "self"
+		else: # An object was captured. Use it.
+			subject_obj = captured_obj
+		
+		# Build the new replacement string
+		replacement_text = "%s.get_ins().ei.is_part_of_edited_scene_compat(%s)" % [EI_BACKPORT, subject_obj]
+		
+		line = line.substr(0, _match.get_start(0)) \
+				+ replacement_text \
+				+ line.substr(_match.get_end(0))
+	
+	return line
 
 
 
