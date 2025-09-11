@@ -23,10 +23,9 @@ const PRE_POST_TEMPLATE_PATH = "res://addons/plugin_exporter/src/template/pre_po
 static func get_global_classes_in_text(line:String, class_list_keys:Array):
 	var classes = []
 	var line_tokens = Tokenizer.words_only(line)
-	for tok in line_tokens:
+	for tok:String in line_tokens:
 		if tok in class_list_keys:
 			if line.find("class_name ") == -1:
-				#print(tok)
 				if not tok in classes:
 					classes.append(tok)
 	return classes

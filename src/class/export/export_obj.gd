@@ -214,6 +214,8 @@ func export_files():
 	var include_import = export_data.include_import
 	var file_dep_keys = file_dependencies.keys()
 	for file_path in files_to_copy.keys():
+		file_parser.current_file_path_parsing = file_path
+		
 		var file_data = files_to_copy.get(file_path)
 		var export_path = file_data.get(_ExportFileKeys.to)
 		var replace_with = file_data.get(_ExportFileKeys.replace_with)

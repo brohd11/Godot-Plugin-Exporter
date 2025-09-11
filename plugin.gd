@@ -47,8 +47,12 @@ func _enter_tree() -> void:
 func _exit_tree() -> void:
 	remove_context_menu_plugin(context_plugin_inst)
 	remove_tool_menu_item("Plugin Exporter")
-	
-	for dock_manager in dock_manager_instances:
+	r"'\raw_string\\'"
+	r'"fdfd"'
+	r"""raw'
+	multi\
+	string"""
+	for dock_manager:DockManager in dock_manager_instances:
 		if is_instance_valid(dock_manager):
 			dock_manager.clean_up()
 	

@@ -63,6 +63,7 @@ static func export_plugin(export_config_path:String, include_uid_overide=null, i
 	
 	for export:ExportData.Export in export_data.exports:
 		export.file_parser.set_export_obj(export)
+		export.file_parser.pre_export()
 		export.export_files()
 	
 	if export_data.post_script != "":

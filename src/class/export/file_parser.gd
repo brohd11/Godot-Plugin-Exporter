@@ -13,9 +13,8 @@ var custom_parse_data:Dictionary = {}
 
 var default_parsers:Dictionary = {}
 
-var parse_gd: UtilsLocal.ParseGD
-var parse_tscn: UtilsLocal.ParseTSCN
-var parse_cs: UtilsLocal.ParseCS
+
+var current_file_path_parsing:String
 
 func _init() -> void:
 	var default_parse_files = DirAccess.get_files_at(UtilsLocal.PARSE_FOLDER_PATH)
@@ -45,6 +44,8 @@ func _init() -> void:
 		var files = DirAccess.get_files_at(dir_path)
 		var parse_ins_array = []
 		for file in files:
+			if file.get_extension() == "uid":
+				continue
 			var full_path = dir_path.path_join(file)
 			var script = load(full_path)
 			if script is Script:
@@ -78,6 +79,8 @@ func set_export_obj(export_obj):
 			parse_ins.export_obj = export_obj
 
 
+
+
 func get_dependencies(file_path:String, all_dependencies:Dictionary, scanned_files:Dictionary):
 	var files_to_scan = [file_path]
 	while not files_to_scan.is_empty():
@@ -108,6 +111,16 @@ func get_dependencies(file_path:String, all_dependencies:Dictionary, scanned_fil
 				all_dependencies[path][ExportFileKeys.dependency_dir] = dep_dir
 			if not scanned_files.has(path):
 				files_to_scan.push_back(path)
+
+func pre_export():
+	for ext in default_parsers:
+		var parse_ins = default_parsers.get(ext)
+		parse_ins.pre_export()
+	
+	for ext in custom_parse_data.keys():
+		var parse_ins_array = custom_parse_data.get(ext)
+		for parse_ins in parse_ins_array:
+			parse_ins.pre_export()
 
 
 func post_export_edit_file(file_path:String):

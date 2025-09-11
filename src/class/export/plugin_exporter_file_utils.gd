@@ -221,7 +221,7 @@ static func get_other_transfer_data(export_obj:ExportData.Export):
 					file_array.append(path)
 				from_files = file_array
 			else:
-				printerr("Path is not file or dir: %s" % from_files)
+				printerr("Path not file or dir: %s" % from_files)
 				return
 		elif from_files is Array:
 			for file in from_files:
@@ -256,7 +256,7 @@ static func write_zip_file(path:String, files):
 	for f in files:
 		var f_path:String = f.replace(base_dir, "")
 		if f_path.begins_with("/"):
-			f_path = f_path.erase(0)
+			f_path = f_path.trim_prefix("/") # what is this for??
 		zip.start_file(f_path)
 		var f_content = FileAccess.get_file_as_bytes(f)
 		zip.write_file(f_content)
