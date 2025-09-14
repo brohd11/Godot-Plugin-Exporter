@@ -2,11 +2,8 @@
 extends Control
 
 const UtilsRemote = preload("res://addons/plugin_exporter/src/class/utils_remote.gd") #>remote
-const UConfig = UtilsRemote.UConfig
 const UFile = UtilsRemote.UFile
 const UTree = UtilsRemote.UTree
-const URegex = UtilsRemote.URegex
-const USafeEditor = UtilsRemote.USafeEditor
 const EditorFileDialogHandler = UtilsRemote.EditorFileDialogHandler
 
 const ExportFileUtils = UtilsLocal.ExportFileUtils

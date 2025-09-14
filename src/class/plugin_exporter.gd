@@ -1,5 +1,7 @@
 class_name PluginExporter
 
+const MiscBackport = preload("res://addons/plugin_exporter/src/class/export/backport/misc_backport_class.gd")
+
 const Plugin = preload("res://addons/plugin_exporter/plugin.gd")
 const UtilsLocal = preload("res://addons/plugin_exporter/src/class/utils_local.gd")
 const PluginExporterStatic = UtilsLocal.PluginExporterStatic

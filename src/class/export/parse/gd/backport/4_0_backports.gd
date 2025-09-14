@@ -1,5 +1,7 @@
-extends "res://addons/plugin_exporter/src/class/export/parse/parse_base.gd"
+extends RefCounted
 
+const UtilsRemote = preload("res://addons/plugin_exporter/src/class/utils_remote.gd")
+const URegex = UtilsRemote.URegex
 
 const EI_BACKPORT_PATH = "res://addons/plugin_exporter/src/class/export/backport/ei_backport.gd"
 const EI_BACKPORT = "_EIBackport"
@@ -10,7 +12,7 @@ const VALID_4_0_WINDOW_POSITIONS = [
 	"Window.WINDOW_INITIAL_POSITION_CENTER_OTHER_SCREEN",
 	"Window.WINDOW_INITIAL_POSITION_CENTER_PRIMARY_SCREEN"
 ]
-const DEFAULT_POSITION = "Window.WINDOW_INITIAL_POSITION_CENTER_PRIMARY_SCREEN"
+const DEFAULT_WINDOW_POSITION = "Window.WINDOW_INITIAL_POSITION_CENTER_PRIMARY_SCREEN"
 
 const VALID_4_0_EI_METHODS = [
 	"edit_node", "edit_resource", "edit_script", "get_base_control",
@@ -27,6 +29,8 @@ const VALID_4_0_EI_METHODS = [
 
 
 
+var string_regex:= RegEx.new()
+
 var _indent_regex:= RegEx.new()
 var _is_not_regex:= RegEx.new()
 var _for_loop_type_regex:= RegEx.new()
@@ -39,12 +43,17 @@ var _raw_string_regexes = []
 
 var _window_regex:= RegEx.new()
 var _is_part_of_edited_scene_regex:= RegEx.new()
+var _typed_dict_regex:= RegEx.new()
 
 
-var backport:= false
+
+var current_file_path:String
+
+var backport_target:= -1
 
 func _init() -> void:
-	_string_regex = URegex.get_strings()
+	
+	string_regex = URegex.get_strings()
 	
 	var indent_pattern = "^(\\t*)( *)(.*)"
 	_indent_regex.compile(indent_pattern)
@@ -81,62 +90,47 @@ func _init() -> void:
 	var is_part_pattern = "(?:(\\S+)\\.)?is_part_of_edited_scene\\(\\)"
 	_is_part_of_edited_scene_regex.compile(is_part_pattern)
 	
+	var typed_dict_pattern = r"(Dictionary)\s*\[.*?\]"
+	_typed_dict_regex.compile(typed_dict_pattern)
+	
+
+
+
+	
+	
 	#run_editor_interface_tests()
 	#run_is_not_tests()
 	#run_for_loop_tests()
 
-
-
-# in parser_settings, create dictionary for extension of file,
-# ie. if extension is foo, "parse_foo": {"my_setting": "value"}
 func set_parse_settings(settings):
-	backport = true
+	backport_target = settings.get("backport_target", 100)
 
-# logic to parse for files that are needed acts as a set, dependencies[my_dep_path] = {}
-func get_direct_dependencies(file_path:String) -> Dictionary:
-	var dependencies = {} 
-	return dependencies
-	
 
-# first pass on post export, if the file ext is handled by default, file_lines will 
-# contain modifies lines, for example, if you want to make a second pass on a gd file.
-# If not handled by default, file_lines will be null. You can process and return the files lines
-# or return the null value to default to the file's .
-func post_export_edit_file(file_path:String, file_lines:Variant=null) -> Variant:
-	if not backport:
-		return file_lines
-	
-	var file_as_text = "\n".join(file_lines)
-	var converted_file = backport_raw_strings(file_as_text)
-	file_lines = converted_file.split("\n")
-	
-	
-	var extends_class = file_extends_class(file_lines)
-	if not extends_class:
-		file_lines.append("### PLUGIN EXPORTER BASIC BACKPORT")
-		var adj_path = export_obj.adjusted_remote_paths.get(EI_BACKPORT_PATH, EI_BACKPORT_PATH)
-		file_lines.append(_construct_pre(EI_BACKPORT, adj_path))
-		file_lines.append("### PLUGIN EXPORTER BASIC BACKPORT")
-		file_lines.append("")
-	
-	return file_lines
 
 # second pass of post export. If extension is handled by default, line will be 
 # modified already. If changes were made in post_export_edit_file, these will be
 # present here, else, it will be the unmodified line from the file.
 func post_export_edit_line(line:String) -> String:
-	if not backport:
+	if backport_target == 100:
 		return line
 	
 	line = fix_mixed_indent(line)
 	
-	line = replace_ei_methods(line)
-	validate_ei_methods(line)
-	line = replace_editor_interface(line)
-	line = remove_for_loop_type_hint(line)
-	line = convert_all_is_not_syntax(line)
-	line = check_window_line(line)
-	line = replace_is_part_of_edited_scene(line)
+	if backport_target < 1:
+		line = check_window_line(line)
+	
+	if backport_target < 2:
+		line = replace_ei_methods(line)
+		validate_ei_methods(line)
+		line = replace_editor_interface(line)
+		line = remove_for_loop_type_hint(line)
+	
+	if backport_target < 3:
+		line = replace_is_part_of_edited_scene(line)
+	
+	if backport_target < 4:
+		line = convert_all_is_not_syntax(line)
+		line = replace_typed_dict(line)
 	
 	return line
 
@@ -149,7 +143,7 @@ func fix_mixed_indent(line: String) -> String:
 	return _indent_regex.sub(line, "$1$3", true)
 
 func validate_ei_methods(line: String):
-	_string_safe_regex_sub(line, _validate_ei_methods)
+	URegex.string_safe_regex_sub(line, _validate_ei_methods, string_regex)
 
 func _validate_ei_methods(line: String):
 	var matches = _ei_method_validate_regex.search_all(line)
@@ -158,13 +152,13 @@ func _validate_ei_methods(line: String):
 		var full_chain = _match.get_string(1).strip_edges()
 		var method_name = _match.get_string(2) # Group 2 is the method name
 		if not VALID_4_0_EI_METHODS.has(method_name):
-			var file_path = export_obj.file_parser.current_file_path_parsing
+			var file_path = current_file_path
 			print("Found non valid 4.0 method 'EditorInterface.%s()' in: %s." % [method_name, file_path])
 	
 	return line
 
 func replace_ei_methods(line: String) -> String:
-	return _string_safe_regex_sub(line, _replace_ei_methods)
+	return URegex.string_safe_regex_sub(line, _replace_ei_methods, string_regex)
 
 func _replace_ei_methods(line: String) -> String:
 	var matches = _ei_method_chain_regex.search_all(line)
@@ -174,11 +168,39 @@ func _replace_ei_methods(line: String) -> String:
 		var chain_string = full_match.get_string(1)
 		
 		if "get_editor_theme" in chain_string:
-			chain_string = chain_string.replace("get_editor_theme", "get_base_control")
-			if "get_color" in chain_string:
+			var original_string = chain_string
+			
+			if "get_color(" in chain_string:
 				chain_string = chain_string.replace("get_color", "get_theme_color")
-			if "get_icon" in chain_string:
+			elif "get_icon(" in chain_string:
 				chain_string = chain_string.replace("get_icon", "get_theme_icon")
+			elif "get_constant(" in chain_string:
+				chain_string = chain_string.replace("get_constant", "get_theme_constant")
+			elif "get_font(" in chain_string:
+				chain_string = chain_string.replace("get_font", "get_theme_font")
+			elif "get_stylebox(" in chain_string:
+				chain_string = chain_string.replace("get_stylebox", "get_theme_stylebox")
+			elif ".default_base_scale" in chain_string:
+				chain_string = chain_string.replace("default_base_scale", "get_theme_default_base_scale()")
+			elif ".default_font_size" in chain_string:
+				chain_string = chain_string.replace("default_font_size", "get_theme_default_font_size()")
+			elif ".default_font" in chain_string:
+				chain_string = chain_string.replace("default_font", "get_theme_default_font()")
+			
+			
+			if original_string != chain_string:
+				chain_string = chain_string.replace("get_editor_theme", "get_base_control")
+		
+		if "get_editor_toaster" in chain_string:
+			if "push_toast" in chain_string:
+				var toast_args = chain_string.get_slice("push_toast(", 1)
+				var message
+				if toast_args.find(",") > -1:
+					message = toast_args.get_slice(",", 0)
+				else:
+					message = toast_args.get_slice(")", 0)
+				message = message.strip_edges()
+				chain_string = "print(%s)" % message
 		
 		
 		var start_pos = full_match.get_start(1)
@@ -193,12 +215,12 @@ func replace_editor_interface(line: String) -> String:
 	var replacement_text = "%s.get_ins().ei" % EI_BACKPORT
 	var processor = func(code: String):
 		return _ei_regex.sub(code, replacement_text, true)
-	return _string_safe_regex_sub(line, processor)
+	return URegex.string_safe_regex_sub(line, processor, string_regex)
 
 func convert_all_is_not_syntax(line: String) -> String:
 	var processor = func(code: String):
 		return _is_not_regex.sub(code, "not $1 is $2", true)
-	return _string_safe_regex_sub(line, processor)
+	return URegex.string_safe_regex_sub(line, processor, string_regex)
 
 func remove_for_loop_type_hint(line: String) -> String:
 	var _match = _for_loop_type_regex.search(line)
@@ -235,7 +257,7 @@ func _create_escaped_literal(raw_content: String) -> String:
 
 
 func check_window_line(line):
-	return _string_safe_regex_sub(line, _check_window)
+	return URegex.string_safe_regex_sub(line, _check_window, string_regex)
 
 func _check_window(line: String) -> String:
 	var result: RegExMatch = _window_regex.search(line)
@@ -244,7 +266,7 @@ func _check_window(line: String) -> String:
 		if not VALID_4_0_WINDOW_POSITIONS.has(found_constant):
 			#print("Found invalid constant: '%s'" % found_constant)
 			#print("Replacing with default: '%s'" % DEFAULT_POSITION)
-			return line.replace(found_constant, DEFAULT_POSITION)
+			return line.replace(found_constant, DEFAULT_WINDOW_POSITION)
 	
 	return line
 
@@ -264,13 +286,22 @@ func replace_is_part_of_edited_scene(line: String) -> String:
 			subject_obj = captured_obj
 		
 		# Build the new replacement string
-		replacement_text = "%s.get_ins().ei.is_part_of_edited_scene_compat(%s)" % [EI_BACKPORT, subject_obj]
+		replacement_text = "%s.get_ins().is_part_of_edited_scene_compat(%s)" % [EI_BACKPORT, subject_obj]
 		
 		line = line.substr(0, _match.get_start(0)) \
 				+ replacement_text \
 				+ line.substr(_match.get_end(0))
 	
 	return line
+
+
+func replace_typed_dict(line) -> String:
+	return URegex.string_safe_regex_sub(line, _replace_typed_dict, string_regex)
+
+func _replace_typed_dict(line:String) -> String:
+	line = _typed_dict_regex.sub(line, "$1", true)
+	return line
+
 
 
 

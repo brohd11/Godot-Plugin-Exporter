@@ -3,7 +3,8 @@ extends "res://addons/plugin_exporter/src/class/export/parse/parse_base.gd"
 const BACKPORT_STATIC_PATH = "res://addons/plugin_exporter/src/class/export/backport/sv_backport.gd"
 const BACKPORT_STATIC = "_BackportStaticVar"
 
-var backport_static:= false
+const STATIC_VAR_MIN_VER = 1
+var backport_target:= -1
 
 var all_static_vars_map = {}
 
@@ -32,8 +33,8 @@ func _init() -> void:
 # in parser_settings, create dictionary for extension of file,
 # ie. if extension is foo, "parse_foo": {"my_setting": "value"}
 func set_parse_settings(settings):
-	backport_static = true
-	pass
+	backport_target = settings.get("backport_target", 100)
+
 
 # logic to parse for files that are needed acts as a set, dependencies[my_dep_path] = {}
 func get_direct_dependencies(file_path:String) -> Dictionary:
@@ -41,6 +42,9 @@ func get_direct_dependencies(file_path:String) -> Dictionary:
 	return dependencies
 
 func pre_export():
+	if backport_target > STATIC_VAR_MIN_VER:
+		return
+	
 	var file_lines_array = []
 	for file_path:String in export_obj.files_to_copy.keys():
 		if not file_path.get_extension() == "gd":
@@ -129,26 +133,27 @@ func pre_export():
 # If not handled by default, file_lines will be null. You can process and return the files lines
 # or return the null value to default to the file's .
 func post_export_edit_file(file_path:String, file_lines:Variant=null) -> Variant:
-	if not backport_static:
-		return file_lines
+	if backport_target > STATIC_VAR_MIN_VER:
+		return
+	
 	var global_class_names = export_obj.export_data.class_list.keys()
 	var current_original_path = export_obj.file_parser.current_file_path_parsing
 	var internal_vars = all_static_vars_map.get(current_original_path, [])
-	var extends_class = false
+	
 	var static_var_data = {}
 	for i in range(file_lines.size()):
 		var line = file_lines[i]
 		
-		var _class = get_extended_class(line)
-		if _class:
-			if _class.find('"') > -1:
-				extends_class = true
-			else:
-				if _class in global_class_names:
-					extends_class = true
+		#var _class = get_extended_class(line)
+		#if _class:
+			#if _class.find('"') > -1:
+				#extends_class = true
+			#else:
+				#if _class in global_class_names:
+					#extends_class = true
 		
 		
-		if line.find("static var ") > -1:
+		if line.strip_edges().begins_with("static var "):
 			var code = line
 			var comment_idx = line.find("#")
 			if comment_idx > -1:
@@ -166,7 +171,7 @@ func post_export_edit_file(file_path:String, file_lines:Variant=null) -> Variant
 						}
 				
 				
-			line = "# %s<- Backport Static Var" % line
+			line = "#%s<- Backport Static Var" % line
 			file_lines[i] = line
 	
 	
@@ -232,6 +237,7 @@ func post_export_edit_file(file_path:String, file_lines:Variant=null) -> Variant
 	
 	
 	file_lines.append("### PLUGIN EXPORTER STATIC VAR BACKPORT")
+	var extends_class = file_extends_class(file_lines)
 	if not extends_class:
 		var bp_stat_path = export_obj.adjusted_remote_paths.get(BACKPORT_STATIC_PATH, BACKPORT_STATIC_PATH)
 		file_lines.append(_construct_pre(BACKPORT_STATIC, bp_stat_path))
@@ -241,13 +247,13 @@ func post_export_edit_file(file_path:String, file_lines:Variant=null) -> Variant
 		adjusted_path = export_obj.file_parser.current_file_path_parsing
 	var _BPSV_CONST_NAME = "_BPSV_PATH_" + adjusted_path.get_file().trim_suffix(".gd")
 	file_lines.append('const %s = "%s"' % [_BPSV_CONST_NAME, adjusted_path]) # "" '' <- parser
-	file_lines.append("")
 	for sv_data in static_var_data.values():
+		file_lines.append("")
 		sv_data.const_nm = _BPSV_CONST_NAME
 		file_lines.append_array(_get_static_getter_lines(sv_data))
 		file_lines.append_array(_get_static_setter_lines(sv_data))
-		file_lines.append("")
 	file_lines.append("### PLUGIN EXPORTER STATIC VAR BACKPORT")
+	file_lines.append("")
 	return file_lines
 
 # second pass of post export. If extension is handled by default, line will be 

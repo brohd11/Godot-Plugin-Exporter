@@ -7,7 +7,7 @@ const Export = _UtilsLocal.ExportObj
 const _ExportFileUtils = _UtilsLocal.ExportFileUtils
 const _ExportFileKeys = _ExportFileUtils.ExportFileKeys
 
-const _USafeEditor = _UtilsRemote.USafeEditor
+const _UEditor = _UtilsRemote.UEditor
 
 var class_list_array = []
 var class_list = {}
@@ -58,7 +58,7 @@ func _init(export_config_path):
 	overwrite = options.get(_ExportFileKeys.overwrite, false)
 	include_uid = options.get(_ExportFileKeys.include_uid, true)
 	include_import = options.get(_ExportFileKeys.include_import, true)
-	parser_settings = options.get("parser_settings", {})
+	parser_settings = options.get(_ExportFileKeys.parser_settings, {})
 	
 	var parse_gd_settings = parser_settings.get("parse_gd", {})
 	class_rename_ignore = parse_gd_settings.get("class_rename_ignore", [])
@@ -74,7 +74,7 @@ func _init(export_config_path):
 			export_obj.source = export_obj.source + "/"
 		
 		if not DirAccess.dir_exists_absolute(export_obj.source):
-			_USafeEditor.push_toast(export_obj.source + " does not exist.",2)
+			_UEditor.push_toast(export_obj.source + " does not exist.",2)
 			return
 		export_obj.export_folder = export.get(_ExportFileKeys.export_folder)
 		if export_obj.export_folder == "":
@@ -98,14 +98,17 @@ func _init(export_config_path):
 		export_obj.exclude_directories = exclude.get(_ExportFileKeys.directories)
 		export_obj.exclude_file_extensions = exclude.get(_ExportFileKeys.file_extensions)
 		export_obj.exclude_files = exclude.get(_ExportFileKeys.files)
-		export_obj.remote_dir = export.get("remote_dir", "")
+		export_obj.remote_dir = export.get(_ExportFileKeys.remote_dir, "")
 		export_obj.source_files = _UtilsRemote.UFile.scan_for_files(export_obj.source, [])
 		export_obj.export_dir_path = full_export_path.path_join(export_obj.export_folder)
 		export_obj.other_transfers = export.get(_ExportFileKeys.other_transfers, [])
 		
 		export_obj.file_parser = _UtilsLocal.FileParser.new()
-		export_obj.file_parser.set_parser_settings(parser_settings)
 		export_obj.file_parser.set_export_obj(export_obj)
+		var overide_settings:Dictionary = export.get(_ExportFileKeys.parser_overide_settings, {})
+		overide_settings.merge(parser_settings)
+		export_obj.parser_overide_settings = overide_settings
+		export_obj.file_parser.set_parser_settings(overide_settings)
 		
 		
 		export_obj.get_valid_files_for_transfer()

@@ -6,9 +6,12 @@ const UTree = preload("res://addons/addon_lib/brohd/alib_runtime/utils/src/u_tre
 const URegex = preload("res://addons/addon_lib/brohd/alib_runtime/utils/src/u_regex.gd")
 const EditorFileDialogHandler = preload("res://addons/addon_lib/brohd/alib_editor/utils/src/dialog/editor_file/editor_file_dialog_handler.gd")
 const ConfirmationDialogHandler = preload("res://addons/addon_lib/brohd/alib_runtime/utils/src/dialog/confirmation/confirmation_dialog_handler.gd")
-const USafeEditor = preload("res://addons/addon_lib/brohd/alib_runtime/utils/src/u_safe_editor.gd")
+const UEditor = preload("res://addons/addon_lib/brohd/alib_editor/utils/src/u_editor.gd")
 const PopupHelper = preload("res://addons/addon_lib/brohd/alib_runtime/popup_menu/popup_menu_path_helper.gd")
 const FileSystem = preload("res://addons/addon_lib/brohd/alib_editor/utils/src/editor_nodes/filesystem.gd")
 const UEditorTheme = preload("res://addons/addon_lib/brohd/alib_editor/utils/src/u_editor_theme.gd")
 const DockManager = preload("res://addons/addon_lib/brohd/dock_manager/dock_manager.gd")
 const PopupWrapper = preload("res://addons/addon_lib/brohd/popup_wrapper/popup_wrapper.gd")
+
+
+const Res = preload("res://test_resource.tres")

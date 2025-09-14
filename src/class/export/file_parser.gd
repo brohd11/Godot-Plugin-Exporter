@@ -5,7 +5,7 @@ const UtilsLocal = preload("res://addons/plugin_exporter/src/class/utils_local.g
 
 const ExportFileKeys = UtilsLocal.ExportFileUtils.ExportFileKeys
 
-const TEXT_FILE_TYPES = ["gd", "tscn", "cs"] # TODO add tres support
+const TEXT_FILE_TYPES = ["gd", "tscn", "cs", "tres"] # TODO add tres support
 
 var custom_text_types:Array = []
 
@@ -15,6 +15,7 @@ var default_parsers:Dictionary = {}
 
 
 var current_file_path_parsing:String
+var current_adjusted_file_path:String
 
 func _init() -> void:
 	var default_parse_files = DirAccess.get_files_at(UtilsLocal.PARSE_FOLDER_PATH)

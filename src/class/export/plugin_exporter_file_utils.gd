@@ -7,7 +7,7 @@ const FileParser = UtilsLocal.FileParser
 
 const UFile = UtilsRemote.UFile
 const UConfig = UtilsRemote.UConfig
-const USafeEditor = UtilsRemote.USafeEditor
+const UEditor = UtilsRemote.UEditor
 const EditorFileDialogHandler = UtilsRemote.EditorFileDialogHandler
 
 
@@ -40,7 +40,7 @@ static func get_file_export_path(file_path:String, export_config_path:String, de
 	
 	var exports = export_data.exports
 	if exports.size() > 1 and desired_export == -1:
-		USafeEditor.print_warn("Multiple exports, defaulting to first.")
+		UEditor.print_warn("Multiple exports, defaulting to first.")
 	if desired_export == -1:
 		desired_export = 0
 	if desired_export > exports.size() - 1:
@@ -50,7 +50,7 @@ static func get_file_export_path(file_path:String, export_config_path:String, de
 	var export = exports[desired_export] as ExportData.Export
 	var local_path = ProjectSettings.localize_path(file_path)
 	if local_path not in export.valid_files_for_transfer.keys():
-		USafeEditor.print_warn("File path not a valid export: %s" % file_path)
+		UEditor.print_warn("File path not a valid export: %s" % file_path)
 		return
 	else:
 		var export_file_data = export.valid_files_for_transfer.get(local_path)
@@ -70,12 +70,12 @@ static func get_version(folder, export_config_file):
 		plugin_cfg_path = export_config_file.get_base_dir().get_base_dir().path_join("version.cfg")
 	
 	if not FileAccess.file_exists(plugin_cfg_path):
-		USafeEditor.push_toast("Plugin or version file not present: " + plugin_cfg_path + ", Aborting.", 2)
+		UEditor.push_toast("Plugin or version file not present: " + plugin_cfg_path + ", Aborting.", 2)
 		return
 	
 	var plugin_data = UConfig.load_config_data(plugin_cfg_path)
 	if not plugin_data:
-		USafeEditor.push_toast("Issue getting plugin data. Aborting.", 2)
+		UEditor.push_toast("Issue getting plugin data. Aborting.", 2)
 		return 
 	return plugin_data.get_value("plugin", "version", "No version")
 
@@ -140,14 +140,14 @@ static func run_export_script(script_path, func_name):
 
 static func check_export_script_valid(script_path, func_name):
 	if not FileAccess.file_exists(script_path):
-		USafeEditor.push_toast("%s script file not found." % func_name, 2)
+		UEditor.push_toast("%s script file not found." % func_name, 2)
 		return false
 	var loaded_script = load(script_path)
 	var script_ins = loaded_script.new()
 	var script_valid = script_ins.has_method(func_name)
 	script_ins.queue_free()
 	if not script_valid:
-		USafeEditor.push_toast("%s script does not have method: post_export." % func_name, 2)
+		UEditor.push_toast("%s script does not have method: post_export." % func_name, 2)
 		return false
 	return true
 
@@ -320,29 +320,38 @@ static func plugin_init(plugin_name:=""):
 	var export_dir_name = export_dir.trim_suffix("/").get_file()
 	var template_data = UFile.read_from_json(UtilsLocal.EXPORT_TEMPLATE_PATH)
 	#template_data["export_root"] = root_handled
-	template_data["export_root"] = export_ignore_dir.path_join("exports")
+	template_data[ExportFileKeys.export_root] = export_ignore_dir.path_join("exports")
 	var plugin_folder = export_dir_name.capitalize().replace(" ", "")
-	template_data["plugin_folder"] = "%s{{version=%s}}" % [plugin_folder, export_dir_name]
+	template_data[ExportFileKeys.plugin_folder] = "%s{{version=%s}}" % [plugin_folder, export_dir_name]
 	
 	var parser_settings = {
 		"parse_cs":{"namespace_rename":{}},
-		"parse_gd":{"class_rename_ignore":{}},
+		"parse_gd":{
+			"class_rename_ignore":[],
+			"backport_target": 100,
+			},
 		"parse_tscn":{}
 	}
-	template_data["options"]["parser_settings"] = parser_settings
+	template_data[ExportFileKeys.options][ExportFileKeys.parser_settings] = parser_settings
 	
-	var export = template_data.get("exports")[0]
-	export["source"] = export_dir
-	export["remote_dir"] = export_dir.path_join("src/remote")
+	var export = template_data.get(ExportFileKeys.exports)[0]
+	export[ExportFileKeys.source] = export_dir
+	export[ExportFileKeys.remote_dir] = export_dir.path_join("src/remote")
 	var export_dir_name_dash = export_dir_name.replace("_", "-")
 	var export_folder = "%s{{version=%s}}/%s" % [export_dir_name_dash, export_dir_name, export_dir_name]
 	#export_folder = export_folder.path_join(export_dir_name)
-	export["export_folder"] = export_folder
-	var exclude = export.get("exclude")
-	exclude["directories"] = [export_ignore_dir]
+	export[ExportFileKeys.export_folder] = export_folder
+	var parser_overide_settings = {
+		"parse_cs":{},
+		"parse_gd":{},
+		"parse_tscn":{}
+	}
+	export[ExportFileKeys.parser_overide_settings] = parser_overide_settings
+	var exclude = export.get(ExportFileKeys.exclude)
+	exclude[ExportFileKeys.directories] = [export_ignore_dir]
 	
-	template_data["pre_script"] = export_pre_post
-	template_data["post_script"] = export_pre_post
+	template_data[ExportFileKeys.pre_script] = export_pre_post
+	template_data[ExportFileKeys.post_script] = export_pre_post
 	
 	UFile.write_to_json(template_data, export_config_path)
 	var git_ignore_path = export_ignore_dir.path_join(".gitignore")
@@ -366,6 +375,7 @@ class ExportFileKeys:
 	
 	const exports = "exports"
 	const source = "source"
+	const remote_dir = "remote_dir"
 	const export_folder = "export_folder"
 	const exclude = "exclude"
 	const directories = "directories"
@@ -388,3 +398,6 @@ class ExportFileKeys:
 	const include_import = "include_import"
 	const include_uid = "include_uid"
 	const overwrite = "overwrite"
+	
+	const parser_settings = "parser_settings"
+	const parser_overide_settings = "parser_overide_settings"

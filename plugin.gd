@@ -15,6 +15,7 @@ const PLUGIN_EXPORT_GUI = preload("res://addons/plugin_exporter/src/plugin_expor
 
 static var instance
 
+
 func _get_plugin_name() -> String:
 	return "Plugin Exporter"
 func _get_plugin_icon() -> Texture2D:
@@ -58,8 +59,6 @@ func _exit_tree() -> void:
 
 func _on_tool_menu_pressed():
 	new_gui_instance()
-	
-	EditorInterface.get_editor_theme().get_color("accent_color", &"Editor")
 
 func new_gui_instance():
 	#if is_instance_valid(dock_manager):

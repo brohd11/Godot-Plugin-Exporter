@@ -5,7 +5,6 @@ const UtilsLocal = preload("res://addons/plugin_exporter/src/class/utils_local.g
 
 const ExportFileUtils = UtilsLocal.ExportFileUtils
 const ExportFileKeys = ExportFileUtils.ExportFileKeys
-const USafeEditor = UtilsRemote.USafeEditor
 const UFile = UtilsRemote.UFile
 
 const ExportData = UtilsLocal.ExportData

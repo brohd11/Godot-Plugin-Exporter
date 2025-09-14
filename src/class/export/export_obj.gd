@@ -1,5 +1,5 @@
 const _UtilsRemote = preload("res://addons/plugin_exporter/src/class/utils_remote.gd")
-const _USafeEditor = _UtilsRemote.USafeEditor
+const _UEditor = _UtilsRemote.UEditor
 const _UtilsLocal = preload("res://addons/plugin_exporter/src/class/utils_local.gd")
 const _ExportFileUtils = _UtilsLocal.ExportFileUtils
 const _ExportFileKeys = _ExportFileUtils.ExportFileKeys
@@ -23,6 +23,7 @@ var rename_plugin := false
 var plugin_name := ""
 var new_plugin_name := ""
 
+var parser_overide_settings:Dictionary = {}
 var file_parser:_FileParser
 
 var files_to_copy:Dictionary = {}
@@ -46,7 +47,7 @@ func get_valid_files_for_transfer():
 			#adjusted_remote_paths[l_path] = l_path.replace(plugin_name, new_plugin_name)
 		
 		if FileAccess.file_exists(export_path) and not export_data.overwrite:
-			_USafeEditor.push_toast("File exists, aborting: " + export_path, 2)
+			_UEditor.push_toast("File exists, aborting: " + export_path, 2)
 			return
 		
 		if FileAccess.file_exists(l_path): # check that it is file vs dir
@@ -62,7 +63,7 @@ func get_valid_files_for_transfer():
 		var single_from = data.get(_ExportFileKeys.single)
 		for from in from_files:
 			if not FileAccess.file_exists(from):
-				_USafeEditor.push_toast("File_doesn't exist, aborting: " + from, 2)
+				_UEditor.push_toast("File_doesn't exist, aborting: " + from, 2)
 				return
 			
 			var to_path = to
@@ -70,7 +71,7 @@ func get_valid_files_for_transfer():
 				to_path = to.path_join(from.get_file())
 			
 			if FileAccess.file_exists(to_path) and not export_data.overwrite:
-				_USafeEditor.push_toast("File exists, aborting: " + to_path, 2)
+				_UEditor.push_toast("File exists, aborting: " + to_path, 2)
 				return
 			valid_files_for_transfer[from] = {_ExportFileKeys.to:to_path}
 
@@ -215,6 +216,7 @@ func export_files():
 	var file_dep_keys = file_dependencies.keys()
 	for file_path in files_to_copy.keys():
 		file_parser.current_file_path_parsing = file_path
+		file_parser.current_adjusted_file_path = adjusted_remote_paths.get(file_path, file_path)
 		
 		var file_data = files_to_copy.get(file_path)
 		var export_path = file_data.get(_ExportFileKeys.to)

@@ -82,6 +82,8 @@ func file_extends_class(file_lines:Array) -> bool:
 			else:
 				if _class in global_class_names:
 					extends_class = true
+				elif _class not in ClassDB.get_class_list():
+					extends_class = true
 	return extends_class
 
 static func _check_for_comment(line, check_array) -> bool:
