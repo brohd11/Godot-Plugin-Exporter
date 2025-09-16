@@ -8,7 +8,13 @@ The main feature is to get any global classes used in your plugin and remove the
 
 The other aspect of this is that the global class can be outside of the plugin. It would then be copied into your plugin on export. This allows you to keep shared classes in a central folder/submodule, but use the classes as normal.
 
-This will also work with preloaded classes if you want to limit global classes in you dev repo. The best way is to create a script that just contains the preloads of all of the classes you want. Then you can put "#! remote" at the top of the script, and all files will be moved into your plugin on export.
+In the image below, you can see how the exporter itself is exported. The main logic lives in the plugin_exporter folder, it pulls utility classes from addon_lib folder, and then pulls the editor_console plugin as a sub plugin.
+
+
+<img width="1161" height="955" alt="exporter-example-git" src="https://github.com/user-attachments/assets/d391a7b0-84dc-416e-a221-6a5fa798d9ee" />
+
+
+This will also work with preloaded classes if you want to limit global classes in your dev repo. See the examples below.
 
 All global class or "#! remote" files will be scanned, and any global classes used, preload/loaded files used within will be copied as well, and then scanned recursively.
 
@@ -52,32 +58,41 @@ Main backports:
  - "X is not Y" syntax converted to "not X is Y"
  - various other methods recreated in a compatibility class
 
-4.5 backports not created yet, aside from abstact keyword
+4.5 backports are not created yet, aside from abstact keyword
+
 
 ### Examples
 
+#### Global Class
+
+Global classes can just be used as normal.
+
 #### Remote Class
 
-The simplest way to use a class is to simply extend it.
+You can get a single unamed script from outside of the plugin like this:
 
-```
+``` gdscript
 #! remote
 extends "res://some_other/folder/my_class.gd"
 ```
 
 On export, this file will be replaced with the extended class, and all dependencies copied to plugin.
 
-**Note**: because this is extending the class, it is not the same as the class. It has identical functionality, but if you need to type check, this class is not the same as the extended class. If you need to type check, use the plugin preload file method.
+At this time, "#! remote" must be the first line of the file.
+
+Because the file is replaced any changes will not be present in the copied file. I would use this if I want this file to be in a certain spot, or if I created another script to extend it and make changes there.
+
+**Note**: because this is extending the class, it is not the same as the class. It could have identical functionality, but if you need to type check, this class is not the same as the extended class. If you need to type check, use the plugin preload file method.
 
 #### Plugin Preload File
 
-This format can be used to make a master file that preloads 'out of plugin' files. Typically, I will name this utils_remote.gd or something similar, to denote that these files are not local to the plugin. This file can either be preloaded in your plugin scripts, or given a global class name. 
+This format can be used to make a master file that preloads out of plugin files. Typically, I will name this utils_remote.gd or something similar, to denote that these files are not local to the plugin. This file can either be preloaded in your plugin scripts, or given a global class name. 
 
 This is useful if the desired files are not global classes, you can preload any classes that you want to use in your plugin.
 
 You can also declare files as dependencies if they are not preloadable. You can also give these a custom path. `#! dependency current` will place the file in the same directory as the file it is declared in. You also put a path there, it must be within your plugin folder to be valid.
 
-```
+``` gdscript
 #! remote
 class_name MyPluginUtilsRemote
 
@@ -90,7 +105,7 @@ const MY_CUST_FILE = "res://file.file" #! dependency res://addons/my_plugin/deps
 
 In another script you can access like:
 
-```
+``` gdscript
 ## if you don't have a global name, preload the class
 ## name can be less verbose if needing to avoid name clashes between plugins
 
@@ -105,10 +120,10 @@ On export, these files will be copied into your plugin, and have their paths adj
 
 #### Full Plugin Copy
 
-Something I am working on, is creating "portable" plugins. These plugins would be agnostic to their location, and might interact with an instance of a class in the tree. This allows for packaging the plugin into multiple other plugins, but all can interact with each other, despite being technically different classes.
+Something I am experimenting with is creating "portable" plugins. These plugins would be agnostic to their location, and might interact with an instance of a class in the tree. This allows for packaging the plugin into multiple other plugins, but all can interact with each other, despite being technically different classes.
 
 To copy an entire plugin in, I do this:
-```
+``` gdscript
 #! remote
 extends "res://addons/my_other_plugin/plugin.gd"
 
@@ -133,6 +148,6 @@ func _enable_plugin():
 		SubPluginManager.toggle_plugins(sub_plugin_dir, sub_plugin_path, true)
 ```
 
-On export, the exported flag will be changed to true, allowing the sub-plugins to be enabled.
+On export, the exported flag will be changed to true, allowing the sub-plugins to be enabled. There is also a backport flag available, that can be used to change your logic depending on the backport target version.
 
 Using this method, you can copy multiple sub-plugins into your plugin, while leaving their source intact for updates.
