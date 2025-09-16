@@ -1,4 +1,4 @@
-#! remote res://addons/plugin_exporter/deps
+#! remote
 
 const UConfig = preload("res://addons/addon_lib/brohd/alib_runtime/utils/src/u_config.gd")
 const UFile = preload("res://addons/addon_lib/brohd/alib_runtime/utils/src/u_file.gd")
@@ -12,6 +12,3 @@ const FileSystem = preload("res://addons/addon_lib/brohd/alib_editor/utils/src/e
 const UEditorTheme = preload("res://addons/addon_lib/brohd/alib_editor/utils/src/u_editor_theme.gd")
 const DockManager = preload("res://addons/addon_lib/brohd/dock_manager/dock_manager.gd")
 const PopupWrapper = preload("res://addons/addon_lib/brohd/popup_wrapper/popup_wrapper.gd")
-
-
-const Res = preload("res://test_resource.tres")

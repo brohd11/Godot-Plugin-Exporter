@@ -9,17 +9,6 @@ static func has_static_method_compat(method:String, script:Script) -> bool:
 	if BACKPORTED >= 4:
 		return method in script
 	
-	var class_list = ClassDB.get_class_list()
-	var script_type = script.get_instance_base_type()
-	if script_type in class_list:
-		var methods = ClassDB.class_get_method_list(script_type)
-		for m in methods:
-			var name = m.get("name")
-			if name == method:
-				return true
-		
-		return false
-	
 	var base_script = script
 	while base_script != null:
 		var method_list = base_script.get_script_method_list()
@@ -28,5 +17,14 @@ static func has_static_method_compat(method:String, script:Script) -> bool:
 			if name == method:
 				return true
 		base_script = base_script.get_base_script()
+	
+	var class_list = ClassDB.get_class_list()
+	var script_type = script.get_instance_base_type()
+	if script_type in class_list:
+		var methods = ClassDB.class_get_method_list(script_type)
+		for m in methods:
+			var name = m.get("name")
+			if name == method:
+				return true
 	
 	return false

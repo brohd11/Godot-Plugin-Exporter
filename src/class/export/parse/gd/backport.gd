@@ -4,7 +4,7 @@ const EI_BACKPORT_PATH = "res://addons/plugin_exporter/src/class/export/backport
 const EI_BACKPORT = "_EIBackport"
 
 const MISC_BACKPORT_PATH = "res://addons/plugin_exporter/src/class/export/backport/misc_backport_class.gd"
-const MISC_BACKPORT = "_MiscBackport"
+const MISC_BACKPORT = "MiscBackport"
 
 const Backport4_0 = preload("res://addons/plugin_exporter/src/class/export/parse/gd/backport/4_0_backports.gd")
 var backport4_0:Backport4_0
@@ -18,8 +18,8 @@ var backport_static_var:BackportStaticVar
 const Backport4_4 = preload("res://addons/plugin_exporter/src/class/export/parse/gd/backport/4_4_backports.gd")
 var backport4_4:Backport4_4
 
-const MiscBackport = preload("res://addons/plugin_exporter/src/class/export/parse/gd/backport/misc_backport.gd")
-var misc_backport:MiscBackport
+const MiscBackportParse = preload("res://addons/plugin_exporter/src/class/export/parse/gd/backport/misc_backport.gd")
+var misc_backport:MiscBackportParse
 
 var backport_target:= -1
 
@@ -29,7 +29,7 @@ func _init() -> void:
 	backport4_4 = Backport4_4.new()
 	backport_static_var = BackportStaticVar.new()
 	backport_context = BackportContext.new()
-	misc_backport = MiscBackport.new()
+	misc_backport = MiscBackportParse.new()
 
 
 # in parser_settings, create dictionary for extension of file,
@@ -65,7 +65,7 @@ func post_export_edit_file(file_path:String, file_lines:Variant=null) -> Variant
 	if backport_target == 100:
 		return file_lines
 	
-	var extends_class = file_extends_class(file_lines)
+	var extends_class = file_extends_class(file_lines, backport_target)
 	if backport_target < 4:
 		backport4_0.current_file_path = export_obj.file_parser.current_file_path_parsing
 		
@@ -102,7 +102,7 @@ func post_export_edit_file(file_path:String, file_lines:Variant=null) -> Variant
 	if not extends_class:
 		var has_backport_preloaded := false
 		for line in file_lines:
-			if line.begins_with("const MiscBackport"):
+			if line.begins_with("const %s" % MISC_BACKPORT): 
 				has_backport_preloaded =  true
 		
 		if not has_backport_preloaded:

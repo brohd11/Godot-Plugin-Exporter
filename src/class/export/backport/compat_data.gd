@@ -1,4 +1,8 @@
 
+const COMPAT_CLASSES = [
+	"EditorContextMenuPlugin"
+]
+
 const VARIANT_TYPES = {
 	0: "null",
 	1: "bool",

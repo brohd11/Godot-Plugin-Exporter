@@ -56,14 +56,15 @@ static func get_valid_items(script_editor:CodeEdit) -> Dictionary:
 static func add_dep_tag(script_editor):
 	var line = script_editor.get_caret_line()
 	var text = script_editor.get_line(line)
-	script_editor.insert_text(" #! dependency", line, text.length())
+	script_editor.set_caret_column(text.length())
+	script_editor.insert_text_at_caret(" #! dependency")
 
 static func add_exported_flag(script_editor):
 	var line = script_editor.get_caret_line()
 	var text = script_editor.get_line(line)
-	script_editor.insert_text("const PLUGIN_EXPORTED = false", line, 0)
+	script_editor.insert_text_at_caret("const PLUGIN_EXPORTED = false")
 
 static func add_backport_flag(script_editor):
 	var line = script_editor.get_caret_line()
 	var text = script_editor.get_line(line)
-	script_editor.insert_text("const BACKPORTED = 100", line, 0)
+	script_editor.insert_text_at_caret("const BACKPORTED = 100")

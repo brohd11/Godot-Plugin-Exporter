@@ -8,6 +8,7 @@ const NODE_NAME = "EditorContextPluginBackport"
 var plugins = {}
 # { 4 : popup}
 var popups = {}
+var submenus = []
 
 var popup_temp_data = {}
 var base_id = 5000
@@ -36,8 +37,8 @@ static func add_context_menu_plugin(target_slot, plugin):
 	var instance = get_instance()
 	if not instance.plugins.has(target_slot):
 		instance.plugins[target_slot] = []
-		instance.add_child(plugin)
 	
+	instance.add_child.call_deferred(plugin)
 	instance.plugins[target_slot].append(plugin)
 
 static func remove_context_menu_plugin(plugin):
@@ -97,8 +98,13 @@ func add_popup_submenu(plugin_ins, _name, submenu, icon=null):
 		return
 	target_popup = target_popup as PopupMenu
 	
+	if not target_popup.popup_hide.is_connected(_on_target_popup_hide):
+		target_popup.popup_hide.connect(_on_target_popup_hide.bind(target_popup, _on_popup_clicked))
+	
 	submenu.name = _name
+	target_popup.add_child(submenu)
 	target_popup.add_submenu_item(_name, _name, base_id)
+	submenus.append(submenu)
 	base_id += 1
 
 
@@ -118,7 +124,9 @@ func _on_target_popup_hide(popup:PopupMenu, old_callable):
 		await get_tree().process_frame
 		popup.id_pressed.disconnect(old_callable)
 	
-	# do I need to delete submenus?
+	for submenu in submenus:
+		submenu.queue_free()
+	submenus.clear()
 
 
 
@@ -129,6 +137,8 @@ func _set_script_editor_popup(script):
 		if script_editor_code_popup.about_to_popup.is_connected(_on_script_editor_popup_about_to_popup):
 			script_editor_code_popup.about_to_popup.disconnect(_on_script_editor_popup_about_to_popup)
 	script_editor_code_popup = ScriptEd.get_popup()
+	if not is_instance_valid(script_editor_code_popup):
+		return
 	popups[4] = script_editor_code_popup
 	script_editor_code_popup.about_to_popup.connect(_on_script_editor_popup_about_to_popup)
 

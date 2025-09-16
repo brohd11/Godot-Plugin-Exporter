@@ -7,6 +7,7 @@ const UFile = UtilsRemote.UFile
 const URegex = UtilsRemote.URegex
 const ExportFileUtils = UtilsLocal.ExportFileUtils
 const ExportFileKeys = ExportFileUtils.ExportFileKeys
+const CompatData = UtilsLocal.CompatData
 
 var _string_regex:RegEx
 
@@ -36,6 +37,11 @@ func _update_file_export_flags(line:String) -> String:
 
 
 func _string_safe_regex_sub(line: String, processor: Callable) -> String:
+	if not is_instance_valid(_string_regex):
+		_string_regex = URegex.get_strings()
+	line = URegex.string_safe_regex_sub(line, processor, _string_regex)
+	return line
+	
 	var code_part = line
 	var comment_part = ""
 	var comment_pos = line.find("#")
@@ -69,7 +75,7 @@ func _string_safe_regex_sub(line: String, processor: Callable) -> String:
 	return final_code + comment_part
 
 
-func file_extends_class(file_lines:Array) -> bool:
+func file_extends_class(file_lines:Array, backport_target:=100) -> bool:
 	var global_class_names = export_obj.export_data.class_list.keys()
 	var extends_class = false
 	for i in range(file_lines.size()):
@@ -84,6 +90,11 @@ func file_extends_class(file_lines:Array) -> bool:
 					extends_class = true
 				elif _class not in ClassDB.get_class_list():
 					extends_class = true
+				if backport_target < 4:
+					if _class in CompatData.COMPAT_CLASSES:
+						extends_class = true
+				
+				break
 	return extends_class
 
 static func _check_for_comment(line, check_array) -> bool:

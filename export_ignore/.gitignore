@@ -1,4 +1,4 @@
 exports/*
-
+!exports/exports/PluginExporter/PluginExporter-0.5.0
 
 exports/**/*.zip

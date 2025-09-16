@@ -114,7 +114,8 @@ func post_export_edit_line(line:String) -> String:
 	if backport_target == 100:
 		return line
 	
-	line = fix_mixed_indent(line)
+	if backport_target < 4:
+		line = fix_mixed_indent(line)
 	
 	if backport_target < 1:
 		line = check_window_line(line)
@@ -212,6 +213,11 @@ func _replace_ei_methods(line: String) -> String:
 	return line
 
 func replace_editor_interface(line: String) -> String:
+	#if current_file_path == "res://addons/plugin_exporter/src/class/export/plugin_exporter_static.gd":
+		#if line.strip_edges() == "":
+			#return line
+	if line.strip_edges() == "ei = EditorInterface":
+		return line
 	var replacement_text = "%s.get_ins().ei" % EI_BACKPORT
 	var processor = func(code: String):
 		return _ei_regex.sub(code, replacement_text, true)

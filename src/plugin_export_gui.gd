@@ -60,6 +60,11 @@ var menu_button_dict = {
 		PopupHelper.ParamKeys.TOOL_TIP_KEY: ["Export files to directory defined in export file."],
 		CALLABLE_KEY: _on_export_button_pressed
 	},
+	"Open Export Dir":{
+		PopupHelper.ParamKeys.ICON_KEY:["ClassList"],
+		PopupHelper.ParamKeys.TOOL_TIP_KEY:["Open export dir of current file."],
+		CALLABLE_KEY: _on_open_export_dir
+	},
 	"Set File":{
 		PopupHelper.ParamKeys.ICON_KEY: ["Folder"],
 		PopupHelper.ParamKeys.TOOL_TIP_KEY: ["Choose export json file."],
@@ -148,16 +153,11 @@ func _set_file_line_text(new_text):
 
 
 func _on_file_line_text_changed(new_text):
+	pass
 	_set_line_alignment()
 func _set_line_alignment():
 	return
-	#var font = file_path_line.get_theme_font("font") as Font
-	#var text = file_path_line.text
-	#var _size = font.get_string_size(text)
-	#if _size.x > file_path_line.size.x:
-		#file_path_line.alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	#else:
-		#file_path_line.alignment = HORIZONTAL_ALIGNMENT_CENTER
+
 
 func _on_menu_button_pressed():
 	if not is_mb_panel_flag:
@@ -183,6 +183,7 @@ func _on_set_file_button_pressed():
 	_set_line_alignment()
 	file_path_line.caret_column = handled.length()
 
+
 func load_export_file(file_path, read:=true):
 	_set_file_line_text(file_path)
 	await get_tree().process_frame
@@ -200,6 +201,20 @@ func _on_new_file_button_pressed():
 		return
 	
 	_set_file_line_text(new_file_path)
+
+func _on_open_export_dir():
+	var export_config_path = file_path_line.text
+	var export_data = ExportFileUtils.get_export_data(export_config_path)
+	if export_data == null:
+		return
+	var export_root = export_data.get(ExportFileKeys.export_root, "")
+	if export_root != "":
+		var global_path = ProjectSettings.globalize_path(export_root)
+		if not DirAccess.dir_exists_absolute(global_path):
+			printerr("Export dir does not exist: %s" % global_path)
+			return
+		
+		OS.shell_open(global_path)
 
 
 func _on_read_file_button_pressed():
@@ -224,13 +239,14 @@ func _save_last_export_file():
 func _on_export_button_pressed():
 	if first_tree_build == false:
 		_write_export_tree()
+		first_tree_build = true
 		print("Reading file before export, press again if no errors.")
 		return
 	
 	var export_config_path = file_path_line.text
 	var include_uid = uid_check.button_pressed
 	var include_import = import_check.button_pressed
-	PluginExporterStatic.export_plugin(export_config_path, include_uid, include_import)
+	PluginExporterStatic.export_by_gui(export_config_path, include_uid, include_import)
 
 
 func _write_export_tree():

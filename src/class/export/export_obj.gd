@@ -19,6 +19,8 @@ var other_transfers:Array
 var other_transfers_data:Dictionary
 var valid_files_for_transfer:Dictionary = {}
 
+var ignore_dependencies:= false
+
 var rename_plugin := false
 var plugin_name := ""
 var new_plugin_name := ""
@@ -128,7 +130,12 @@ func sort_valid_files():
 
 
 func get_global_classes_used_in_valid_files():
+	if ignore_dependencies:
+		return
+		
 	for file:String in valid_files_for_transfer.keys():
+		if not file_parser.check_file_valid(file):
+			continue
 		var classes_used = _ExportFileUtils.scan_file_for_global_classes(file, self)
 		for class_nm in classes_used:
 			var remote_path = classes_used.get(class_nm)
@@ -143,6 +150,9 @@ func get_global_classes_used_in_valid_files():
 
 
 func get_file_dependencies():
+	if ignore_dependencies:
+		return
+		
 	var scanned_files = {}
 	for file_path in files_to_process_for_paths.keys():
 		file_parser.get_dependencies(file_path, file_dependencies, scanned_files)
@@ -214,6 +224,12 @@ func export_files():
 	var include_uid = export_data.include_uid
 	var include_import = export_data.include_import
 	var file_dep_keys = file_dependencies.keys()
+	var global_paths = []
+	for nm in global_classes_used.keys():
+		var data = global_classes_used.get(nm, {})
+		global_paths.append(data.get(_ExportFileKeys.path, ""))
+	file_dep_keys.append_array(global_paths)
+	
 	for file_path in files_to_copy.keys():
 		file_parser.current_file_path_parsing = file_path
 		file_parser.current_adjusted_file_path = adjusted_remote_paths.get(file_path, file_path)

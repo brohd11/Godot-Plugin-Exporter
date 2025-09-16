@@ -315,7 +315,10 @@ static func plugin_init(plugin_name:=""):
 		if not conf_handled:
 			return
 	
-	DirAccess.copy_absolute(UtilsLocal.PRE_POST_TEMPLATE_PATH, export_pre_post)
+	#DirAccess.copy_absolute(UtilsLocal.PRE_POST_TEMPLATE_PATH, export_pre_post)
+	var pre_post_f = FileAccess.open(export_pre_post, FileAccess.WRITE)
+	pre_post_f.store_string(_PRE_POST_TEMPLATE_TEXT)
+	pre_post_f.close()
 	
 	var export_dir_name = export_dir.trim_suffix("/").get_file()
 	var template_data = UFile.read_from_json(UtilsLocal.EXPORT_TEMPLATE_PATH)
@@ -366,6 +369,17 @@ static func plugin_init(plugin_name:=""):
 	print("Plugin init complete: %s" % plugin_dir)
 	return export_config_path
 
+const _PRE_POST_TEMPLATE_TEXT = \
+"@tool
+extends Node
+
+func pre_export():
+	pass
+
+func post_export():
+	pass
+
+"
 
 class ExportFileKeys:
 	const export_root = "export_root"
@@ -398,6 +412,7 @@ class ExportFileKeys:
 	const include_import = "include_import"
 	const include_uid = "include_uid"
 	const overwrite = "overwrite"
+	const ignore_dependencies = "ignore_dependencies"
 	
 	const parser_settings = "parser_settings"
 	const parser_overide_settings = "parser_overide_settings"

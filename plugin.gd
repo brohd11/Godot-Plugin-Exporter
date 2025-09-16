@@ -13,6 +13,8 @@ var context_plugin_inst:CONTEXT_MENU_PLUGIN
 
 const PLUGIN_EXPORT_GUI = preload("res://addons/plugin_exporter/src/plugin_export_gui.tscn")
 
+const SHOW_TOOL_MENU_ITEM = "plugin/plugin_exporter/show_tool_menu_item"
+
 static var instance
 
 
@@ -39,11 +41,12 @@ func _enter_tree() -> void:
 	context_plugin_inst = CONTEXT_MENU_PLUGIN.new()
 	add_context_menu_plugin(EditorContextMenuPlugin.CONTEXT_SLOT_SCRIPT_EDITOR_CODE, context_plugin_inst)
 	
-	#if not PLUGIN_EXPORTED:
-		#return
-	#if EditorInterface.is_plugin_enabled("modular_browser"):
-		#return
-	add_tool_menu_item("Plugin Exporter", _on_tool_menu_pressed)
+	var ed_settings = EditorInterface.get_editor_settings()
+	if not ed_settings.has_setting(SHOW_TOOL_MENU_ITEM):
+		ed_settings.set_setting(SHOW_TOOL_MENU_ITEM, true)
+	
+	if ed_settings.get_setting(SHOW_TOOL_MENU_ITEM):
+		add_tool_menu_item("Plugin Exporter", _on_tool_menu_pressed)
 
 func _exit_tree() -> void:
 	remove_context_menu_plugin(context_plugin_inst)
@@ -53,7 +56,6 @@ func _exit_tree() -> void:
 		if is_instance_valid(dock_manager):
 			dock_manager.clean_up()
 	
-	
 	main_screen_handler.queue_free()
 	instance = null
 
@@ -61,9 +63,6 @@ func _on_tool_menu_pressed():
 	new_gui_instance()
 
 func new_gui_instance():
-	#if is_instance_valid(dock_manager):
-		#return
-	
 	var can_be_freed = true
 	var dock_manager = DockManager.new(self, PLUGIN_EXPORT_GUI, DockManager.Slot.MAIN_SCREEN, can_be_freed, main_screen_handler)
 	dock_manager_instances.append(dock_manager)

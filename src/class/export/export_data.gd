@@ -102,6 +102,7 @@ func _init(export_config_path):
 		export_obj.source_files = _UtilsRemote.UFile.scan_for_files(export_obj.source, [])
 		export_obj.export_dir_path = full_export_path.path_join(export_obj.export_folder)
 		export_obj.other_transfers = export.get(_ExportFileKeys.other_transfers, [])
+		export_obj.ignore_dependencies = export.get(_ExportFileKeys.ignore_dependencies, false)
 		
 		export_obj.file_parser = _UtilsLocal.FileParser.new()
 		export_obj.file_parser.set_export_obj(export_obj)
@@ -118,6 +119,8 @@ func _init(export_config_path):
 		export_obj.get_global_class_export_paths()
 		
 		exports.append(export_obj)
+		
+		
 	
 	data_valid = true
 

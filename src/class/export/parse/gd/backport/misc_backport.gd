@@ -5,7 +5,7 @@ var backport_target:= 100
 var _misc_string_replacement_regex:= RegEx.new()
 const MISC_STRING_REPLACEMENTS = {
 	"type_string": {
-		"replace":"_MiscBackport.type_string_compat",
+		"replace":"MiscBackport.type_string_compat",
 		"min_ver":2
 	},
 	#"gd_term_instance.show": {

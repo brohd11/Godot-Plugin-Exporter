@@ -10,6 +10,12 @@ const UFile = UtilsRemote.UFile
 const ExportData = UtilsLocal.ExportData
 const FileParser = UtilsLocal.FileParser
 
+static func export_by_gui(export_config_path:String, include_uid_overide=null, include_import_overide=null):
+	var success = export_plugin(export_config_path, include_uid_overide, include_import_overide)
+	
+	_print_result(success, export_config_path)
+
+
 static func export_by_name(plugin_dir_name):
 	var addon_dir = "res://addons".path_join(plugin_dir_name)
 	var export_config_path = addon_dir.path_join("export_ignore/plugin_export.json")
@@ -18,6 +24,11 @@ static func export_by_name(plugin_dir_name):
 		return
 	var success = export_plugin(export_config_path)
 	
+	_print_result(success, export_config_path)
+
+
+static func _print_result(success:bool, export_config_path:String):
+	var plugin_dir_name = export_config_path.get_base_dir().get_base_dir().get_file()
 	var plugin_version = ExportFileUtils.get_version(plugin_dir_name, export_config_path)
 	var plugin_name = "%s - %s" % [plugin_dir_name.capitalize(), plugin_version] 
 	var accent_color = EditorInterface.get_editor_theme().get_color("accent_color", &"Editor").to_html()
@@ -26,16 +37,20 @@ static func export_by_name(plugin_dir_name):
 	else:
 		print_rich("'[color=%s]%s[/color]' [color=b20f0f]export failed[/color]" % [accent_color, plugin_name])
 
+
 static func export_plugin(export_config_path:String, include_uid_overide=null, include_import_overide=null):
+	var plugin_dir_name = export_config_path.get_base_dir().get_base_dir().get_file()
+	var plugin_version = ExportFileUtils.get_version(plugin_dir_name, export_config_path)
+	var plugin_name = "%s - %s" % [plugin_dir_name.capitalize(), plugin_version] 
+	print("Exporting: %s" % plugin_name)
+	
 	var export_data = ExportData.new(export_config_path)
 	if not export_data.data_valid:
-		return
-	
-	update_git_submodule_details(export_config_path, export_data)
+		return false
 	
 	if export_data.pre_script != "":
 		if not ExportFileUtils.check_export_script_valid(export_data.pre_script, "pre_export"):
-			return
+			return false
 		ExportFileUtils.run_export_script(export_data.pre_script, "pre_export")
 	
 	var full_export_path = export_data.full_export_path
@@ -43,7 +58,11 @@ static func export_plugin(export_config_path:String, include_uid_overide=null, i
 	var options = export_data.get(ExportFileKeys.options)
 	var overwrite = options.get(ExportFileKeys.overwrite, false)
 	if overwrite:
-		_clear_export_dir(full_export_path)
+		var cleared = _clear_export_dir(full_export_path)
+		if not cleared:
+			return false
+	
+	update_git_submodule_details(export_config_path, export_data)
 	
 	var include_uid = export_data.include_uid
 	var include_import = export_data.include_import
@@ -60,10 +79,13 @@ static func export_plugin(export_config_path:String, include_uid_overide=null, i
 	export_data.include_uid = include_uid
 	export_data.include_import = include_import
 	
+	var count = 0
 	for export:ExportData.Export in export_data.exports:
+		print("Exporting: export %s" % count)
 		export.file_parser.set_export_obj(export)
 		export.file_parser.pre_export()
 		export.export_files()
+		count += 1
 	
 	if export_data.post_script != "":
 		ExportFileUtils.run_export_script(export_data.post_script, "post_export")
@@ -86,6 +108,17 @@ static func export_plugin(export_config_path:String, include_uid_overide=null, i
 
 
 static func _clear_export_dir(full_export_path):
+	var forbidden_paths = ["res://", "res://addons"]
+	for dir in forbidden_paths:
+		if full_export_path == dir:
+			printerr("Could not clear export dir: %s" % full_export_path)
+			printerr("This is so project files are not deleted.")
+			printerr("Recommended location: res://addons/my_plugin/export_ignore/exports")
+			return false
+	
+	if not DirAccess.dir_exists_absolute(full_export_path):
+		return true
+	
 	var dir_array_2d:Array = UFile.scan_for_dirs(full_export_path, true)
 	for dir_array:Array in dir_array_2d:
 		dir_array.reverse()
@@ -105,9 +138,16 @@ static func _clear_export_dir(full_export_path):
 	for f in files:
 		var path = full_export_path.path_join(f)
 		DirAccess.remove_absolute(path)
+	
+	return true
 
 
 static func update_git_submodule_details(export_config_path, export_data:ExportData=null):
+	var check_exit = OS.execute("git", ["--version"])
+	if check_exit != 0:
+		print("Error accessing git. Skipping git export details file.")
+		return
+	
 	if export_data == null:
 		export_data = ExportData.new(export_config_path)
 	var git_details_file_lines = []
@@ -136,7 +176,7 @@ static func update_git_submodule_details(export_config_path, export_data:ExportD
 						single_export_git_file_lines.append_array(lines)
 					break
 				elif DirAccess.dir_exists_absolute(git_path):
-					var lines = _get_git_data(dir, single_export_git_file_lines, "Repo")
+					var lines = _get_git_data(dir, single_export_git_file_lines)
 					if lines:
 						single_export_git_file_lines.append_array(lines)
 					break
@@ -156,6 +196,8 @@ static func update_git_submodule_details(export_config_path, export_data:ExportD
 		var file = FileAccess.open(file_path, FileAccess.WRITE)
 		for line in git_details_file_lines:
 			file.store_line(line)
+		file.close()
+		
 
 static func _get_git_data(dir, git_file_lines, repo_type="Submodule"):
 	var global_dir = ProjectSettings.globalize_path(dir)
@@ -163,6 +205,7 @@ static func _get_git_data(dir, git_file_lines, repo_type="Submodule"):
 	var repo_line = "\t%s: %s" % [repo_type, global_dir.get_file()]
 	if repo_line in git_file_lines:
 		return
+	
 	
 	var args = [
 		"-C",
@@ -184,7 +227,29 @@ static func _get_git_data(dir, git_file_lines, repo_type="Submodule"):
 		"\t\tDir: %s" % dir,
 		"\t\tCommit: %s" % commit,
 	]
+	var git_status = _get_git_status(dir)
+	if git_status == true:
+		lines.append("\t\t*has uncommited changes")
 	return lines
+
+static func _get_git_status(dir):
+	var args = [
+		"-C",
+		dir.replace("res://", ""),
+		"diff",
+		"--quiet",
+		"--exit-code"
+	]
+	var output = []
+	var exit_code = OS.execute("git", args, output)
+	if exit_code == -1:
+		printerr("Error getting git status: %s" % dir)
+		return
+	
+	if exit_code == 0:
+		return false
+	elif exit_code == 1: #dirty
+		return true
 
 
 static func new_plugin(plugin_dir_name, create_export:=true):
@@ -222,9 +287,9 @@ extends EditorPlugin
 
 func _get_plugin_name() -> String:
 	return "%s"
-func _get_plugin_icon() -> Texture2D:
-	return EditorInterface.get_base_control().get_theme_icon("Node", &"EditorIcons")
-func _has_main_screen() -> bool:
+func _get_plugin_icon() -> Texture2D:' + \
+'	return EditorInterface.get_base_control().get_theme_icon("Node", &"EditorIcons")' + \
+'func _has_main_screen() -> bool:
 	return true
 
 func _enable_plugin() -> void:

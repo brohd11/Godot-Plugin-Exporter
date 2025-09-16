@@ -237,7 +237,7 @@ func post_export_edit_file(file_path:String, file_lines:Variant=null) -> Variant
 	
 	
 	file_lines.append("### PLUGIN EXPORTER STATIC VAR BACKPORT")
-	var extends_class = file_extends_class(file_lines)
+	var extends_class = file_extends_class(file_lines, backport_target)
 	if not extends_class:
 		var bp_stat_path = export_obj.adjusted_remote_paths.get(BACKPORT_STATIC_PATH, BACKPORT_STATIC_PATH)
 		file_lines.append(_construct_pre(BACKPORT_STATIC, bp_stat_path))
