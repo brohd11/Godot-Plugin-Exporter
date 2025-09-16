@@ -30,7 +30,7 @@
 				"files": []
 			},
 			"remote_dir":"res://addons/plugin_exporter/src/class/remote/",
-			"export_folder": "plugin-exporter_backport{{version=plugin_exporter}}/plugin_exporter_backport",
+			"export_folder": "plugin-exporter-backport{{version=plugin_exporter}}/plugin_exporter_backport",
 			"other_transfers": [
 				{"to":"modular_browser/.gdignore"}
 			],
