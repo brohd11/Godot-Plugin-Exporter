@@ -103,6 +103,11 @@ static func export_plugin(export_config_path:String, include_uid_overide=null, i
 			file.close()
 			print("Created .gdignore for in-resource file system export.")
 	
+	var gitignore_path = full_export_path.path_join(".gitignore")
+	var file = FileAccess.open(gitignore_path, FileAccess.WRITE)
+	file.store_string("**")
+	file.close()
+	
 	return true
 	
 
@@ -288,8 +293,8 @@ extends EditorPlugin
 func _get_plugin_name() -> String:
 	return "%s"
 func _get_plugin_icon() -> Texture2D:' + \
-'	return EditorInterface.get_base_control().get_theme_icon("Node", &"EditorIcons")' + \
-'func _has_main_screen() -> bool:
+'\n\treturn EditorInterface.get_base_control().get_theme_icon("Node", &"EditorIcons")' + \
+'\nfunc _has_main_screen() -> bool:
 	return true
 
 func _enable_plugin() -> void:

@@ -1,0 +1,36 @@
+extends "res://addons/plugin_exporter_backport/src/class/remote/tree_helper_base.gd"
+
+
+func _set_folder_icon_img():
+	folder_icon = _EIBackport.get_ins().ei.get_base_control().get_theme_icon("Folder", &"EditorIcons")
+	folder_color = _EIBackport.get_ins().ei.get_base_control().get_theme_color("folder_icon_color", "FileDialog")
+
+func _set_folder_icon(file_path, slice_item):
+	slice_item.set_icon(0, folder_icon)
+	slice_item.set_icon_modulate(0, folder_color)
+
+
+func _set_item_icon(last_item:TreeItem, file_data):
+	var icon = file_data.get("File Icon")
+	if icon:
+		last_item.set_icon(0, icon)
+		last_item.set_icon_modulate(0, Color.WHITE)
+	
+
+func _mouse_left_clicked():
+	mouse_left_clicked.emit()
+
+func _mouse_right_clicked(data):
+	mouse_right_clicked.emit()
+	if popup_on_right_click:
+		pass
+
+func _mouse_double_clicked():
+	mouse_double_clicked.emit()
+	if edit_on_double_click:
+		pass
+
+### PLUGIN EXPORTER STATIC VAR BACKPORT
+const _BPSV_PATH_tree_helper = "res://addons/plugin_exporter_backport/src/class/tree_helper.gd"
+### PLUGIN EXPORTER STATIC VAR BACKPORT
+

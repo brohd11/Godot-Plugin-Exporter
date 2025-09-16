@@ -357,12 +357,6 @@ static func plugin_init(plugin_name:=""):
 	template_data[ExportFileKeys.post_script] = export_pre_post
 	
 	UFile.write_to_json(template_data, export_config_path)
-	var git_ignore_path = export_ignore_dir.path_join(".gitignore")
-	var f_access = FileAccess.open(git_ignore_path, FileAccess.WRITE)
-	f_access.store_line("exports/*")
-	for i in range(10):
-		f_access.store_line("")
-	f_access.store_line("exports/**/*.zip")
 	
 	EditorInterface.get_resource_filesystem().scan()
 	

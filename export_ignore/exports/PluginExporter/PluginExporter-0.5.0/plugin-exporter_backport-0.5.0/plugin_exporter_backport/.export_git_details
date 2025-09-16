@@ -1,0 +1,32 @@
+Main Repo: plugin-dev
+	Dir: res://
+	Commit: d9a4937dbd89d7a012d6c18ba5fc008efa4f6d5f
+	*has uncommited changes
+
+Export: plugin-exporter-0.5.0/plugin_exporter/
+	Submodule: brohd
+		Dir: res://addons/addon_lib/brohd
+		Commit: 9f80a6fa496e43360001698339451a37246174e5
+		*has uncommited changes
+	Submodule: editor_console
+		Dir: res://addons/editor_console
+		Commit: b8afa365240b91a89d149c9478fe0d20e2e7ca55
+		*has uncommited changes
+	Submodule: plugin_exporter
+		Dir: res://addons/plugin_exporter
+		Commit: ed215426f349de73db85826d6b23eda9bbd36670
+		*has uncommited changes
+
+Export: plugin-exporter_backport-0.5.0/plugin_exporter_backport/
+	Submodule: brohd
+		Dir: res://addons/addon_lib/brohd
+		Commit: 9f80a6fa496e43360001698339451a37246174e5
+		*has uncommited changes
+	Submodule: editor_console
+		Dir: res://addons/editor_console
+		Commit: b8afa365240b91a89d149c9478fe0d20e2e7ca55
+		*has uncommited changes
+	Submodule: plugin_exporter
+		Dir: res://addons/plugin_exporter
+		Commit: ed215426f349de73db85826d6b23eda9bbd36670
+		*has uncommited changes

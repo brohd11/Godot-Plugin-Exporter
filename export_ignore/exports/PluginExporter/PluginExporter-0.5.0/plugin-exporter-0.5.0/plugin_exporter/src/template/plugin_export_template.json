@@ -1,0 +1,29 @@
+{
+	"export_root": "Export directory - OS Path",
+	"plugin_folder": "",
+	"exports": [
+		{
+			"source": "",
+			"export_folder": "",
+			"exclude": {
+				"directories": [],
+				"file_extensions": [],
+				"files": [],
+				},
+				"other_transfers":[]
+		},
+	],
+	
+	"options": {
+		"overwrite": true,
+		"include_uid": true,
+		"include_import": true,
+		"parser_settings":{
+			"parse_cs":{
+				"namespace_rename":{},
+			},
+			"parse_gd":{},
+			"parse_tscn":{}
+		}
+	}
+}

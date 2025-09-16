@@ -1,0 +1,62 @@
+{
+	"export_root": "Export directory - OS Path",
+	"plugin_folder":"PluginFolder/PluginVersion{{version=plugin_name}}",
+	"exports": [
+		{
+			"source": "Export template - directory to copy",
+			"export_folder": "plugin_name{{version}}/addons/plugin_name",
+			"exclude": {
+				"directories": [],
+				"file_extensions": ["gd", "cs"],
+				"files": [],
+				},
+				"other_transfers":[
+				{
+					"from":"res://desired_file.gd",
+					"to":"new path, relative from export folder, include file name"
+				},
+				{
+					"from":"res://desired_dir - gets all files",
+					"to":"new path, relative from export folder, end at desired dir"
+				},
+				{
+					"from":["array", "of", "files"],
+					"to":"new path, relative from export folder, end at desired dir"
+				},
+				
+			]
+		},
+		{
+			"source": "Export template - directory to copy",
+			"export_folder": "",
+			"exclude": {
+				"directories": [],
+				"file_extensions": [],
+				"files": [],
+				},
+				"other_transfers":[
+				{
+					"from":"",
+					"to":""
+				},
+			]
+		}
+	],
+	
+	"options": {
+		"overwrite": true,
+		"include_uid": true,
+		"include_import": true,
+		"parser_settings":{
+			"parse_cs":{
+				"namespace_rename":{
+					"MyNameSpace":"MyUniqueNameSpace - So namespaces don't clash if using the same library",
+					}
+				},
+			"parse_gd":{},
+			"parse_tscn":{}
+		}
+	},
+	"pre_script":"path to a script to run before export.",
+	"post_script":"path to a script to run after export."
+}

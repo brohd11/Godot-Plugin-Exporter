@@ -1,0 +1,52 @@
+[gd_scene load_steps=3 format=3 uid="uid://b5yp7dclxxd5c"]
+
+[ext_resource type="Script" path="res://addons/plugin_exporter_backport/src/class/remote/addons/editor_console/src/terminal_gui.gd" id="1_u1bx3"]
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_ahxr4"]
+
+[node name="TerminalGui" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_u1bx3")
+
+[node name="VBoxContainer" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Output" type="TextEdit" parent="VBoxContainer"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+size_flags_vertical = 3
+focus_mode = 0
+theme_override_colors/font_readonly_color = Color(1, 1, 1, 1)
+theme_override_styles/read_only = SubResource("StyleBoxEmpty_ahxr4")
+editable = false
+
+[node name="Input" type="LineEdit" parent="VBoxContainer"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+
+[node name="DockButton" type="Button" parent="."]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(24, 24)
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -8.0
+offset_bottom = 8.0
+grow_horizontal = 0
+focus_mode = 0
+flat = true
+
+

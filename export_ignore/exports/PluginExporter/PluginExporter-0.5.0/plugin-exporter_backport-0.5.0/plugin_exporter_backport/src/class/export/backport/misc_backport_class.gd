@@ -1,0 +1,43 @@
+const CompatData = preload("res://addons/plugin_exporter_backport/src/class/export/backport/compat_data.gd")
+
+const BACKPORTED = 0
+
+static func type_string_compat(type:int):
+	return CompatData.VARIANT_TYPES.get(type, "Type not found: %s" % type)
+
+static func has_static_method_compat(method:String, script:Script) -> bool:
+	if BACKPORTED >= 4:
+		return method in script
+	
+	var base_script = script
+	while base_script != null:
+		var method_list = base_script.get_script_method_list()
+		for data in method_list:
+			var name = data.get("name")
+			if name == method:
+				return true
+		base_script = base_script.get_base_script()
+	
+	var class_list = ClassDB.get_class_list()
+	var script_type = script.get_instance_base_type()
+	if script_type in class_list:
+		var methods = ClassDB.class_get_method_list(script_type)
+		for m in methods:
+			var name = m.get("name")
+			if name == method:
+				return true
+	
+	return false
+
+### PLUGIN EXPORTER EDITORINTERFACE BACKPORT
+const _EIBackport = preload("res://addons/plugin_exporter_backport/src/class/export/backport/ei_backport.gd")
+### PLUGIN EXPORTER EDITORINTERFACE BACKPORT
+
+### PLUGIN EXPORTER STATIC VAR BACKPORT
+const _BackportStaticVar = preload("res://addons/plugin_exporter_backport/src/class/export/backport/sv_backport.gd")
+const _BPSV_PATH_misc_backport_class = "res://addons/plugin_exporter_backport/src/class/export/backport/misc_backport_class.gd"
+### PLUGIN EXPORTER STATIC VAR BACKPORT
+
+### PLUGIN EXPORTER MISC BACKPORT
+const MiscBackport = preload("res://addons/plugin_exporter_backport/src/class/export/backport/misc_backport_class.gd")
+### PLUGIN EXPORTER MISC BACKPORT

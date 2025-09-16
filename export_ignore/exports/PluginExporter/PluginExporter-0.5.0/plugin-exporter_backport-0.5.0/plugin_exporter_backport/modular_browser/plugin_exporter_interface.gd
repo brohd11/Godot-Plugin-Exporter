@@ -1,0 +1,54 @@
+@tool
+extends "res://addons/modular_browser/plugin/scripts_panels/panel_interface_base.gd"
+
+class Data:
+	const module = Modules.None
+	const module_icon = null
+	const nest_in_module = false
+	const name = "Plugins/Plugin Exporter"
+	const use_name_path = true
+	const icons = ["EditorPlugin", "ActionCopy"]
+	const scene_path = "res://addons/plugin_exporter_backport/src/plugin_export_gui.tscn" # scene that actually instantiates in browser
+	const ui_scene_path = keys.PanelTabData.NONE # ui scene for add panel window, can be none, used with interface
+	const interface_path = keys.PanelTabData.NONE # path to this file, used with ui scene, if not set, defaults to this path
+	const single_instance = SingleInstance.FALSE # if panel must be limited to 1 instance per 'instance' or global
+	const requires_plugin = PanelTabData.NONE # name of plugin required to allow instancing
+
+
+static func register_panel(): # return name and interface path for registering
+	return _get_register_settings(Data)
+
+static func get_panel_dialog_data(): # return data class
+	return _get_panel_dialog_data(Data)
+
+
+static func get_panel_dialog_ui(): # returns UI scene instance, null on fail
+	return _get_panel_dialog_ui(Data)
+
+# this will be configured here, data is written to file and read on panel instance. 
+# Scene should have method below to handle this, reference UIData for keys
+#func send_panel_dialog_data(tab_data):
+	#pass
+
+static func get_panel_ui_data():
+	var data = {}
+	return data
+
+
+class UIData: # this class can be used to store keys for ui data, don't use the below keys VV
+	pass
+
+#keys.PanelTabData members
+#const index = "panel_index"
+#const name = "panel_name"
+#const interface_path = "panel_interface_path"
+#const scene_path = "panel_scene_path"
+#const ui_scene_path = "panel_ui_scene_path"
+#const single_instance = "single_instance"
+#const editable = "editable"
+
+
+### PLUGIN EXPORTER STATIC VAR BACKPORT
+const _BPSV_PATH_plugin_exporter_interface = "res://addons/plugin_exporter_backport/modular_browser/plugin_exporter_interface.gd"
+### PLUGIN EXPORTER STATIC VAR BACKPORT
+
