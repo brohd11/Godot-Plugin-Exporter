@@ -8,10 +8,6 @@ const MISC_STRING_REPLACEMENTS = {
 		"replace":"MiscBackport.type_string_compat",
 		"min_ver":2
 	},
-	#"gd_term_instance.show": {
-		#"replace":"googoo",
-		#"min_ver":2
-	#},
 }
 
 var no_strings:= false

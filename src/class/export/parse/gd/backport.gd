@@ -6,6 +6,14 @@ const EI_BACKPORT = "_EIBackport"
 const MISC_BACKPORT_PATH = "res://addons/plugin_exporter/src/class/export/backport/misc_backport_class.gd"
 const MISC_BACKPORT = "MiscBackport"
 
+const BACKPORT_FILES = [
+	"res://addons/plugin_exporter/src/class/export/backport/context/context_backport.gd",
+	"res://addons/plugin_exporter/src/class/export/backport/context/context_plugin_compat.gd",
+	"res://addons/plugin_exporter/src/class/export/backport/ei_backport.gd",
+	"res://addons/plugin_exporter/src/class/export/backport/misc_backport_class.gd",
+	"res://addons/plugin_exporter/src/class/export/backport/sv_backport.gd"
+]
+
 const Backport4_0 = preload("res://addons/plugin_exporter/src/class/export/parse/gd/backport/4_0_backports.gd")
 var backport4_0:Backport4_0
 
@@ -48,9 +56,10 @@ func set_parse_settings(settings):
 	misc_backport.set_parse_settings(settings)
 
 
+
 # logic to parse for files that are needed acts as a set, dependencies[my_dep_path] = {}
 func get_direct_dependencies(file_path:String) -> Dictionary:
-	var dependencies = {} 
+	var dependencies = {}
 	return dependencies
 
 func pre_export():
@@ -79,12 +88,12 @@ func post_export_edit_file(file_path:String, file_lines:Variant=null) -> Variant
 		file_lines = converted_file.split("\n")
 		
 		
-		if not extends_class:
-			file_lines.append("### PLUGIN EXPORTER EDITORINTERFACE BACKPORT")
-			var adj_path = export_obj.adjusted_remote_paths.get(EI_BACKPORT_PATH, EI_BACKPORT_PATH)
-			file_lines.append(_construct_pre(EI_BACKPORT, adj_path))
-			file_lines.append("### PLUGIN EXPORTER EDITORINTERFACE BACKPORT")
-			file_lines.append("")
+		#if not extends_class: ### Moved below should be ok
+			#file_lines.append("### PLUGIN EXPORTER EDITORINTERFACE BACKPORT")
+			#var adj_path = export_obj.adjusted_remote_paths.get(EI_BACKPORT_PATH, EI_BACKPORT_PATH)
+			#file_lines.append(_construct_pre(EI_BACKPORT, adj_path))
+			#file_lines.append("### PLUGIN EXPORTER EDITORINTERFACE BACKPORT")
+			#file_lines.append("")
 		
 		file_lines = backport_context.post_export_edit_file(file_path, file_lines) # internal check for version
 		
@@ -100,6 +109,13 @@ func post_export_edit_file(file_path:String, file_lines:Variant=null) -> Variant
 		
 	
 	if not extends_class:
+		if backport_target < 2:
+			file_lines.append("### PLUGIN EXPORTER EDITORINTERFACE BACKPORT")
+			var adj_path = export_obj.adjusted_remote_paths.get(EI_BACKPORT_PATH, EI_BACKPORT_PATH)
+			file_lines.append(_construct_pre(EI_BACKPORT, adj_path))
+			file_lines.append("### PLUGIN EXPORTER EDITORINTERFACE BACKPORT")
+			file_lines.append("")
+		
 		var has_backport_preloaded := false
 		for line in file_lines:
 			if line.begins_with("const %s" % MISC_BACKPORT): 
@@ -134,3 +150,20 @@ func post_export_edit_line(line:String) -> String:
 	line = misc_backport.post_export_edit_line(line)
 	
 	return line
+
+
+static func get_required_files(_backport_target):
+	var files = []
+	if _backport_target == 100:
+		return files
+	
+	files.append(MISC_BACKPORT_PATH)
+	if _backport_target < 4:
+		files.append(BackportContext.COMPAT_CLASS_PATH)
+		files.append(BackportContext.COMPAT_SING_PATH)
+	
+	if _backport_target < 2:
+		files.append(EI_BACKPORT_PATH)
+		files.append(BackportStaticVar.BACKPORT_STATIC_PATH)
+	
+	return files

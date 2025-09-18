@@ -304,6 +304,7 @@ func _parse_export_data():#, write=false):
 			var export_path = export_file_data.get(ExportFileKeys.to)
 			var replace_with = export_file_data.get(ExportFileKeys.replace_with)
 			var dependent = export_file_data.get(ExportFileKeys.dependent)
+			var custom_message = export_file_data.get(ExportFileKeys.custom_tree_message)
 			#var remote_file_data = ExportFileUtils.get_remote_file(local_file_path, export)
 			# build tree
 			var file_data = file_data_dict.get(local_file_path)
@@ -313,14 +314,17 @@ func _parse_export_data():#, write=false):
 					last_item.set_icon(0, file_icon)
 					last_item.set_icon_modulate(0, Color.WHITE)
 			
-			if replace_with != null:
-				var text = last_item.get_text(0)
+			var text = last_item.get_text(0)
+			if custom_message != null:
+				var new_text = text + custom_message
+				last_item.set_text(0, new_text)
+				last_item.set_tooltip_text(0, new_text)
+			elif replace_with != null:
 				var new_text = text + " <- (remote file: %s)" % replace_with.get_file()
 				last_item.set_text(0, new_text)
 				var new_tooltip = text + " <- (remote file: %s)" % replace_with
 				last_item.set_tooltip_text(0, new_tooltip)
 			elif dependent != null:
-				var text = last_item.get_text(0)
 				var new_text = text + " -> (dependency to: %s)" % dependent.get_file()
 				last_item.set_text(0, new_text)
 				var new_tooltip = text + " -> (dependency to: %s)" % dependent

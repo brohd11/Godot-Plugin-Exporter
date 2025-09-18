@@ -104,13 +104,25 @@ func _init(export_config_path):
 		export_obj.other_transfers = export.get(_ExportFileKeys.other_transfers, [])
 		export_obj.ignore_dependencies = export.get(_ExportFileKeys.ignore_dependencies, false)
 		
+		var backport_target := parser_settings.get("backport_target", 100)
 		export_obj.file_parser = _UtilsLocal.FileParser.new()
 		export_obj.file_parser.set_export_obj(export_obj)
 		var overide_settings:Dictionary = export.get(_ExportFileKeys.parser_overide_settings, {})
-		overide_settings.merge(parser_settings)
+		for parse_key in parser_settings.keys():
+			var parse_data = parser_settings.get(parse_key, {})
+			if parse_data.has("backport_target"):
+				backport_target = parse_data.get("backport_target")
+			if overide_settings.has(parse_key):
+				overide_settings[parse_key].merge(parse_data)
+			else:
+				overide_settings[parse_key] = parse_data
+		
 		export_obj.parser_overide_settings = overide_settings
 		export_obj.file_parser.set_parser_settings(overide_settings)
 		
+		
+		
+		export_obj.get_batch_files(backport_target)
 		
 		export_obj.get_valid_files_for_transfer()
 		export_obj.sort_valid_files()

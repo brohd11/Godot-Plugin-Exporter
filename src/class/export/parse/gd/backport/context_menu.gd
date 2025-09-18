@@ -24,13 +24,13 @@ var _method_regex:= RegEx.new()
 var _slot_enum_regex:= RegEx.new()
 var _context_menu_class_regex:= RegEx.new()
 
-const METHOD_REPLACEMENT = "%s.$1" % COMPAT_SING_NAME
+const METHOD_REPLACEMENT = "%s.$2" % COMPAT_SING_NAME
 
 func _init() -> void:
 	_string_regex = URegex.get_strings()
 	
 	var method_names = "add_context_menu_plugin|remove_context_menu_plugin"
-	var pattern = "(?<!\\.)\\b(%s)\\b(?=\\s*\\()" % method_names
+	var pattern = "(\\w+\\.)?(%s)\\b(?=\\s*\\()" % method_names
 	_method_regex.compile(pattern)
 	
 	
@@ -84,7 +84,7 @@ func post_export_edit_file(file_path:String, file_lines:Variant=null) -> Variant
 	if is_editor_context_plugin:
 		pass
 	
-	if is_editor_plugin:
+	if is_editor_plugin or has_editor_context_plugin:
 		for i in range(file_lines.size()):
 			var line = file_lines[i]
 			var trimmed_line = line.strip_edges()

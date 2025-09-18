@@ -3,6 +3,8 @@ extends "res://addons/plugin_exporter/src/class/export/parse/parse_base.gd"
 const PLUGIN_EXPORTED_STRING = "const PLUGIN_EXPORTED = false"
 const PLUGIN_EXPORTED_REPLACE = "const PLUGIN_EXPORTED = true"
 
+const OUT_OF_PLUGIN_MSG = "Out of plugin file path is not updated, if it should be, ensure it is in a \"#! remote\" file: \"%s\", in \"%s\""
+
 var path_regex:RegEx
 var const_name_regex:RegEx
 
@@ -115,16 +117,18 @@ func post_export_edit_file(file_path:String, file_lines:Variant=null):
 						#classes_preloaded.append(class_nm) # is the class, don't preload// this actually seems ok..
 		
 		elif line.find("extends ") > -1 and line.count('"') == 2:
-			if line.find("class ") == -1:
-				var extend_file_path = line.get_slice('"', 1)
-				extend_file_path = extend_file_path.get_slice('"', 0)
-				if not FileAccess.file_exists(extend_file_path):
-					printerr("Could not find extended file in line: %s" % line)
-				
-				var inherited_used_classes = _recursive_get_globals(extend_file_path)
-				classes_preloaded.append_array(inherited_used_classes)
+			if not _check_for_comment(line, ["extends", "class"]):
+				if line.find("class ") == -1:
+					var extend_file_path = line.get_slice('"', 1)
+					extend_file_path = extend_file_path.get_slice('"', 0)
+					if not FileAccess.file_exists(extend_file_path):
+						printerr("Could not find extended file in line: %s" % line)
+					
+					var inherited_used_classes = _recursive_get_globals(extend_file_path)
+					classes_preloaded.append_array(inherited_used_classes)
 		
 		elif line.find("extends ") > -1: # "" 
+			
 			if line.find("class ") == -1: # i think this could work for both class types
 				var global_class = line.get_slice("extends ", 1) # ""
 				var comment_index = line.find("#")
@@ -199,12 +203,18 @@ func _update_paths(line:String):
 			return line
 		
 		var old_path = _match.get_string(1)
+		
 		if old_path.begins_with("uid://"):
 			if old_path == "uid://" or old_path == "uid://<invalid>":
 				continue
 			old_path = UFile.uid_to_path(old_path)
 		var new_path = export_obj.adjusted_remote_paths.get(old_path)
 		if not new_path:
+			if not UFile.is_file_in_directory(old_path, export_obj.source):
+				if not FileAccess.file_exists(old_path):
+					continue
+				UtilsRemote.UEditor.print_warn(OUT_OF_PLUGIN_MSG % [line, export_obj.file_parser.current_file_path_parsing])
+				continue
 			if export_obj.rename_plugin:
 				if old_path.find(export_obj.plugin_name) > -1:
 					new_path = old_path.replace(export_obj.plugin_name, export_obj.new_plugin_name)
@@ -213,6 +223,7 @@ func _update_paths(line:String):
 			line = line.substr(0, start) + new_path + line.substr(end)
 	
 	return line
+
 
 
 func _recursive_get_globals(file_path) -> Array:

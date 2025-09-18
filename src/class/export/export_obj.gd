@@ -35,6 +35,21 @@ var file_dependencies:Dictionary = {}
 var adjusted_remote_paths:Dictionary = {}
 var global_classes_used:Dictionary = {}
 
+func get_batch_files(backport_target):
+	var required_backport_files = _UtilsLocal.Backport.get_required_files(backport_target)
+	
+	for file in required_backport_files:
+		if file in source_files:
+			continue
+		
+		var export_path = remote_dir.path_join(file.trim_prefix("res://"))
+		other_transfers.append({
+			_ExportFileKeys.from: file,
+			_ExportFileKeys.to: export_path,
+			_ExportFileKeys.custom_tree_message:" <- (Backport Dependency)"
+		})
+
+
 func get_valid_files_for_transfer():
 	for file in source_files:
 		if file.get_extension() == "uid" or file.get_extension() == "import":
@@ -54,7 +69,8 @@ func get_valid_files_for_transfer():
 		
 		if FileAccess.file_exists(l_path): # check that it is file vs dir
 			valid_files_for_transfer[l_path] = {_ExportFileKeys.to:export_path}
-			
+			if rename_plugin:
+				adjusted_remote_paths[l_path] = l_path.replace(plugin_name, new_plugin_name)
 			
 			
 	
@@ -63,6 +79,7 @@ func get_valid_files_for_transfer():
 		var data = other_transfers_data.get(to)
 		var from_files = data.get(_ExportFileKeys.from_files)
 		var single_from = data.get(_ExportFileKeys.single)
+		var custom_message = data.get(_ExportFileKeys.custom_tree_message)
 		for from in from_files:
 			if not FileAccess.file_exists(from):
 				_UEditor.push_toast("File_doesn't exist, aborting: " + from, 2)
@@ -75,7 +92,19 @@ func get_valid_files_for_transfer():
 			if FileAccess.file_exists(to_path) and not export_data.overwrite:
 				_UEditor.push_toast("File exists, aborting: " + to_path, 2)
 				return
-			valid_files_for_transfer[from] = {_ExportFileKeys.to:to_path}
+			
+			var export_path = to_path.replace(source, export_dir_path)
+			valid_files_for_transfer[from] = {_ExportFileKeys.to:export_path}
+			if custom_message:
+				valid_files_for_transfer[from][_ExportFileKeys.custom_tree_message] = custom_message
+			
+			files_to_process_for_paths[from] = {_ExportFileKeys.to:export_path}
+			
+			var adj_path = to_path
+			if rename_plugin:
+				adj_path = adj_path.replace(plugin_name, new_plugin_name)
+			adjusted_remote_paths[from] = adj_path
+			
 
 
 
@@ -83,8 +112,8 @@ func get_valid_files_for_transfer():
 func sort_valid_files():
 	for file:String in valid_files_for_transfer.keys():
 		var standard_export_path = file.replace(source, export_dir_path)
-		if rename_plugin:
-			adjusted_remote_paths[file] = file.replace(plugin_name, new_plugin_name)
+		#if rename_plugin:
+			#adjusted_remote_paths[file] = file.replace(plugin_name, new_plugin_name)
 		
 		if not file_parser.check_file_valid(file):
 			files_to_copy[file] = valid_files_for_transfer.get(file)
@@ -97,6 +126,7 @@ func sort_valid_files():
 		
 		if first_line.find("#! remote") == -1:
 			files_to_copy[file] = valid_files_for_transfer.get(file)
+			#files_to_process_for_paths[file] = valid_files_for_transfer.get(file) # TODO is this ok?
 		else:
 			var is_remote = false
 			while not file_access.eof_reached():

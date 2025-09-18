@@ -195,12 +195,17 @@ static func scan_file_for_global_classes(file_path:String, export_obj:ExportData
 static func get_other_transfer_data(export_obj:ExportData.Export):
 	var other_transfers_array = export_obj.other_transfers
 	var export_dir_path = export_obj.export_dir_path
+	var export_source_path = export_obj.source
 	
 	var other_transfer_data = {}
 	for other in other_transfers_array:
+		var custom_message = other.get(ExportFileKeys.custom_tree_message)
 		var to:String = other.get(ExportFileKeys.to)
-		if not to.begins_with(export_dir_path):
-			to = export_dir_path.path_join(to)
+		#if not to.begins_with(export_dir_path):
+			#to = export_dir_path.path_join(to)
+		if not to.begins_with(export_source_path):
+			to = export_source_path.path_join(to)
+			
 		var from_files = other.get(ExportFileKeys.from)
 		if from_files == null:
 			if to.get_file() == ".gdignore":
@@ -242,6 +247,8 @@ static func get_other_transfer_data(export_obj:ExportData.Export):
 			to_data[ExportFileKeys.from_files].append_array(from_files)
 		else:
 			other_transfer_data[to] = {ExportFileKeys.from_files:from_files, ExportFileKeys.single:single_from}
+			if custom_message:
+				other_transfer_data[to][ExportFileKeys.custom_tree_message] = custom_message
 	
 	return other_transfer_data
 
@@ -401,6 +408,8 @@ class ExportFileKeys:
 	const adjusted_remote_path = "adjusted_remote_path"
 	const dependent = "dependent"
 	const dependency_dir = "dependency_dir"
+	
+	const custom_tree_message = "custom_tree_message"
 	
 	const options = "options"
 	const include_import = "include_import"

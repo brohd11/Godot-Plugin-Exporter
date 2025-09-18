@@ -3,7 +3,6 @@ extends RefCounted
 const UtilsRemote = preload("res://addons/plugin_exporter/src/class/utils_remote.gd")
 const URegex = UtilsRemote.URegex
 
-const EI_BACKPORT_PATH = "res://addons/plugin_exporter/src/class/export/backport/ei_backport.gd"
 const EI_BACKPORT = "_EIBackport"
 
 const VALID_4_0_WINDOW_POSITIONS = [
@@ -104,7 +103,6 @@ func _init() -> void:
 
 func set_parse_settings(settings):
 	backport_target = settings.get("backport_target", 100)
-
 
 
 # second pass of post export. If extension is handled by default, line will be 
