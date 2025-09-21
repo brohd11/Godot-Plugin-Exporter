@@ -1,7 +1,9 @@
 extends Node
 
-const Scene = preload("res://addons/addon_lib/brohd/alib_editor/utils/src/editor_nodes/scene.gd")
-const UEditor = preload("res://addons/addon_lib/brohd/alib_editor/utils/src/u_editor.gd")
+const UtilsRemote = preload("res://addons/plugin_exporter/src/class/utils_remote.gd")
+
+const Scene = UtilsRemote.Scene
+const UEditor = UtilsRemote.UEditor
 
 const NODE_NAME = "EditorContextPluginBackport"
 
@@ -38,15 +40,17 @@ static func get_instance():
 	return instance
 
 func _ready() -> void:
-	EditorInterface.get_script_editor().editor_script_changed.connect(_set_script_editor_popups)
-	_set_script_editor_popups(null)
+	EditorNodeRef.call_on_ready(_set_nodes)
+
+func _set_nodes():
+	EditorNodeRef.get_instance().script_editor_updated.connect(_set_script_editor_references)
 	
+	_set_script_editor_references()
 	_set_file_system_popup()
 	_set_file_system_create_popup()
 	_set_2d_editor_popup()
 	_set_scene_tabs_popup()
 	_set_scene_tree_popup()
-	
 
 
 static func add_context_menu_plugin(target_slot, plugin):
@@ -167,7 +171,7 @@ func _on_target_popup_hide(popup:PopupMenu, old_callable):
 
 
 func _set_file_system_popup():
-	var popup = EditorPopups.get_file_system_popup()
+	var popup = EditorNodeRef.get_registered(EditorNodeRef.Nodes.FILESYSTEM_POPUP)
 	if is_instance_valid(popup):
 		popups[SLOT_FILE_SYSTEM] = popup
 		popup.about_to_popup.connect(_on_file_system_about_to_popup)
@@ -179,7 +183,7 @@ func _on_file_system_about_to_popup():
 
 
 func _set_file_system_create_popup():
-	var popup = EditorPopups.get_file_system_create_popup()
+	var popup = EditorNodeRef.get_registered(EditorNodeRef.Nodes.FILESYSTEM_CREATE_POPUP)
 	if is_instance_valid(popup):
 		popups[SLOT_FILE_SYSTEM_CREATE] = popup
 		popup.about_to_popup.connect(_on_file_system_create_about_to_popup)
@@ -190,7 +194,7 @@ func _on_file_system_create_about_to_popup() -> void:
 
 
 func _set_scene_tabs_popup():
-	var popup = EditorPopups.get_scene_tabs_popup()
+	var popup = EditorNodeRef.get_registered(EditorNodeRef.Nodes.SCENE_TABS_POPUP)
 	if is_instance_valid(popup):
 		popups[SLOT_SCENE_TABS] = popup
 		popup.about_to_popup.connect(_on_scene_tabs_about_to_popup)
@@ -201,7 +205,7 @@ func _on_scene_tabs_about_to_popup():
 
 
 func _set_scene_tree_popup():
-	var popup = EditorPopups.get_scene_tree_popup()
+	var popup = EditorNodeRef.get_registered(EditorNodeRef.Nodes.SCENE_TREE_POPUP)
 	if is_instance_valid(popup):
 		popups[SLOT_SCENE_TREE] = popup
 		popup.about_to_popup.connect(_on_scene_tree_about_to_popup)
@@ -210,34 +214,37 @@ func _on_scene_tree_about_to_popup():
 	_call_plugin_popup_menu(SLOT_SCENE_TREE, _get_selected_node_paths())
 
 
-func _set_2d_editor_popup():
-	var popup = EditorPopups.get_2d_editor_popup()
+func _set_2d_editor_popup(): # not working, maybe not worth it
+	return
+	var popup
 	if is_instance_valid(popup):
 		popups[SLOT_2D_EDITOR] = popup
 		popup.about_to_popup.connect(_on_2d_editor_about_to_popup)
 
 func _on_2d_editor_about_to_popup():
-	
 	_call_plugin_popup_menu(SLOT_2D_EDITOR, null)
 
 
-func _set_script_editor_popups(script):
+func _set_script_editor_references():
+	_set_script_editor_popup()
+	_set_script_editor_code_popup()
+
+func _set_script_editor_popup():
 	## SCRIPT EDITOR CODE
 	if is_instance_valid(script_editor_code_popup):
 		if script_editor_code_popup.about_to_popup.is_connected(_on_script_editor_code_popup_about_to_popup):
 			script_editor_code_popup.about_to_popup.disconnect(_on_script_editor_code_popup_about_to_popup)
-	script_editor_code_popup = EditorPopups.get_script_editor_code_popup()
+	script_editor_code_popup = EditorNodeRef.get_registered(EditorNodeRef.Nodes.SCRIPT_EDITOR_CODE_POPUP)
 	if not is_instance_valid(script_editor_code_popup):
 		return
 	popups[SLOT_SCRIPT_EDITOR_CODE] = script_editor_code_popup
 	script_editor_code_popup.about_to_popup.connect(_on_script_editor_code_popup_about_to_popup)
-	
+func _set_script_editor_code_popup():
 	## SCRIPT EDITOR FILE LIST
 	if is_instance_valid(script_editor_popup):
 		if script_editor_popup.about_to_popup.is_connected(_on_script_editor_popup_about_to_popup):
 			script_editor_popup.about_to_popup.disconnect(_on_script_editor_popup_about_to_popup)
-	
-	script_editor_popup = EditorPopups.get_script_editor_popup()
+	script_editor_popup = EditorNodeRef.get_registered(EditorNodeRef.Nodes.SCRIPT_EDITOR_POPUP)
 	if not is_instance_valid(script_editor_popup):
 		return
 	popups[SLOT_SCRIPT_EDITOR] = script_editor_popup
@@ -248,16 +255,12 @@ func _on_script_editor_code_popup_about_to_popup():
 	var root = Engine.get_main_loop().root
 	var node_path = root.get_path_to(EditorInterface.get_script_editor().get_current_editor().get_base_editor())
 	_call_plugin_popup_menu(SLOT_SCRIPT_EDITOR_CODE, [node_path])
-	#var script_editor_code_plugins = plugins.get(SLOT_SCRIPT_EDITOR_CODE, [])
-	#for plugin in script_editor_code_plugins:
-		#plugin._popup_menu([node_path])
+
 
 func _on_script_editor_popup_about_to_popup():
 	var current_script_path = EditorInterface.get_script_editor().get_current_script().resource_path
 	_call_plugin_popup_menu(SLOT_SCRIPT_EDITOR, [current_script_path])
-	#var script_editor_plugins = plugins.get(SLOT_SCRIPT_EDITOR, [])
-	#for plugin in script_editor_plugins:
-		#plugin._popup_menu([current_script_path])
+
 
 func _call_plugin_popup_menu(slot, argument):
 	var plugin_instances = plugins.get(slot, [])
@@ -271,13 +274,3 @@ func _get_selected_node_paths():
 	for node in current_selected_nodes:
 		node_paths.append(UEditor.get_editor_node_path(node))
 	return node_paths
-
-
-static func _arg_test():
-	var t = _test_call.bind("my_arg", 5)
-	print(t.get_bound_arguments())
-	pass
-
-static func _test_call(arg):
-	print(arg)
-	pass

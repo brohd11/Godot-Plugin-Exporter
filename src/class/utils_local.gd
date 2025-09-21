@@ -19,9 +19,9 @@ const DUMMY_GDIGNORE_FILE = "res://addons/plugin_exporter/src/template/_gdignore
 
 const PARSE_FOLDER_PATH = "res://addons/plugin_exporter/src/class/export/parse"
 
-const CONFIG_FILE_PATH = "res://.godot/addons/plugin_exporter/plugin_exporter_config.json"
+const CONFIG_FILE_PATH = "res://.godot/addons/plugin_exporter/plugin_exporter_config.json" #! ignore-remote
 const EXPORT_TEMPLATE_PATH = "res://addons/plugin_exporter/src/template/plugin_export_template.json" #! dependency
-const PRE_POST_TEMPLATE_PATH = "res://addons/plugin_exporter/src/template/pre_post.gd" #! dependency
+
 
 static func get_global_classes_in_text(line:String, class_list_keys:Array):
 	var classes = []

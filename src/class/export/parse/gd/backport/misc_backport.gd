@@ -10,14 +10,18 @@ const MISC_STRING_REPLACEMENTS = {
 	},
 }
 
+var combined_string_replacements := {}
+
 var no_strings:= false
 
 func _compile_misc_strings():
 	_string_regex = URegex.get_strings()
 	
+	combined_string_replacements.merge(MISC_STRING_REPLACEMENTS)
+	
 	var escaped_strings = []
-	for string in MISC_STRING_REPLACEMENTS.keys():
-		var replace_data = MISC_STRING_REPLACEMENTS.get(string)
+	for string in combined_string_replacements.keys():
+		var replace_data = combined_string_replacements.get(string)
 		var min_ver = replace_data.get("min_ver", 0)
 		if min_ver < backport_target:
 			continue
@@ -36,6 +40,7 @@ func _compile_misc_strings():
 # ie. if extension is foo, "parse_foo": {"my_setting": "value"}
 func set_parse_settings(settings):
 	backport_target = settings.get("backport_target", 100)
+	combined_string_replacements = settings.get("backport_string_renames", {})
 	_compile_misc_strings()
 
 # logic to parse for files that are needed acts as a set, dependencies[my_dep_path] = {}
@@ -68,12 +73,14 @@ func replace_misc_methods(line:String) -> String:
 func _replace_misc_methods(line:String) -> String:
 	if no_strings:
 		return line
+	if not _misc_string_replacement_regex.is_valid():
+		return line
 	
 	var matches = _misc_string_replacement_regex.search_all(line)
 	for i in range(matches.size() - 1, -1, -1):
 		var _match: RegExMatch = matches[i]
 		var _match_string = _match.get_string(1)
-		var replace_data = MISC_STRING_REPLACEMENTS.get(_match_string, {})
+		var replace_data = combined_string_replacements.get(_match_string, {})
 		var replacement = _match_string
 		if replace_data.is_empty():
 			print("Could not replace string: %s" % _match_string)

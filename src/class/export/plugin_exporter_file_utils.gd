@@ -322,7 +322,6 @@ static func plugin_init(plugin_name:=""):
 		if not conf_handled:
 			return
 	
-	#DirAccess.copy_absolute(UtilsLocal.PRE_POST_TEMPLATE_PATH, export_pre_post)
 	var pre_post_f = FileAccess.open(export_pre_post, FileAccess.WRITE)
 	pre_post_f.store_string(_PRE_POST_TEMPLATE_TEXT)
 	pre_post_f.close()
@@ -335,12 +334,14 @@ static func plugin_init(plugin_name:=""):
 	template_data[ExportFileKeys.plugin_folder] = "%s{{version=%s}}" % [plugin_folder, export_dir_name]
 	
 	var parser_settings = {
+		"backport_target": 100,
 		"parse_cs":{"namespace_rename":{}},
 		"parse_gd":{
 			"class_rename_ignore":[],
-			"backport_target": 100,
+			"backport_string_renames":{},
 			},
-		"parse_tscn":{}
+		"parse_tscn":{},
+		"parse_tres":{},
 	}
 	template_data[ExportFileKeys.options][ExportFileKeys.parser_settings] = parser_settings
 	

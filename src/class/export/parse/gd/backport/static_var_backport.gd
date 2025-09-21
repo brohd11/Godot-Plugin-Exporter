@@ -134,7 +134,7 @@ func pre_export():
 # or return the null value to default to the file's .
 func post_export_edit_file(file_path:String, file_lines:Variant=null) -> Variant:
 	if backport_target > STATIC_VAR_MIN_VER:
-		return
+		return file_lines
 	
 	var global_class_names = export_obj.export_data.class_list.keys()
 	var current_original_path = export_obj.file_parser.current_file_path_parsing
@@ -143,15 +143,6 @@ func post_export_edit_file(file_path:String, file_lines:Variant=null) -> Variant
 	var static_var_data = {}
 	for i in range(file_lines.size()):
 		var line = file_lines[i]
-		
-		#var _class = get_extended_class(line)
-		#if _class:
-			#if _class.find('"') > -1:
-				#extends_class = true
-			#else:
-				#if _class in global_class_names:
-					#extends_class = true
-		
 		
 		if line.strip_edges().begins_with("static var "):
 			var code = line
@@ -174,6 +165,8 @@ func post_export_edit_file(file_path:String, file_lines:Variant=null) -> Variant
 			line = "#%s<- Backport Static Var" % line
 			file_lines[i] = line
 	
+	#if static_var_data.keys().is_empty():
+		#return file_lines # can this be done?
 	
 	var internal_setter_regex_array = []
 	var internal_getter_regex_array = []
@@ -236,11 +229,7 @@ func post_export_edit_file(file_path:String, file_lines:Variant=null) -> Variant
 		file_lines[i] = processed_line
 	
 	
-	file_lines.append("### PLUGIN EXPORTER STATIC VAR BACKPORT")
-	var extends_class = file_extends_class(file_lines, backport_target)
-	if not extends_class:
-		var bp_stat_path = export_obj.adjusted_remote_paths.get(BACKPORT_STATIC_PATH, BACKPORT_STATIC_PATH)
-		file_lines.append(_construct_pre(BACKPORT_STATIC, bp_stat_path))
+	file_lines.append("# PLUGIN EXPORTER STATIC VAR BACKPORT")
 	
 	var adjusted_path = export_obj.adjusted_remote_paths.get(export_obj.file_parser.current_file_path_parsing)
 	if not adjusted_path:
@@ -252,7 +241,13 @@ func post_export_edit_file(file_path:String, file_lines:Variant=null) -> Variant
 		sv_data.const_nm = _BPSV_CONST_NAME
 		file_lines.append_array(_get_static_getter_lines(sv_data))
 		file_lines.append_array(_get_static_setter_lines(sv_data))
-	file_lines.append("### PLUGIN EXPORTER STATIC VAR BACKPORT")
+	#file_lines.append("### PLUGIN EXPORTER STATIC VAR BACKPORT")
+	
+	var extends_class = file_extends_class(file_lines, backport_target)
+	if not extends_class:
+		var bp_stat_path = export_obj.adjusted_remote_paths.get(BACKPORT_STATIC_PATH, BACKPORT_STATIC_PATH)
+		file_lines.append(_construct_pre(BACKPORT_STATIC, bp_stat_path))
+	
 	file_lines.append("")
 	return file_lines
 

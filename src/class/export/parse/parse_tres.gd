@@ -20,7 +20,7 @@ func get_direct_dependencies(file_path:String) -> Dictionary:
 				ExportFileKeys.path: file_path
 			}
 			# erase from renames, keeps resource class global
-			export_obj.export_data.class_renames.erase(script_class)
+			export_obj.class_renames.erase(script_class)
 		
 		if line.find('[ext_resource') > -1:
 			var path = line.get_slice('path="', 1)

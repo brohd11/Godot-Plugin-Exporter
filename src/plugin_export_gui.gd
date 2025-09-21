@@ -12,7 +12,7 @@ const ExportFileKeys = ExportFileUtils.ExportFileKeys
 const FileSystem = UtilsRemote.FileSystem
 const PopupHelper = UtilsRemote.PopupHelper
 const UEditorTheme = UtilsRemote.UEditorTheme
-const TreeHelperClass = preload("uid://madlgh38c6lh") #>import tree_helper.gd
+const TreeHelperClass = preload("uid://madlgh38c6lh") # tree_helper.gd
 
 const UtilsLocal = preload("res://addons/plugin_exporter/src/class/utils_local.gd")
 const PluginExporterStatic = UtilsLocal.PluginExporterStatic
@@ -20,7 +20,7 @@ const ExportData = UtilsLocal.ExportData
 const Export = ExportData.Export
 const FileParser = UtilsLocal.FileParser
 
-const CONFIG_FILE_PATH = "res://.godot/addons/plugin_exporter/plugin_exporter_config.json"
+const CONFIG_FILE_PATH = "res://.godot/addons/plugin_exporter/plugin_exporter_config.json" #! ignore-remote
 const EXPORT_TEMPLATE_PATH = "res://addons/plugin_exporter/src/template/plugin_export_template.json" #! dependency
 const PRE_POST_TEMPLATE_PATH = "res://addons/plugin_exporter/src/template/pre_post.gd" #! dependency
 
@@ -135,7 +135,7 @@ func send_panel_dialog_data(tab_data):
 		_set_file_line_text(export_path)
 		_set_line_alignment()
 	
-	ab_lib = load("res://addons/modular_browser/plugin/script_libs/ab_lib.gd")
+	ab_lib = load("res://addons/modular_browser/plugin/script_libs/ab_lib.gd") #! ignore-remote
 	var HelperInst = ab_lib.get_helper_inst(self)
 	
 	HelperInst.ABInstSignals.connect_toolbar_info(menu_button, "Plugin export commands.")
@@ -178,6 +178,7 @@ func _on_set_file_button_pressed():
 	if handled == dialog.cancel_string:
 		return
 	
+	handled = ProjectSettings.localize_path(handled)
 	_set_file_line_text(handled)
 	await get_tree().process_frame
 	_set_line_alignment()
@@ -339,6 +340,8 @@ func _parse_export_data():#, write=false):
 
 func _collapse_tree():
 	var root_item = export_tree.get_root()
+	if not root_item:
+		return
 	root_item.set_collapsed_recursive(true)
 	root_item.collapsed = false
 

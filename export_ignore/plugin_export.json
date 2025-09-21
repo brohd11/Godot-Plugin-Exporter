@@ -18,7 +18,8 @@
 			"parser_overide_settings":{
 				"parse_cs":{},
 				"parse_gd":{},
-				"parse_tscn":{}
+				"parse_tscn":{},
+				"parse_tres":{},
 			}
 		},
 		{
@@ -37,8 +38,10 @@
 			"source": "res://addons/plugin_exporter/",
 			"parser_overide_settings":{
 				"parse_cs":{},
-				"parse_gd":{"backport_target":0},
-				"parse_tscn":{}
+				"parse_gd":{},
+				"parse_tscn":{},
+				"parse_tres":{},
+				"backport_target":0
 			}
 		}
 	],
@@ -48,10 +51,16 @@
 		"overwrite": true,
 		"parser_settings":{
 			"parse_cs":{},
-			"parse_gd":{"class_rename_ignore":[
-				"PluginExporter"
-			]},
-			"parse_tscn":{}
+			"parse_gd":{
+				"class_rename_ignore":[
+					"PluginExporter",
+					],
+				"backport_string_renames":{
+				
+				},
+			},
+			"parse_tscn":{},
+			"parse_tres":{},
 		}
 	},
 	"plugin_folder": "PluginExporter/PluginExporter{{version=plugin_exporter}}",

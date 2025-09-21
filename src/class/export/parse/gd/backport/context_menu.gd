@@ -1,6 +1,6 @@
 extends "res://addons/plugin_exporter/src/class/export/parse/parse_base.gd"
 
-const PLUGIN_EXPORTER_TAG = "### PLUGIN EXPORTER CONTEXT BACKPORT"
+const PLUGIN_EXPORTER_TAG = "# PLUGIN EXPORTER CONTEXT BACKPORT"
 
 const COMPAT_SING_NAME = "ContextPluginBackport"
 const COMPAT_SING_PATH = "res://addons/plugin_exporter/src/class/export/backport/context/context_backport.gd"
@@ -64,7 +64,7 @@ func pre_export() -> void:
 # If not handled by default, file_lines will be null. You can process and return the files lines
 # or return the null value to default to the file's .
 func post_export_edit_file(file_path:String, file_lines:Variant=null) -> Variant:
-	if backport_target == 100:
+	if backport_target > 3:
 		return file_lines
 	
 	var has_editor_context_plugin = false
@@ -99,7 +99,7 @@ func post_export_edit_file(file_path:String, file_lines:Variant=null) -> Variant
 		file_lines.append(_construct_pre(COMPAT_SING_NAME, adj_sing_path))
 		var adj_compat_path = export_obj.adjusted_remote_paths.get(COMPAT_CLASS_PATH, COMPAT_CLASS_PATH)
 		file_lines.append(_construct_pre(COMPAT_NAME, adj_compat_path))
-		file_lines.append(PLUGIN_EXPORTER_TAG)
+		#file_lines.append(PLUGIN_EXPORTER_TAG)
 		file_lines.append("")
 	
 	

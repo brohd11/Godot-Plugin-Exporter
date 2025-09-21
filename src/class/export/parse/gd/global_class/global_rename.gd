@@ -1,13 +1,8 @@
 extends "res://addons/plugin_exporter/src/class/export/parse/parse_base.gd"
 
-var _editor_console_regex := RegEx.new()
+#var suffix_hash:String
 
-func _init() -> void:
-	var ec_pattern = ":\\s*EditorConsole"
-	_editor_console_regex.compile(ec_pattern)
-	
-
-
+var rename_callables = []
 # in parser_settings, create dictionary for extension of file,
 # ie. if extension is foo, "parse_foo": {"my_setting": "value"}
 func set_parse_settings(settings):
@@ -20,7 +15,24 @@ func get_direct_dependencies(file_path:String) -> Dictionary:
 
 # runs right before export of files. Use for extension specific files.
 func pre_export() -> void:
-	pass
+	var plugin_name = export_obj.plugin_name
+	if export_obj.rename_plugin:
+		plugin_name = export_obj.new_plugin_name
+	
+	var suffix_hash = UFile.hash_string(plugin_name).substr(0,3)
+	var global_classes_used = export_obj.global_classes_used.keys()
+	for _class_name in export_obj.class_renames:
+		if not _class_name in global_classes_used:
+			continue
+		var regex = RegEx.new()
+		var reg_string = "\\b%s\\b" % _class_name
+		var replace_name = "%s_%s" % [_class_name, suffix_hash]
+		regex.compile(reg_string)
+		var anon = func(line:String) -> String:
+			return regex.sub(line, replace_name, true)
+		
+		rename_callables.append(anon)
+
 
 # first pass on post export, if the file ext is handle by default, file_lines will 
 # contain modifies lines, for example, if you want to make a second pass on a gd file.
@@ -33,8 +45,6 @@ func post_export_edit_file(file_path:String, file_lines:Variant=null) -> Variant
 # modified already. If changes were made in post_export_edit_file, these will be
 # present here, else, it will be the unmodified line from the file.
 func post_export_edit_line(line:String) -> String:
-	line = _string_safe_regex_sub(line, _remove_editor_console)
+	for callable in rename_callables:
+		line = _string_safe_regex_sub(line, callable)
 	return line
-
-func _remove_editor_console(line:String):
-	return _editor_console_regex.sub(line, "", true)

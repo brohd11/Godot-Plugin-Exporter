@@ -84,6 +84,9 @@ static func export_plugin(export_config_path:String, include_uid_overide=null, i
 		print("Exporting: export %s" % count)
 		export.file_parser.set_export_obj(export)
 		export.file_parser.pre_export()
+		if not export.export_valid:
+			return false
+		
 		export.export_files()
 		count += 1
 	
@@ -209,7 +212,7 @@ static func _get_git_data(dir, git_file_lines, repo_type="Submodule"):
 	global_dir = global_dir.trim_suffix("/")
 	var repo_line = "\t%s: %s" % [repo_type, global_dir.get_file()]
 	if repo_line in git_file_lines:
-		return
+		return []
 	
 	
 	var args = [
@@ -226,12 +229,23 @@ static func _get_git_data(dir, git_file_lines, repo_type="Submodule"):
 	var commit = output[0].strip_edges()
 	if commit == "":
 		printerr("Error getting commit: %s" % dir)
-		return
+		return []
+	
+	var plugin_version
+	var plugin_cfg = dir.path_join("plugin.cfg")
+	if not FileAccess.file_exists(plugin_cfg):
+		plugin_cfg = dir.path_join("version.cfg")
+	if FileAccess.file_exists(plugin_cfg):
+		var plugin_data = UtilsRemote.UConfig.load_config_data(plugin_cfg)
+		plugin_version = plugin_data.get_value("plugin", "version", "Could not get version")
+	
 	var lines = [
 		repo_line,
 		"\t\tDir: %s" % dir,
-		"\t\tCommit: %s" % commit,
 	]
+	if plugin_version:
+		lines.append("\t\tPlugin Version: %s" % plugin_version)
+	lines.append("\t\tCommit: %s" % commit)
 	var git_status = _get_git_status(dir)
 	if git_status == true:
 		lines.append("\t\t*has uncommited changes")

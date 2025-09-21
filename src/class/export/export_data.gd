@@ -12,8 +12,8 @@ const _UEditor = _UtilsRemote.UEditor
 var class_list_array = []
 var class_list = {}
 
-var class_rename_ignore = []
-var class_renames = {}
+#var class_rename_ignore = []
+#var class_renames = {}
 
 var data_valid:bool = false
 
@@ -60,8 +60,8 @@ func _init(export_config_path):
 	include_import = options.get(_ExportFileKeys.include_import, true)
 	parser_settings = options.get(_ExportFileKeys.parser_settings, {})
 	
-	var parse_gd_settings = parser_settings.get("parse_gd", {})
-	class_rename_ignore = parse_gd_settings.get("class_rename_ignore", [])
+	#var parse_gd_settings = parser_settings.get("parse_gd", {})
+	#class_rename_ignore = parse_gd_settings.get("class_rename_ignore", [])
 	_get_class_list()
 	
 	var exports_array = export_data.get(_ExportFileKeys.exports)
@@ -85,10 +85,10 @@ func _init(export_config_path):
 			return
 		
 		var plugin_name = export_obj.source.trim_suffix("/").get_file()
+		export_obj.plugin_name = "res://addons/%s/" % plugin_name
 		var export_plugin_name = export_obj.export_folder.trim_suffix("/").get_file()
 		if plugin_name != export_plugin_name and true: # add bool in json?
 			export_obj.rename_plugin = true
-			export_obj.plugin_name = "res://addons/%s/" % plugin_name
 			export_obj.new_plugin_name = "res://addons/%s/" % export_plugin_name
 		
 		if not export_obj.export_folder.ends_with("/"):
@@ -98,28 +98,62 @@ func _init(export_config_path):
 		export_obj.exclude_directories = exclude.get(_ExportFileKeys.directories)
 		export_obj.exclude_file_extensions = exclude.get(_ExportFileKeys.file_extensions)
 		export_obj.exclude_files = exclude.get(_ExportFileKeys.files)
-		export_obj.remote_dir = export.get(_ExportFileKeys.remote_dir, "")
+		
+		var default_remote_dir = export_obj.source.path_join("src/remote")
+		export_obj.remote_dir = export.get(_ExportFileKeys.remote_dir, default_remote_dir)
+		if not export_obj.remote_dir.begins_with(export_obj.source):
+			export_obj.remote_dir = export_obj.source.path_join(export_obj.remote_dir)
+		
 		export_obj.source_files = _UtilsRemote.UFile.scan_for_files(export_obj.source, [])
 		export_obj.export_dir_path = full_export_path.path_join(export_obj.export_folder)
 		export_obj.other_transfers = export.get(_ExportFileKeys.other_transfers, [])
 		export_obj.ignore_dependencies = export.get(_ExportFileKeys.ignore_dependencies, false)
 		
-		var backport_target := parser_settings.get("backport_target", 100)
 		export_obj.file_parser = _UtilsLocal.FileParser.new()
 		export_obj.file_parser.set_export_obj(export_obj)
 		var overide_settings:Dictionary = export.get(_ExportFileKeys.parser_overide_settings, {})
+		
+		var backport_target := parser_settings.get("backport_target", 100)
+		var overide_backport_target = overide_settings.get("backport_target")
+		if overide_backport_target != null:
+			backport_target = overide_backport_target
+		
+		
+		#for parse_key in parser_settings.keys():
+			#if not parse_key.begins_with("parse_"):
+				#continue
+			#var parse_data = parser_settings.get(parse_key, {})
+			#parse_data["backport_target"] = backport_target
+			#if overide_settings.has(parse_key):
+				#overide_settings[parse_key].merge(parse_data)
+			#else:
+				#overide_settings[parse_key] = parse_data
+		
+		
+		var un_typed_keys = []
 		for parse_key in parser_settings.keys():
+			if not parse_key.begins_with("parse_"):
+				un_typed_keys.append(parse_key)
+			continue
+		
+		for parse_key in parser_settings.keys():
+			if not parse_key.begins_with("parse_"):
+				continue
 			var parse_data = parser_settings.get(parse_key, {})
-			if parse_data.has("backport_target"):
-				backport_target = parse_data.get("backport_target")
+			for key in un_typed_keys:
+				parse_data[key] = parser_settings.get(key)
 			if overide_settings.has(parse_key):
 				overide_settings[parse_key].merge(parse_data)
 			else:
 				overide_settings[parse_key] = parse_data
 		
+		var parse_gd_settings = overide_settings.get("parse_gd", {})
+		export_obj.class_rename_ignore = parse_gd_settings.get("class_rename_ignore", [])
+		export_obj.get_class_renames()
+		
+		
 		export_obj.parser_overide_settings = overide_settings
 		export_obj.file_parser.set_parser_settings(overide_settings)
-		
 		
 		
 		export_obj.get_batch_files(backport_target)
@@ -129,6 +163,11 @@ func _init(export_config_path):
 		export_obj.get_global_classes_used_in_valid_files()
 		export_obj.get_file_dependencies()
 		export_obj.get_global_class_export_paths()
+		
+		export_obj.check_all_files_have_valid_path()
+		
+		if not export_obj.export_valid:
+			return
 		
 		exports.append(export_obj)
 		
@@ -144,5 +183,3 @@ func _get_class_list():
 		class_list[String(_class_name)] = path
 		if _class_name not in class_list_array:
 			class_list_array.append(_class_name)
-		if _class_name not in class_rename_ignore:
-			class_renames[_class_name] = ""

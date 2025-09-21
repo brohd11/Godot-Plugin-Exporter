@@ -56,7 +56,7 @@ func get_direct_dependencies(file_path:String) -> Dictionary:
 					direct_dependencies[path] = {}
 					
 					#var local_export_path = export_obj.remote_dir.path_join(file_name)
-					#export_obj.export_data.class_renames[tok] = local_export_path
+					#export_obj.class_renames[tok] = local_export_path
 		
 		if line.find("extends") > -1 and line.count('"') == 2:
 			if not _check_for_comment(line, ["extends", "class"]):
@@ -88,7 +88,7 @@ func get_direct_dependencies(file_path:String) -> Dictionary:
 
 func post_export_edit_file(file_path:String, file_lines:Variant=null):
 	var class_list_keys = export_obj.export_data.class_list.keys()
-	var class_renames = export_obj.export_data.class_renames
+	var class_renames = export_obj.class_renames
 	var class_renames_keys = class_renames.keys()
 	var classes_preloaded = []
 	var classes_used = []
@@ -185,7 +185,7 @@ func post_export_edit_file(file_path:String, file_lines:Variant=null):
 		adjusted_file_lines.append("")
 		adjusted_file_lines.append("### Plugin Exporter Global Classes")
 		adjusted_file_lines.append_array(rename_lines)
-		adjusted_file_lines.append("### Plugin Exporter Global Classes")
+		#adjusted_file_lines.append("### Plugin Exporter Global Classes")
 		adjusted_file_lines.append("")
 	
 	
@@ -213,11 +213,13 @@ func _update_paths(line:String):
 			if not UFile.is_file_in_directory(old_path, export_obj.source):
 				if not FileAccess.file_exists(old_path):
 					continue
-				UtilsRemote.UEditor.print_warn(OUT_OF_PLUGIN_MSG % [line, export_obj.file_parser.current_file_path_parsing])
+				if line.find("#! ignore-remote") == -1:
+					UtilsRemote.UEditor.print_warn(OUT_OF_PLUGIN_MSG % [line, export_obj.file_parser.current_file_path_parsing])
 				continue
 			if export_obj.rename_plugin:
 				if old_path.find(export_obj.plugin_name) > -1:
-					new_path = old_path.replace(export_obj.plugin_name, export_obj.new_plugin_name)
+					#new_path = old_path.replace(export_obj.plugin_name, export_obj.new_plugin_name)
+					new_path = export_obj.get_renamed_path(old_path)
 					line = line.substr(0, start) + new_path + line.substr(end)
 		else:
 			line = line.substr(0, start) + new_path + line.substr(end)

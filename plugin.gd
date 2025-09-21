@@ -6,7 +6,7 @@ const PLUGIN_EXPORTED = false
 const UtilsRemote = preload("res://addons/plugin_exporter/src/class/utils_remote.gd")
 const DockManager = UtilsRemote.DockManager
 var dock_manager_instances: Array[DockManager]
-var main_screen_handler: DockManager.MainScreenHandlerMultiClass
+var main_screen_handler: DockManager.MainScreenHandlerMulti
 
 const CONTEXT_MENU_PLUGIN = preload("res://addons/plugin_exporter/src/editor_plugins/plugin_exporter_context_menus.gd")
 var context_plugin_inst:CONTEXT_MENU_PLUGIN
@@ -36,7 +36,7 @@ func _disable_plugin() -> void:
 func _enter_tree() -> void:
 	instance = self
 	DockManager.hide_main_screen_button(self)
-	main_screen_handler = DockManager.MainScreenHandlerMultiClass.new(self)
+	main_screen_handler = DockManager.MainScreenHandlerMulti.new(self)
 	
 	context_plugin_inst = CONTEXT_MENU_PLUGIN.new()
 	add_context_menu_plugin(EditorContextMenuPlugin.CONTEXT_SLOT_SCRIPT_EDITOR_CODE, context_plugin_inst)

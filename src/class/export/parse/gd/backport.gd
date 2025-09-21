@@ -46,6 +46,7 @@ func set_parse_settings(settings):
 	backport_target = settings.get("backport_target", 100)
 	
 	backport4_0.set_parse_settings(settings)
+	backport4_4.set_parse_settings(settings)
 	
 	backport_static_var.export_obj = export_obj
 	backport_static_var.set_parse_settings(settings)
@@ -87,14 +88,6 @@ func post_export_edit_file(file_path:String, file_lines:Variant=null) -> Variant
 		var converted_file = backport4_0.backport_raw_strings(file_as_text)
 		file_lines = converted_file.split("\n")
 		
-		
-		#if not extends_class: ### Moved below should be ok
-			#file_lines.append("### PLUGIN EXPORTER EDITORINTERFACE BACKPORT")
-			#var adj_path = export_obj.adjusted_remote_paths.get(EI_BACKPORT_PATH, EI_BACKPORT_PATH)
-			#file_lines.append(_construct_pre(EI_BACKPORT, adj_path))
-			#file_lines.append("### PLUGIN EXPORTER EDITORINTERFACE BACKPORT")
-			#file_lines.append("")
-		
 		file_lines = backport_context.post_export_edit_file(file_path, file_lines) # internal check for version
 		
 	## END < 4
@@ -110,10 +103,10 @@ func post_export_edit_file(file_path:String, file_lines:Variant=null) -> Variant
 	
 	if not extends_class:
 		if backport_target < 2:
-			file_lines.append("### PLUGIN EXPORTER EDITORINTERFACE BACKPORT")
+			file_lines.append("# PLUGIN EXPORTER EDITORINTERFACE BACKPORT")
 			var adj_path = export_obj.adjusted_remote_paths.get(EI_BACKPORT_PATH, EI_BACKPORT_PATH)
 			file_lines.append(_construct_pre(EI_BACKPORT, adj_path))
-			file_lines.append("### PLUGIN EXPORTER EDITORINTERFACE BACKPORT")
+			#file_lines.append("### PLUGIN EXPORTER EDITORINTERFACE BACKPORT")
 			file_lines.append("")
 		
 		var has_backport_preloaded := false
@@ -122,10 +115,11 @@ func post_export_edit_file(file_path:String, file_lines:Variant=null) -> Variant
 				has_backport_preloaded =  true
 		
 		if not has_backport_preloaded:
-			file_lines.append("### PLUGIN EXPORTER MISC BACKPORT")
+			file_lines.append("# PLUGIN EXPORTER MISC BACKPORT")
 			var misc_adj_path = export_obj.adjusted_remote_paths.get(MISC_BACKPORT_PATH, MISC_BACKPORT_PATH)
 			file_lines.append(_construct_pre(MISC_BACKPORT, misc_adj_path))
-			file_lines.append("### PLUGIN EXPORTER MISC BACKPORT")
+			#file_lines.append("### PLUGIN EXPORTER MISC BACKPORT")
+			file_lines.append("")
 	
 	for i in range(file_lines.size()):
 		var line = file_lines[i]

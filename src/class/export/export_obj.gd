@@ -35,6 +35,13 @@ var file_dependencies:Dictionary = {}
 var adjusted_remote_paths:Dictionary = {}
 var global_classes_used:Dictionary = {}
 
+var class_rename_ignore:Array = []
+var class_renames:Dictionary = {}
+
+var shared_data:Dictionary = {}
+
+var export_valid = true
+
 func get_batch_files(backport_target):
 	var required_backport_files = _UtilsLocal.Backport.get_required_files(backport_target)
 	
@@ -42,7 +49,7 @@ func get_batch_files(backport_target):
 		if file in source_files:
 			continue
 		
-		var export_path = remote_dir.path_join(file.trim_prefix("res://"))
+		var export_path = get_remote_file_local_path(file)
 		other_transfers.append({
 			_ExportFileKeys.from: file,
 			_ExportFileKeys.to: export_path,
@@ -59,9 +66,7 @@ func get_valid_files_for_transfer():
 		if _ExportFileUtils.check_ignore(l_path, self):
 			continue
 		
-		var export_path = l_path.replace(source, export_dir_path)
-		#if rename_plugin:
-			#adjusted_remote_paths[l_path] = l_path.replace(plugin_name, new_plugin_name)
+		var export_path = get_export_path(l_path)
 		
 		if FileAccess.file_exists(export_path) and not export_data.overwrite:
 			_UEditor.push_toast("File exists, aborting: " + export_path, 2)
@@ -70,7 +75,7 @@ func get_valid_files_for_transfer():
 		if FileAccess.file_exists(l_path): # check that it is file vs dir
 			valid_files_for_transfer[l_path] = {_ExportFileKeys.to:export_path}
 			if rename_plugin:
-				adjusted_remote_paths[l_path] = l_path.replace(plugin_name, new_plugin_name)
+				adjusted_remote_paths[l_path] = get_renamed_path(l_path)
 			
 			
 	
@@ -93,16 +98,14 @@ func get_valid_files_for_transfer():
 				_UEditor.push_toast("File exists, aborting: " + to_path, 2)
 				return
 			
-			var export_path = to_path.replace(source, export_dir_path)
+			var export_path = get_export_path(to_path)
 			valid_files_for_transfer[from] = {_ExportFileKeys.to:export_path}
 			if custom_message:
 				valid_files_for_transfer[from][_ExportFileKeys.custom_tree_message] = custom_message
 			
 			files_to_process_for_paths[from] = {_ExportFileKeys.to:export_path}
 			
-			var adj_path = to_path
-			if rename_plugin:
-				adj_path = adj_path.replace(plugin_name, new_plugin_name)
+			var adj_path = get_renamed_path(to_path)
 			adjusted_remote_paths[from] = adj_path
 			
 
@@ -201,21 +204,19 @@ func get_file_dependencies():
 				if replace_with == remote_path:
 					continue # stop remote classes from creating extra copy in remote
 		
-		if dependent == remote_path: # new system has full paths, can use full path? ^^
-			continue
-		var stripped_path = remote_path.trim_prefix("res://")
-		var remote_dir_path = remote_dir.path_join(stripped_path)
+		#if dependent == remote_path: # this is causing issues if class is preloaded in self
+			#continue
+		
+		var remote_dir_path = get_remote_file_local_path(remote_path)
 		if dependency_dir == "current":
 			remote_dir_path = dependent.get_base_dir().path_join(remote_path.get_file())
 		elif dependency_dir != null and dependency_dir != "":
 			remote_dir_path = dependency_dir.path_join(remote_path.get_file())
 		
-		var adjusted_path = remote_dir_path
-		if rename_plugin:
-			adjusted_path = adjusted_path.replace(plugin_name, new_plugin_name)
+		var adjusted_path = get_renamed_path(remote_dir_path)
 		adjusted_remote_paths[remote_path] = adjusted_path
 		
-		var export_path = remote_dir_path.replace(source, export_dir_path)
+		var export_path = get_export_path(remote_dir_path)
 		files_to_copy[remote_path] = {
 			_ExportFileKeys.to: export_path,
 			_ExportFileKeys.dependent: dependent
@@ -224,12 +225,11 @@ func get_file_dependencies():
 
 func get_global_class_export_paths():
 	for name in global_classes_used.keys():
-		if name in export_data.class_renames.keys():
+		if name in class_renames.keys():
 			var data = global_classes_used.get(name)
 			var remote_path = data.get(_ExportFileKeys.path)
 			var dependent = data.get(_ExportFileKeys.dependent)
-			var stripped_path = remote_path.trim_prefix("res://")
-			var remote_dir_path = remote_dir.path_join(stripped_path)
+			var remote_dir_path = get_remote_file_local_path(remote_path)
 			
 			if _UtilsRemote.UFile.is_file_in_directory(remote_path, source):
 				remote_dir_path = remote_path # if in plugin, do not move to remote
@@ -237,16 +237,37 @@ func get_global_class_export_paths():
 			elif dependent == remote_path:
 				dependent = null # if global class was found in self, no dependent
 			var adjusted_path = remote_dir_path
-			if rename_plugin:
-				adjusted_path = adjusted_path.replace(plugin_name, new_plugin_name)
+			adjusted_path = get_renamed_path(adjusted_path)
 			adjusted_remote_paths[remote_path] = adjusted_path
-			export_data.class_renames[name] = remote_path
+			class_renames[name] = remote_path
 			
-			var export_path = remote_dir_path.replace(source, export_dir_path)
+			var export_path = get_export_path(remote_dir_path)
 			files_to_copy[remote_path] = {
 				_ExportFileKeys.to: export_path,
 				_ExportFileKeys.dependent: dependent,
 				}
+
+func check_all_files_have_valid_path():
+	for file_path in files_to_copy.keys():
+		var file_data = files_to_copy.get(file_path)
+		var export_path = file_data.get(_ExportFileKeys.to)
+		var replace_with = file_data.get(_ExportFileKeys.replace_with)
+		var source_path = file_path
+		if replace_with != null:
+			source_path = replace_with
+		
+		check_file_has_valid_path(source_path, export_path)
+
+func check_file_has_valid_path(source_path:String, export_path:String) -> void:
+	var globalized_source = ProjectSettings.globalize_path(source_path)
+	var globalized_export = ProjectSettings.globalize_path(export_path)
+	
+	if globalized_export.is_relative_path():
+		print("Issue with file export, export path is relative path: %s" % globalized_export)
+		export_valid = false
+	if globalized_source == globalized_export:
+		print("Issue with file export, export path == source path: %s" % globalized_source)
+		export_valid = false
 
 
 func export_files():
@@ -291,6 +312,33 @@ func export_files():
 	##
 	
 
+##
+
+func get_class_renames():
+	for _class_name in export_data.class_list_array:
+		if _class_name not in class_rename_ignore:
+			class_renames[_class_name] = ""
+
+func get_remote_file_local_path(file_path:String) -> String:
+	var stripped_path = file_path.trim_prefix("res://")
+	var remote_dir_path = remote_dir.path_join(stripped_path)
+	
+	return remote_dir_path
+
+func get_renamed_path(file_path:String) -> String:
+	if rename_plugin:
+		file_path = file_path.replace(plugin_name, new_plugin_name)
+	return file_path
+
+func get_export_path(file_path:String) -> String:
+	file_path = file_path.replace(source, export_dir_path)
+	return file_path
+
+func invalidate():
+	export_valid = false
+
+
+##
 
 static func _simple_export(from, export_path, export_uid_file, export_import_file):
 	var export_path_dir = export_path.get_base_dir()

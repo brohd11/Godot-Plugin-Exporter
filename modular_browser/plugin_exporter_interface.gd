@@ -1,5 +1,5 @@
 @tool
-extends "res://addons/modular_browser/plugin/scripts_panels/panel_interface_base.gd"
+extends "res://addons/modular_browser/plugin/scripts_panels/panel_interface_base.gd" #! ignore-remote
 
 class Data:
 	const module = Modules.None
@@ -46,4 +46,3 @@ class UIData: # this class can be used to store keys for ui data, don't use the 
 #const ui_scene_path = "panel_ui_scene_path"
 #const single_instance = "single_instance"
 #const editable = "editable"
-
