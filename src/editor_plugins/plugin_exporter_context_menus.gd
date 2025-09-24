@@ -7,6 +7,7 @@ const PopupWrapper = UtilsRemote.PopupWrapper
 
 const DEPENDENCY_TAGS = ["#! dependency", "#! ignore-remote"]
 
+const SINGLETON_MODULE = "Plugin Exporter/Singleton Module"
 const DEPENDENCY = "Plugin Exporter/Dependency"
 const EXPORTED_FLAG = "Plugin Exporter/Exported Flag"
 const BACKPORT_FLAG = "Plugin Exporter/Backport Flag"
@@ -21,7 +22,9 @@ func _popup_menu(paths: PackedStringArray) -> void:
 
 
 func _on_popup_pressed(script_editor, item_name):
-	if item_name == DEPENDENCY:
+	if item_name == SINGLETON_MODULE:
+		add_singleton_module(script_editor)
+	elif item_name == DEPENDENCY:
 		add_dep_tag(script_editor)
 	elif item_name == IGNORE_REMOTE:
 		add_ignore_remote(script_editor)
@@ -33,12 +36,16 @@ func _on_popup_pressed(script_editor, item_name):
 
 static func get_valid_items(script_editor:CodeEdit) -> Dictionary:
 	var valid_items = {}
-	var first_line = script_editor.get_line(0)
+	
 	var line = script_editor.get_caret_line()
 	var text = script_editor.get_line(line)
 	if text == "":
 		valid_items[EXPORTED_FLAG] = {}
 		valid_items[BACKPORT_FLAG] = {}
+	
+	if text.begins_with("class_name"):
+		if text.find("#! singleton-module") == -1:
+			valid_items[SINGLETON_MODULE] = {}
 	
 	if text.count('"') == 2:
 		var valid_dep = true
@@ -50,13 +57,18 @@ static func get_valid_items(script_editor:CodeEdit) -> Dictionary:
 		if not FileAccess.file_exists(file_path):
 			valid_dep = false
 		if valid_dep:
-			if first_line.find("#! remote") != -1:
+			if _is_remote_file(script_editor):
 				valid_items[DEPENDENCY] = {}
 			else:
 				valid_items[IGNORE_REMOTE] = {}
 	
 	return valid_items
 
+static func add_singleton_module(script_editor):
+	var line = script_editor.get_caret_line()
+	var text = script_editor.get_line(line)
+	script_editor.set_caret_column(text.length())
+	script_editor.insert_text_at_caret(" #! singleton-module")
 
 static func add_dep_tag(script_editor):
 	var line = script_editor.get_caret_line()
@@ -79,3 +91,10 @@ static func add_backport_flag(script_editor):
 	var line = script_editor.get_caret_line()
 	var text = script_editor.get_line(line)
 	script_editor.insert_text_at_caret("const BACKPORTED = 100")
+
+static func _is_remote_file(script_editor:CodeEdit):
+	for i in range(10):
+		var line = script_editor.get_line(i)
+		if line.begins_with("#! remote"):
+			return true
+	return false

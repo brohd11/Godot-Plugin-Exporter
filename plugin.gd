@@ -15,6 +15,8 @@ const PLUGIN_EXPORT_GUI = preload("res://addons/plugin_exporter/src/plugin_expor
 
 const SHOW_TOOL_MENU_ITEM = "plugin/plugin_exporter/show_tool_menu_item"
 
+const COMMENT_TAGS = ["remote", "ignore-remote", "dependency", "singleton-module"]
+
 static var instance
 
 
@@ -38,6 +40,8 @@ func _enter_tree() -> void:
 	DockManager.hide_main_screen_button(self)
 	main_screen_handler = DockManager.MainScreenHandlerMulti.new(self)
 	
+	SyntaxPlus.call_on_ready(_add_syntax_comment_tags)
+	
 	context_plugin_inst = CONTEXT_MENU_PLUGIN.new()
 	add_context_menu_plugin(EditorContextMenuPlugin.CONTEXT_SLOT_SCRIPT_EDITOR_CODE, context_plugin_inst)
 	
@@ -51,6 +55,9 @@ func _enter_tree() -> void:
 func _exit_tree() -> void:
 	remove_context_menu_plugin(context_plugin_inst)
 	remove_tool_menu_item("Plugin Exporter")
+	
+	for tag in COMMENT_TAGS:
+		SyntaxPlus.unregister_comment_tag(tag)
 	
 	for dock_manager:DockManager in dock_manager_instances:
 		if is_instance_valid(dock_manager):
@@ -68,3 +75,7 @@ func new_gui_instance():
 	dock_manager_instances.append(dock_manager)
 	
 	return dock_manager
+
+func _add_syntax_comment_tags():
+	for tag in COMMENT_TAGS:
+		SyntaxPlus.register_comment_tag(tag)

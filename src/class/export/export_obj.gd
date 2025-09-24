@@ -40,6 +40,8 @@ var class_renames:Dictionary = {}
 
 var shared_data:Dictionary = {}
 
+var export_file_data:Dictionary = {}
+
 var export_valid = true
 
 func get_batch_files(backport_target):
@@ -123,14 +125,17 @@ func sort_valid_files():
 			#files_to_copy[file] = {_ExportFileKeys.to: standard_export_path}
 			continue
 		
-		var file_access = FileAccess.open(file, FileAccess.READ)
-		var first_line = file_access.get_line()
+		var file_needs_processing = _ExportFileUtils.is_remote_file(file)
 		
+		#var file_access = FileAccess.open(file, FileAccess.READ)
+		#var first_line = file_access.get_line()
+		#
 		
-		if first_line.find("#! remote") == -1:
+		if not file_needs_processing:
 			files_to_copy[file] = valid_files_for_transfer.get(file)
 			#files_to_process_for_paths[file] = valid_files_for_transfer.get(file) # TODO is this ok?
 		else:
+			var file_access = FileAccess.open(file, FileAccess.READ)
 			var is_remote = false
 			while not file_access.eof_reached():
 				var line = file_access.get_line()
@@ -159,7 +164,7 @@ func sort_valid_files():
 				files_to_copy[file] = valid_files_for_transfer.get(file)
 				#files_to_copy[file] = {_ExportFileKeys.to: standard_export_path}
 			
-		file_access.close()
+			file_access.close()
 
 
 func get_global_classes_used_in_valid_files():
@@ -177,7 +182,7 @@ func get_global_classes_used_in_valid_files():
 				_ExportFileKeys.path: remote_path
 				}
 			if _UtilsRemote.UFile.is_file_in_directory(remote_path, source):
-				if not _is_remote_file(remote_path):
+				if not _ExportFileUtils.is_remote_file(remote_path):
 					continue
 			files_to_process_for_paths[remote_path] = {}
 
@@ -257,6 +262,48 @@ func check_all_files_have_valid_path():
 			source_path = replace_with
 		
 		check_file_has_valid_path(source_path, export_path)
+
+func get_singleton_modules():
+	var all_data = []
+	for file_path:String in files_to_copy.keys():
+		var file_access = FileAccess.open(file_path, FileAccess.READ)
+		var count = 0
+		while not file_access.eof_reached() and count < 10:
+			var line = file_access.get_line()
+			if line.find("class_name") == -1:
+				continue
+			if line.find("#! singleton-module") == -1:
+				break
+			var _class_name = line.get_slice("class_name", 1).get_slice("#!", 0).strip_edges()
+			var version = line.get_slice("#! singleton-module", 1).strip_edges()
+			if version == "":
+				var base_dir = file_path.get_base_dir()
+				while base_dir != "res://":
+					var config_path = base_dir.path_join("plugin.cfg")
+					if not FileAccess.file_exists(config_path):
+						config_path = base_dir.path_join("version.cfg")
+					if not FileAccess.file_exists(config_path):
+						base_dir = base_dir.get_base_dir()
+					else:
+						version = _UtilsRemote.UConfig.load_val_from_config("plugin", "version", "0.0.0", config_path)
+						break
+			
+			var adjusted_path = adjusted_remote_paths.get(file_path, file_path)
+			var singleton_data = {
+				"name":_class_name,
+				"version": str(version),
+				"path": adjusted_path
+			}
+			all_data.append(singleton_data)
+			break
+	
+	export_file_data["singleton_modules"] = all_data
+
+func write_export_data_file():
+	var all_data_path = export_dir_path.path_join(".export_data")
+	_UtilsRemote.UFile.write_to_json(export_file_data, all_data_path)
+
+
 
 func check_file_has_valid_path(source_path:String, export_path:String) -> void:
 	var globalized_source = ProjectSettings.globalize_path(source_path)
@@ -354,12 +401,3 @@ static func _simple_export(from, export_path, export_uid_file, export_import_fil
 	var export_path_import = export_path + ".import"
 	if FileAccess.file_exists(from_import) and export_uid_file:
 		DirAccess.copy_absolute(from_import, export_path_import)
-
-static func _is_remote_file(file_path:String):
-	var file_access = FileAccess.open(file_path, FileAccess.READ)
-	var first_line = file_access.get_line()
-	file_access.close()
-	if first_line.find("#! remote") == -1:
-		return false
-	return true
-	

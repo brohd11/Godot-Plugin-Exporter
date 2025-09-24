@@ -166,6 +166,8 @@ func _init(export_config_path):
 		
 		export_obj.check_all_files_have_valid_path()
 		
+		export_obj.get_singleton_modules()
+		
 		if not export_obj.export_valid:
 			return
 		

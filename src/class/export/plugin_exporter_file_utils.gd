@@ -278,6 +278,23 @@ static func write_new_uid(uid_path):
 	var f = FileAccess.open(uid_path, FileAccess.WRITE)
 	f.store_string(uid)
 
+static func is_remote_file(file_path:String):
+	var file_access = FileAccess.open(file_path, FileAccess.READ)
+	var count = 0
+	while not file_access.eof_reached() and count < 10:
+		var line = file_access.get_line()
+		if line.begins_with("#! remote"):
+			return true
+		count += 1
+	
+	return false
+	
+	#var first_line = file_access.get_line()
+	#file_access.close()
+	#if first_line.find("#! remote") == -1:
+		#return false
+	#return true
+
 
 static func plugin_init(plugin_name:=""):
 	if not FileAccess.file_exists(UtilsLocal.EXPORT_TEMPLATE_PATH):

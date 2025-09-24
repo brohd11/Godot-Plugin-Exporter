@@ -88,6 +88,7 @@ static func export_plugin(export_config_path:String, include_uid_overide=null, i
 			return false
 		
 		export.export_files()
+		export.write_export_data_file()
 		count += 1
 	
 	if export_data.post_script != "":

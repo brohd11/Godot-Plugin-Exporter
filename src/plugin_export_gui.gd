@@ -330,7 +330,9 @@ func _parse_export_data():#, write=false):
 				last_item.set_text(0, new_text)
 				var new_tooltip = text + " -> (dependency to: %s)" % dependent
 				last_item.set_tooltip_text(0, new_tooltip)
-		
+			
+			if last_item.get_text(0).begins_with("%s"):
+				print(local_file_path)
 		# /build tree
 	
 	
