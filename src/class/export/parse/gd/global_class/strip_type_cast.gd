@@ -3,7 +3,7 @@ extends "res://addons/plugin_exporter/src/class/export/parse/parse_base.gd"
 var _editor_console_regex := RegEx.new()
 var _editor_node_ref := RegEx.new()
 
-const CAST_STRIP_NAMES = ["EditorConsole", "EditorNodeRef"]
+const CAST_STRIP_NAMES = ["EditorConsole", "EditorNodeRef", "SyntaxPlus"]
 
 var _cast_strip_callables = []
 
