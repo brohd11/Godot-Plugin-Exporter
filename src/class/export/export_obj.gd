@@ -266,6 +266,8 @@ func check_all_files_have_valid_path():
 func get_singleton_modules():
 	var all_data = []
 	for file_path:String in files_to_copy.keys():
+		if not file_parser.check_file_valid(file_path):
+			continue
 		var file_access = FileAccess.open(file_path, FileAccess.READ)
 		var count = 0
 		while not file_access.eof_reached() and count < 10:
@@ -315,6 +317,7 @@ func check_file_has_valid_path(source_path:String, export_path:String) -> void:
 	if globalized_source == globalized_export:
 		print("Issue with file export, export path == source path: %s" % globalized_source)
 		export_valid = false
+
 
 
 func export_files():
