@@ -205,17 +205,7 @@ func _on_new_file_button_pressed():
 
 func _on_open_export_dir():
 	var export_config_path = file_path_line.text
-	var export_data = ExportFileUtils.get_export_data(export_config_path)
-	if export_data == null:
-		return
-	var export_root = export_data.get(ExportFileKeys.export_root, "")
-	if export_root != "":
-		var global_path = ProjectSettings.globalize_path(export_root)
-		if not DirAccess.dir_exists_absolute(global_path):
-			printerr("Export dir does not exist: %s" % global_path)
-			return
-		
-		OS.shell_open(global_path)
+	PluginExporterStatic.open_export_dir(export_config_path)
 
 
 func _on_read_file_button_pressed():

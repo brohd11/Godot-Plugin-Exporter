@@ -39,3 +39,10 @@ static func gui_open(plugin_name:String):
 	var gui_instance = dock_manager.get_plugin_control()
 	
 	gui_instance.load_export_file(export_file_path)
+
+static func open_export_folder(plugin_name:String):
+	var export_config_path = UtilsLocal.ExportFileUtils.name_to_export_config_path(plugin_name)
+	if not FileAccess.file_exists(export_config_path):
+		printerr("Could not find file: %s" % export_config_path)
+		return
+	PluginExporterStatic.open_export_dir(export_config_path)

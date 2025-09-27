@@ -295,6 +295,10 @@ static func is_remote_file(file_path:String):
 		#return false
 	#return true
 
+static func name_to_export_config_path(plugin_name:String):
+	return "res://addons".path_join(plugin_name).path_join("export_ignore").path_join("plugin_export.json")
+
+
 
 static func plugin_init(plugin_name:=""):
 	if not FileAccess.file_exists(UtilsLocal.EXPORT_TEMPLATE_PATH):
