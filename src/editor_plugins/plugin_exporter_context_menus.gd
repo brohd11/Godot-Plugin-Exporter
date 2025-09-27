@@ -57,8 +57,9 @@ static func get_valid_items(script_editor:CodeEdit) -> Dictionary:
 		if not FileAccess.file_exists(file_path):
 			valid_dep = false
 		if valid_dep:
+			valid_items[DEPENDENCY] = {}
 			if _is_remote_file(script_editor):
-				valid_items[DEPENDENCY] = {}
+				pass
 			else:
 				valid_items[IGNORE_REMOTE] = {}
 	

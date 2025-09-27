@@ -175,6 +175,19 @@ static func update_git_submodule_details(export_config_path, export_data:ExportD
 	for export:ExportData.Export in export_data.exports:
 		var single_export_git_file_lines = []
 		git_details_file_lines.append("\nExport: " + export.export_folder)
+		var source_git_path = export.source.path_join(".git")
+		if FileAccess.file_exists(source_git_path):
+			var lines = _get_git_data(export.source, single_export_git_file_lines)
+			if lines:
+				single_export_git_file_lines.append_array(lines)
+		elif DirAccess.dir_exists_absolute(source_git_path):
+			var lines = _get_git_data(export.source, single_export_git_file_lines)
+			if lines:
+				single_export_git_file_lines.append_array(lines)
+		else:
+			single_export_git_file_lines.append("Source is not a git repo")
+		
+		
 		for file in export.file_dependencies.keys():
 			var dir = file.get_base_dir()
 			while dir != "res://":

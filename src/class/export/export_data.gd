@@ -60,8 +60,6 @@ func _init(export_config_path):
 	include_import = options.get(_ExportFileKeys.include_import, true)
 	parser_settings = options.get(_ExportFileKeys.parser_settings, {})
 	
-	#var parse_gd_settings = parser_settings.get("parse_gd", {})
-	#class_rename_ignore = parse_gd_settings.get("class_rename_ignore", [])
 	_get_class_list()
 	
 	var exports_array = export_data.get(_ExportFileKeys.exports)
@@ -117,17 +115,6 @@ func _init(export_config_path):
 		var overide_backport_target = overide_settings.get("backport_target")
 		if overide_backport_target != null:
 			backport_target = overide_backport_target
-		
-		
-		#for parse_key in parser_settings.keys():
-			#if not parse_key.begins_with("parse_"):
-				#continue
-			#var parse_data = parser_settings.get(parse_key, {})
-			#parse_data["backport_target"] = backport_target
-			#if overide_settings.has(parse_key):
-				#overide_settings[parse_key].merge(parse_data)
-			#else:
-				#overide_settings[parse_key] = parse_data
 		
 		
 		var un_typed_keys = []

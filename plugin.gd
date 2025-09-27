@@ -19,6 +19,8 @@ const COMMENT_TAGS = ["remote", "ignore-remote", "dependency", "singleton-module
 
 static var instance
 
+var syntax_plus:SyntaxPlus
+
 
 func _get_plugin_name() -> String:
 	return "Plugin Exporter"
@@ -26,6 +28,8 @@ func _get_plugin_icon() -> Texture2D:
 	return EditorInterface.get_base_control().get_theme_icon("ActionCopy", &"EditorIcons")
 func _has_main_screen() -> bool:
 	return true
+func _make_visible(visible: bool) -> void:
+	main_screen_handler.on_plugin_make_visible(visible)
 
 func _enable_plugin() -> void:
 	if PLUGIN_EXPORTED:
@@ -40,6 +44,7 @@ func _enter_tree() -> void:
 	DockManager.hide_main_screen_button(self)
 	main_screen_handler = DockManager.MainScreenHandlerMulti.new(self)
 	
+	syntax_plus = SyntaxPlus.register_node(self)
 	SyntaxPlus.call_on_ready(_add_syntax_comment_tags)
 	
 	context_plugin_inst = CONTEXT_MENU_PLUGIN.new()
@@ -56,8 +61,11 @@ func _exit_tree() -> void:
 	remove_context_menu_plugin(context_plugin_inst)
 	remove_tool_menu_item("Plugin Exporter")
 	
-	for tag in COMMENT_TAGS:
-		SyntaxPlus.unregister_comment_tag(tag)
+	
+	if is_instance_valid(syntax_plus):
+		for tag in COMMENT_TAGS:
+			SyntaxPlus.unregister_comment_tag(tag)
+		syntax_plus.unregister_node(self)
 	
 	for dock_manager:DockManager in dock_manager_instances:
 		if is_instance_valid(dock_manager):
