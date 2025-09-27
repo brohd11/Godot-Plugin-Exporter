@@ -59,6 +59,7 @@ func _init(export_config_path):
 	include_uid = options.get(_ExportFileKeys.include_uid, true)
 	include_import = options.get(_ExportFileKeys.include_import, true)
 	parser_settings = options.get(_ExportFileKeys.parser_settings, {})
+	parser_settings = _sort_settings_dict(parser_settings)
 	
 	_get_class_list()
 	
@@ -110,25 +111,12 @@ func _init(export_config_path):
 		export_obj.file_parser = _UtilsLocal.FileParser.new()
 		export_obj.file_parser.set_export_obj(export_obj)
 		var overide_settings:Dictionary = export.get(_ExportFileKeys.parser_overide_settings, {})
-		
-		var backport_target := parser_settings.get("backport_target", 100)
-		var overide_backport_target = overide_settings.get("backport_target")
-		if overide_backport_target != null:
-			backport_target = overide_backport_target
-		
-		
-		var un_typed_keys = []
-		for parse_key in parser_settings.keys():
-			if not parse_key.begins_with("parse_"):
-				un_typed_keys.append(parse_key)
-			continue
+		overide_settings = _sort_settings_dict(overide_settings)
 		
 		for parse_key in parser_settings.keys():
 			if not parse_key.begins_with("parse_"):
 				continue
 			var parse_data = parser_settings.get(parse_key, {})
-			for key in un_typed_keys:
-				parse_data[key] = parser_settings.get(key)
 			if overide_settings.has(parse_key):
 				overide_settings[parse_key].merge(parse_data)
 			else:
@@ -138,11 +126,10 @@ func _init(export_config_path):
 		export_obj.class_rename_ignore = parse_gd_settings.get("class_rename_ignore", [])
 		export_obj.get_class_renames()
 		
-		
 		export_obj.parser_overide_settings = overide_settings
 		export_obj.file_parser.set_parser_settings(overide_settings)
 		
-		
+		var backport_target = parse_gd_settings.get("backport_target", 100)
 		export_obj.get_batch_files(backport_target)
 		
 		export_obj.get_valid_files_for_transfer()
@@ -159,10 +146,27 @@ func _init(export_config_path):
 			return
 		
 		exports.append(export_obj)
-		
-		
+	
 	
 	data_valid = true
+
+func _sort_settings_dict(dict:Dictionary):
+	var sorted_dict = {}
+	var untyped_keys = []
+	for parse_key in dict.keys():
+		if not parse_key.begins_with("parse_"):
+			untyped_keys.append(parse_key)
+			continue
+		
+		sorted_dict[parse_key] = dict[parse_key]
+	
+	for parse_key in sorted_dict.keys():
+		var data = sorted_dict.get(parse_key)
+		for key in untyped_keys:
+			data[key] = dict[key]
+		sorted_dict[parse_key] = data
+	
+	return sorted_dict
 
 func _get_class_list():
 	var global_class_list = ProjectSettings.get_global_class_list()

@@ -113,8 +113,8 @@ func pre_export():
 		if s_var_nms.is_empty():
 			continue
 		var const_name = preload_alias_map.get(path)
-		if const_name == null:
-			print(path)
+		if const_name == null: ## I believe this means it is never referenced anywhere else, not an issue.
+			#print("Could not find path in static var preload alias map: %s" % path) 
 			continue
 		for var_nm in s_var_nms:
 			external_regexs.append(_build_external_setter_rule(const_name, var_nm))
@@ -230,7 +230,6 @@ func post_export_edit_file(file_path:String, file_lines:Variant=null) -> Variant
 	
 	
 	file_lines.append("# PLUGIN EXPORTER STATIC VAR BACKPORT")
-	
 	var adjusted_path = export_obj.adjusted_remote_paths.get(export_obj.file_parser.current_file_path_parsing)
 	if not adjusted_path:
 		adjusted_path = export_obj.file_parser.current_file_path_parsing
@@ -241,14 +240,15 @@ func post_export_edit_file(file_path:String, file_lines:Variant=null) -> Variant
 		sv_data.const_nm = _BPSV_CONST_NAME
 		file_lines.append_array(_get_static_getter_lines(sv_data))
 		file_lines.append_array(_get_static_setter_lines(sv_data))
-	#file_lines.append("### PLUGIN EXPORTER STATIC VAR BACKPORT")
 	
+	#file_lines.append("### PLUGIN EXPORTER STATIC VAR BACKPORT")
 	var extends_class = file_extends_class(file_lines, backport_target)
 	if not extends_class:
 		var bp_stat_path = export_obj.adjusted_remote_paths.get(BACKPORT_STATIC_PATH, BACKPORT_STATIC_PATH)
 		file_lines.append(_construct_pre(BACKPORT_STATIC, bp_stat_path))
 	
 	file_lines.append("")
+	
 	return file_lines
 
 # second pass of post export. If extension is handled by default, line will be 

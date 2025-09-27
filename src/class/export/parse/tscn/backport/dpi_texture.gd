@@ -88,7 +88,7 @@ func post_export_edit_file(file_path:String, file_lines:Variant=null) -> Variant
 		var svg_file_name = "%s.svg" % hash
 		
 		var svg_resource_path = generated_files_path.path_join(svg_file_name)
-		svg_resource_path = export_obj.get_renamed_path(svg_resource_path)
+		var renamed_svg_resource_path = export_obj.get_renamed_path(svg_resource_path)
 		var svg_output_path = export_obj.get_export_path(svg_resource_path)
 		svg_output_path = export_obj.get_renamed_path(svg_output_path)
 		# 2. Save the new SVG file
@@ -108,7 +108,7 @@ func post_export_edit_file(file_path:String, file_lines:Variant=null) -> Variant
 		new_id_counter += 1
 		
 		var new_ext_resource_def = '[ext_resource type="Texture2D" path="%s" id="%s"]' % [
-			svg_resource_path,
+			renamed_svg_resource_path,
 			new_id_full_string
 		]
 		new_ext_resources.append(new_ext_resource_def)
