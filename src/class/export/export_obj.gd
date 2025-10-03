@@ -38,19 +38,21 @@ var global_classes_used:Dictionary = {}
 var class_rename_ignore:Array = []
 var class_renames:Dictionary = {}
 
+var unique_files:Array = []
+
 var shared_data:Dictionary = {}
 
 var export_file_data:Dictionary = {}
 
 var export_valid = true
 
-func get_batch_files(backport_target):
+func get_backport_files(backport_target):
 	var required_backport_files = _UtilsLocal.Backport.get_required_files(backport_target)
 	
 	for file in required_backport_files:
 		if file in source_files:
 			continue
-		
+		unique_files.append(file)
 		var export_path = get_remote_file_local_path(file)
 		other_transfers.append({
 			_ExportFileKeys.from: file,
@@ -343,7 +345,7 @@ func export_files():
 		var file_import = include_import
 		if replace_with == null:
 			var is_dep = false
-			if file_path in file_dep_keys:
+			if file_path in file_dep_keys or file_path in unique_files:
 				is_dep = true
 				file_uid = false
 				file_import = false # should this be?
@@ -371,6 +373,11 @@ func get_class_renames():
 
 func get_remote_file_local_path(file_path:String) -> String:
 	var stripped_path = file_path.trim_prefix("res://")
+	
+	var remote_count = stripped_path.count("/remote/") ## This will remove duplicate files from exported plugins
+	if remote_count > 0:
+		stripped_path = stripped_path.get_slice("/remote/", remote_count)
+	
 	var remote_dir_path = remote_dir.path_join(stripped_path)
 	
 	return remote_dir_path
@@ -390,7 +397,12 @@ func invalidate():
 
 ##
 
-static func _simple_export(from, export_path, export_uid_file, export_import_file):
+func _simple_export(from, export_path, export_uid_file, export_import_file):
+	if FileAccess.file_exists(export_path): ## this message prints when a duplicate is replaced with get_remote_file_local_path ^^
+		var raw_path = export_dir_path.get_base_dir().get_base_dir()
+		var msg = "Overwriting duplicate file: %s with %s" % [export_path.replace(raw_path, "").trim_prefix("/"), from]
+		_UtilsRemote.UEditor.print_warn(msg)
+	
 	var export_path_dir = export_path.get_base_dir()
 	if not DirAccess.dir_exists_absolute(export_path_dir):
 		DirAccess.make_dir_recursive_absolute(export_path_dir)

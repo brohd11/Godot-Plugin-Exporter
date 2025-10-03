@@ -4,7 +4,6 @@ extends Control
 const UtilsRemote = preload("res://addons/plugin_exporter/src/class/utils_remote.gd") #>remote
 const UFile = UtilsRemote.UFile
 const UTree = UtilsRemote.UTree
-const EditorFileDialogHandler = UtilsRemote.EditorFileDialogHandler
 
 const ExportFileUtils = UtilsLocal.ExportFileUtils
 const ExportFileKeys = ExportFileUtils.ExportFileKeys

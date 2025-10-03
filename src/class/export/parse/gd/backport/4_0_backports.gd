@@ -118,14 +118,16 @@ func post_export_edit_line(line:String) -> String:
 	if backport_target < 1:
 		line = check_window_line(line)
 	
+	if backport_target < 3: # before replace ei
+		line = replace_is_part_of_edited_scene(line)
+	
 	if backport_target < 2:
 		line = replace_ei_methods(line)
 		validate_ei_methods(line)
 		line = replace_editor_interface(line)
 		line = remove_for_loop_type_hint(line)
 	
-	if backport_target < 3:
-		line = replace_is_part_of_edited_scene(line)
+	
 	
 	if backport_target < 4:
 		line = convert_all_is_not_syntax(line)
@@ -290,7 +292,7 @@ func replace_is_part_of_edited_scene(line: String) -> String:
 			subject_obj = captured_obj
 		
 		# Build the new replacement string
-		replacement_text = "%s.get_ins().is_part_of_edited_scene_compat(%s)" % [EI_BACKPORT, subject_obj]
+		replacement_text = "MiscBackport.is_part_of_edited_scene_compat(%s)" % subject_obj
 		
 		line = line.substr(0, _match.get_start(0)) \
 				+ replacement_text \

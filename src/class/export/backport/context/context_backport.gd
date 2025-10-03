@@ -1,10 +1,5 @@
 extends Node
 
-const UtilsRemote = preload("res://addons/plugin_exporter/src/class/utils_remote.gd")
-
-const Scene = UtilsRemote.Scene
-const UEditor = UtilsRemote.UEditor
-
 const NODE_NAME = "EditorContextPluginBackport"
 
 const SLOT_SCENE_TREE = EditorContextMenuPlugin.CONTEXT_SLOT_SCENE_TREE
@@ -148,7 +143,7 @@ func _on_popup_clicked(id, target_slot):
 			var current_paths  = EditorInterface.get_selected_paths()
 			args.append(current_paths)
 		elif target_slot == SLOT_SCENE_TABS:
-			args.append(Scene.get_current_scene_path())
+			args.append(get_current_scene_path())
 		elif target_slot == SLOT_SCENE_TREE:
 			args.append(_get_selected_node_paths())
 		
@@ -200,7 +195,7 @@ func _set_scene_tabs_popup():
 		popup.about_to_popup.connect(_on_scene_tabs_about_to_popup)
 
 func _on_scene_tabs_about_to_popup():
-	var current_scene_path = Scene.get_current_scene_path()
+	var current_scene_path = get_current_scene_path()
 	_call_plugin_popup_menu(SLOT_SCENE_TABS, [current_scene_path])
 
 
@@ -272,5 +267,22 @@ func _get_selected_node_paths():
 	var current_selected_nodes = EditorInterface.get_selection().get_selected_nodes()
 	var node_paths = []
 	for node in current_selected_nodes:
-		node_paths.append(UEditor.get_editor_node_path(node))
+		node_paths.append(get_editor_node_path(node))
 	return node_paths
+
+static func get_current_scene_path():
+	var open_scenes = EditorInterface.get_open_scenes()
+	var scene_tabs = EditorNodeRef.get_registered(EditorNodeRef.Nodes.SCENE_TABS)
+	var tab_bar = scene_tabs.get_child(0).get_child(0).get_child(0) as TabBar
+	var current_tab_name = tab_bar.get_tab_title(tab_bar.current_tab)
+	for scene_path in open_scenes:
+		var base_name = scene_path.get_basename()
+		if base_name.ends_with(current_tab_name):
+			return scene_path
+
+static func get_editor_node_path(node):
+	var editor_scene_root = EditorInterface.get_edited_scene_root()
+	if node == editor_scene_root or node.owner == editor_scene_root:
+		var path:NodePath = editor_scene_root.get_path_to(node)
+		return path
+	return null

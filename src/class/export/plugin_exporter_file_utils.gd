@@ -8,7 +8,8 @@ const FileParser = UtilsLocal.FileParser
 const UFile = UtilsRemote.UFile
 const UConfig = UtilsRemote.UConfig
 const UEditor = UtilsRemote.UEditor
-const EditorFileDialogHandler = UtilsRemote.EditorFileDialogHandler
+
+const ConfirmationDialogHandler = UtilsRemote.ConfirmationDialogHandler
 
 
 static func get_export_data(export_config_path):

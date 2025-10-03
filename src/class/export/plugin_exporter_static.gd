@@ -337,6 +337,9 @@ func _get_plugin_icon() -> Texture2D:' + \
 '\nfunc _has_main_screen() -> bool:
 	return true
 
+func _make_visible(visible:bool) -> void:
+	pass
+
 func _enable_plugin() -> void:
 	pass
 
@@ -355,5 +358,5 @@ func _exit_tree() -> void:
 name="%s"
 description=""
 author=""
-version="0.0.0"
+version="0.1.0"
 script="plugin.gd"'

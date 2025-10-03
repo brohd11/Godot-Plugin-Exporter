@@ -33,12 +33,3 @@ func _init(plugin:EditorPlugin):
 		ei = plugin.get_editor_interface()
 	else:
 		ei = EditorInterface
-
-
-func is_part_of_edited_scene_compat(node_to_check:Node):
-	var ed_scene_root:Node = ei.get_edited_scene_root()
-	if not is_instance_valid(ed_scene_root):
-		return false
-	if ed_scene_root.is_ancestor_of(node_to_check):
-		return true
-	return false
