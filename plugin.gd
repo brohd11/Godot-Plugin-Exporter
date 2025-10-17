@@ -8,8 +8,12 @@ const DockManager = UtilsRemote.DockManager
 var dock_manager_instances: Array[DockManager]
 var main_screen_handler: DockManager.MainScreenHandlerMulti
 
+const CodeCompletion = preload("res://addons/plugin_exporter/src/editor_plugins/plugin_exporter_code_completion.gd")
+var code_completion:CodeCompletion
+
 const CONTEXT_MENU_PLUGIN = preload("res://addons/plugin_exporter/src/editor_plugins/plugin_exporter_context_menus.gd")
 var context_plugin_inst:CONTEXT_MENU_PLUGIN
+
 
 const PLUGIN_EXPORT_GUI = preload("res://addons/plugin_exporter/src/plugin_export_gui.tscn")
 
@@ -47,6 +51,8 @@ func _enter_tree() -> void:
 	syntax_plus = SyntaxPlus.register_node(self)
 	SyntaxPlus.call_on_ready(_add_syntax_comment_tags)
 	
+	code_completion = CodeCompletion.new()
+	
 	context_plugin_inst = CONTEXT_MENU_PLUGIN.new()
 	add_context_menu_plugin(EditorContextMenuPlugin.CONTEXT_SLOT_SCRIPT_EDITOR_CODE, context_plugin_inst)
 	
@@ -61,6 +67,8 @@ func _exit_tree() -> void:
 	remove_context_menu_plugin(context_plugin_inst)
 	remove_tool_menu_item("Plugin Exporter")
 	
+	if is_instance_valid(code_completion):
+		code_completion.clean_up()
 	
 	if is_instance_valid(syntax_plus):
 		for tag in COMMENT_TAGS:
