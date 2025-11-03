@@ -19,7 +19,7 @@ const PLUGIN_EXPORT_GUI = preload("res://addons/plugin_exporter/src/plugin_expor
 
 const SHOW_TOOL_MENU_ITEM = "plugin/plugin_exporter/show_tool_menu_item"
 
-const COMMENT_TAGS = ["remote", "ignore-remote", "dependency", "singleton-module"]
+const COMMENT_TAGS = ["#! remote", "#! ignore-remote", "#! dependency", "#! singleton-module"]
 
 static var instance
 
@@ -72,7 +72,9 @@ func _exit_tree() -> void:
 	
 	if is_instance_valid(syntax_plus):
 		for tag in COMMENT_TAGS:
-			SyntaxPlus.unregister_comment_tag(tag)
+			var prefix = tag.get_slice(" ", 0)
+			var tag_name = tag.get_slice(" ", 1)
+			SyntaxPlus.unregister_comment_tag(prefix, tag_name)
 		syntax_plus.unregister_node(self)
 	
 	for dock_manager:DockManager in dock_manager_instances:
@@ -94,4 +96,6 @@ func new_gui_instance():
 
 func _add_syntax_comment_tags():
 	for tag in COMMENT_TAGS:
-		SyntaxPlus.register_comment_tag(tag)
+		var prefix = tag.get_slice(" ", 0)
+		var tag_name = tag.get_slice(" ", 1)
+		SyntaxPlus.register_comment_tag(prefix, tag_name)
