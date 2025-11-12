@@ -204,8 +204,8 @@ func _update_paths(line:String):
 		
 		var old_path = _match.get_string(1)
 		
-		if old_path.begins_with("uid://"):
-			if old_path == "uid://" or old_path == "uid://<invalid>":
+		if old_path.begins_with(UFile._UID):
+			if old_path == UFile._UID or old_path == UFile._UID_INVALID:
 				continue
 			old_path = UFile.uid_to_path(old_path)
 		var new_path = export_obj.adjusted_remote_paths.get(old_path)

@@ -377,7 +377,8 @@ static func plugin_init(plugin_name:=""):
 	var parser_overide_settings = {
 		"parse_cs":{},
 		"parse_gd":{},
-		"parse_tscn":{}
+		"parse_tscn":{},
+		"parse_tres":{},
 	}
 	export[ExportFileKeys.parser_overide_settings] = parser_overide_settings
 	var exclude = export.get(ExportFileKeys.exclude)

@@ -10,7 +10,7 @@ var _cast_strip_callables = []
 func _init() -> void:
 	for _class_name in CAST_STRIP_NAMES:
 		#var strip_pattern = r"\s*(?:->|:)\s*%s\b\s*" % _class_name
-		var strip_pattern = r"\s*(?:->|:)\s*%s(\\.\\w+)*\b\s*" % _class_name
+		var strip_pattern = r"\s*(?:->|:)\s*%s(\.\w+)*\b\s*" % _class_name
 		var regex = RegEx.new()
 		regex.compile(strip_pattern)
 		var anon = func(line:String) -> String:
