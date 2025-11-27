@@ -4,7 +4,7 @@ This plugin is used to create release packages for your plugins.
 
 [Youtube Walkthrough](https://youtu.be/G0ZlF8FJ94U)
 
-The main feature is to get any global classes used in your plugin and remove the class_name, then declare said class in any script that uses it, as a preload. This allows you to work in your development repo with global class names for convenience, but distribute the plugin with only the classes the user will use in the global space. Classes to preload can be [customized](./export_ignore/export_settings.md).
+The main feature is to get any global classes used in your plugin and remove the class_name, then declare said class in any script that uses it, as a preload. This allows you to work in your development repo with global class names for convenience, but distribute the plugin with only the classes the user will use in the global space. Classes to preload can be [customized](./export_ignore/doc/export_settings.md).
 
 The other aspect of this is that the global class can be outside of the plugin. It would then be copied into your plugin on export. This allows you to keep shared classes in a central folder/submodule, but use the classes as normal.
 
@@ -14,7 +14,7 @@ In the image below, you can see how the exporter itself is exported. The main lo
 <img width="1161" height="955" alt="exporter-example-git" src="https://github.com/user-attachments/assets/d391a7b0-84dc-416e-a221-6a5fa798d9ee" />
 
 
-This will also work with preloaded classes if you want to limit global classes in your dev repo. See [here](./export_ignore/advanced_usage.md) for more details.
+This will also work with preloaded classes if you want to limit global classes in your dev repo. See [here](./export_ignore/doc/advanced_usage.md) for more details.
 
 All global class or "#! remote" files will be scanned, and any global classes used, preload/loaded files used within will be copied as well, and then scanned recursively.
 
