@@ -51,6 +51,7 @@ func _enter_tree() -> void:
 	syntax_plus = SyntaxPlus.register_node(self)
 	SyntaxPlus.call_on_ready(_add_syntax_comment_tags)
 	
+	EditorCodeCompletion.register_plugin(self)
 	code_completion = CodeCompletion.new()
 	
 	context_plugin_inst = CONTEXT_MENU_PLUGIN.new()
@@ -69,6 +70,8 @@ func _exit_tree() -> void:
 	
 	if is_instance_valid(code_completion):
 		code_completion.clean_up()
+	
+	EditorCodeCompletion.unregister_plugin(self)
 	
 	if is_instance_valid(syntax_plus):
 		for tag in COMMENT_TAGS:

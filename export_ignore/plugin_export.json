@@ -58,6 +58,7 @@
 				"backport_string_renames":{
 				
 				},
+				"replace_editor_interface":true,
 			},
 			"parse_tscn":{},
 			"parse_tres":{},

@@ -4,7 +4,7 @@ This plugin is used to create release packages for your plugins.
 
 [Youtube Walkthrough](https://youtu.be/G0ZlF8FJ94U)
 
-The main feature is to get any global classes used in your plugin and remove the class_name, then declare said class in any script that uses it, as a preload. This allows you to work in your development repo with global class names for convenience, but distribute the plugin with only the classes the user will use in the global space.
+The main feature is to get any global classes used in your plugin and remove the class_name, then declare said class in any script that uses it, as a preload. This allows you to work in your development repo with global class names for convenience, but distribute the plugin with only the classes the user will use in the global space. Classes to preload can be [customized](./export_ignore/export_settings.md).
 
 The other aspect of this is that the global class can be outside of the plugin. It would then be copied into your plugin on export. This allows you to keep shared classes in a central folder/submodule, but use the classes as normal.
 
@@ -14,7 +14,7 @@ In the image below, you can see how the exporter itself is exported. The main lo
 <img width="1161" height="955" alt="exporter-example-git" src="https://github.com/user-attachments/assets/d391a7b0-84dc-416e-a221-6a5fa798d9ee" />
 
 
-This will also work with preloaded classes if you want to limit global classes in your dev repo. See the examples below.
+This will also work with preloaded classes if you want to limit global classes in your dev repo. See [here](./export_ignore/advanced_usage.md) for more details.
 
 All global class or "#! remote" files will be scanned, and any global classes used, preload/loaded files used within will be copied as well, and then scanned recursively.
 
@@ -38,116 +38,4 @@ Console command: `PluginExporter call -- gui_open my_plugin_folder` will open a 
 
 You can export through the GUI by clicking "Export" in the tool menu.
 
-Console command: `PluginExporter call -- export my_plugin_folder
-`
-
-### Backport
-
-In the "plugin_export.json" file, under parser_settings -> parse_gd you can add "backport_target" with the minor version you are targeting. ie: "backport_target": 3
-
-This will apply any backports necessary for your plugin. For example, if you use static vars, they will not need to be adjusted, but EditorContextMenuPlugins will. If the backport_target was 0, static vars would be adjusted too.
-
-This does not have all incompatibilities fixed. It is mainly things I have run into with my own plugins. So a changed property name between versions in a random class is not likely to have been fixed yet. However, it is pretty simple to add extra rules to the backport parser, so substitutions can be made.
-
-Main backports:
-- EditorInterface direct singleton access converts to compatibility class
- - EditorContextMenuPlugin converts to compatibility class
- - static var are converted to a singleton using static func getters and setters
- - typed for loops and dictionaries stripped
- - raw strings converted to escaped strings
- - "X is not Y" syntax converted to "not X is Y"
- - various other methods recreated in a compatibility class
-
-4.5 backports are not created yet, aside from abstact keyword
-
-
-### Examples
-
-#### Global Class
-
-Global classes can just be used as normal.
-
-#### Remote Class
-
-You can get a single unamed script from outside of the plugin like this:
-
-``` gdscript
-#! remote
-extends "res://some_other/folder/my_class.gd"
-```
-
-On export, this file will be replaced with the extended class, and all dependencies copied to plugin.
-
-At this time, "#! remote" must be the first line of the file.
-
-Because the file is replaced any changes will not be present in the copied file. I would use this if I want this file to be in a certain spot, or if I created another script to extend it and make changes there.
-
-**Note**: because this is extending the class, it is not the same as the class. It could have identical functionality, but if you need to type check, this class is not the same as the extended class. If you need to type check, use the plugin preload file method.
-
-#### Plugin Preload File
-
-This format can be used to make a master file that preloads out of plugin files. Typically, I will name this utils_remote.gd or something similar, to denote that these files are not local to the plugin. This file can either be preloaded in your plugin scripts, or given a global class name. 
-
-This is useful if the desired files are not global classes, you can preload any classes that you want to use in your plugin.
-
-You can also declare files as dependencies if they are not preloadable. You can also give these a custom path. `#! dependency current` will place the file in the same directory as the file it is declared in. You also put a path there, it must be within your plugin folder to be valid.
-
-``` gdscript
-#! remote
-class_name MyPluginUtilsRemote
-
-const MyClass = preload("res://some_other/folder/my_class.gd")
-const MyOtherClass = preload("res://some_other/folder/my_other_class.gd")
-
-const MY_FILE = "res://some_other/folder/non-resource.file" #! dependency
-const MY_CUST_FILE = "res://file.file" #! dependency res://addons/my_plugin/deps
-```
-
-In another script you can access like:
-
-``` gdscript
-## if you don't have a global name, preload the class
-## name can be less verbose if needing to avoid name clashes between plugins
-
-const UtilsRemote = preload("res://addons/my_plugin/utils_remote.gd")
-
-func _ready():
-	var my_instance = UtilsRemote.MyClass.new()
-	UtilsRemote.MyOtherClass.static_func(my_instance)
-```
-
-On export, these files will be copied into your plugin, and have their paths adjusted.
-
-#### Full Plugin Copy
-
-Something I am experimenting with is creating "portable" plugins. These plugins would be agnostic to their location, and might interact with an instance of a class in the tree. This allows for packaging the plugin into multiple other plugins, but all can interact with each other, despite being technically different classes.
-
-To copy an entire plugin in, I do this:
-``` gdscript
-#! remote
-extends "res://addons/my_other_plugin/plugin.gd"
-
-const PLUGIN_CFG = "res://addons/my_other_plugin/plugin.cfg" #! dependency current
-```
-
-This file would be in a folder for sub-plugins inside the main plugin. 
-
-`res://addons/my_plugin/sub_plugins/plugin_to_copy/plugin.gd`
-
-The other plugin.gd will replace the above file, and have it's config file copied next to it, allowing it to be enabled by Godot. All the dependencies will be placed in the designated remote directory, so they can share common files. As long as any required files are preloaded, global classes, or used in a tscn file, they will be copied over. If they are not directly referenced, you can add them to the above similar to the config file.
-
-You don't want the main plugin to enable this sub plugin in your dev repo, and in fact you can't since plugin.cfg will not be present until export. So, to avoid errors I have a class that will enable and disable sub-plugins. I use the plugin exported flag to determine if the main plugin has been exported. Right clicking on an empty line in a script will give you the option to add the exported flag(avoids spelling mistakes).
-
-``` gdscript
-const PLUGIN_EXPORTED = false
-
-func _enable_plugin():
-	if PLUGIN_EXPORTED:
-		var sub_plugin_dir = "res://addons/my_plugin/sub_plugins"
-		var sub_plugin_path = "my_plugin/sub_plugins"
-		SubPluginManager.toggle_plugins(sub_plugin_dir, sub_plugin_path, true)
-```
-
-On export, the exported flag will be changed to true, allowing the sub-plugins to be enabled. There is also a backport flag available, that can be used to change your logic depending on the backport target version.
-
-Using this method, you can copy multiple sub-plugins into your plugin, while leaving their source intact for updates.
+Console command: `PluginExporter call -- export my_plugin_folder`

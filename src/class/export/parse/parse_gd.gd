@@ -10,6 +10,8 @@ var const_name_regex:RegEx
 
 var global_class_names = []
 
+var use_relative_paths:= false
+
 func _init() -> void:
 	super()
 	
@@ -22,6 +24,7 @@ func _init() -> void:
 	const_name_regex = UtilsRemote.URegex.get_const_name()
 
 func set_parse_settings(settings):
+	use_relative_paths = settings.get("use_relative_paths", false)
 	#var class_renames_array = settings.get("class_rename", [])
 	#for name in class_renames_array:
 		#class_renames[name] = ""
@@ -220,9 +223,17 @@ func _update_paths(line:String):
 				if old_path.find(export_obj.plugin_name) > -1:
 					#new_path = old_path.replace(export_obj.plugin_name, export_obj.new_plugin_name)
 					new_path = export_obj.get_renamed_path(old_path)
-					line = line.substr(0, start) + new_path + line.substr(end)
-		else:
-			line = line.substr(0, start) + new_path + line.substr(end)
+					#^ comment out for testing relative
+					#line = line.substr(0, start) + new_path + line.substr(end)
+		#else:
+			#line = line.substr(0, start) + new_path + line.substr(end)
+		
+		if new_path == null: # should this just be in 'use_relative_paths' branch?
+			new_path = old_path
+		if use_relative_paths: #^ set a bool for this
+			new_path = export_obj.get_relative_path(new_path)
+		
+		line = line.substr(0, start) + new_path + line.substr(end)
 	
 	return line
 

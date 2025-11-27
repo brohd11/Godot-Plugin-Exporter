@@ -391,6 +391,12 @@ func get_export_path(file_path:String) -> String:
 	file_path = file_path.replace(source, export_dir_path)
 	return file_path
 
+func get_relative_path(file_path:String) -> String:
+	var current_file = file_parser.current_file_path_parsing
+	var current_file_export = adjusted_remote_paths.get(current_file, current_file)
+	var new_path = _UtilsRemote.UFile.get_relative_path(current_file_export, file_path)
+	return new_path
+
 func invalidate():
 	export_valid = false
 

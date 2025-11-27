@@ -5,6 +5,7 @@ const UtilsRemote = preload("res://addons/plugin_exporter/src/class/utils_remote
 const UFile = UtilsRemote.UFile
 const UTree = UtilsRemote.UTree
 
+const PluginInit = UtilsLocal.PluginInit
 const ExportFileUtils = UtilsLocal.ExportFileUtils
 const ExportFileKeys = ExportFileUtils.ExportFileKeys
 
@@ -20,7 +21,6 @@ const Export = ExportData.Export
 const FileParser = UtilsLocal.FileParser
 
 const CONFIG_FILE_PATH = "res://.godot/addons/plugin_exporter/plugin_exporter_config.json" #! ignore-remote
-const EXPORT_TEMPLATE_PATH = "res://addons/plugin_exporter/src/template/plugin_export_template.json" #! dependency
 const PRE_POST_TEMPLATE_PATH = "res://addons/plugin_exporter/src/template/pre_post.gd" #! dependency
 
 @onready var file_path_line = %FilePathLine
@@ -195,11 +195,9 @@ func load_export_file(file_path, read:=true):
 
 
 func _on_new_file_button_pressed():
-	
-	var new_file_path = await ExportFileUtils.plugin_init()
+	var new_file_path = await PluginInit.plugin_init()
 	if new_file_path == null:
 		return
-	
 	_set_file_line_text(new_file_path)
 
 func _on_open_export_dir():

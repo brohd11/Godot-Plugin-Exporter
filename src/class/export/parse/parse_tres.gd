@@ -1,8 +1,9 @@
 extends "res://addons/plugin_exporter/src/class/export/parse/parse_base.gd"
 
+var use_relative_paths:= false
+
 func set_parse_settings(settings):
-	
-	pass
+	use_relative_paths = settings.get("use_relative_paths", false)
 
 func get_direct_dependencies(file_path:String) -> Dictionary:
 	var file_access = FileAccess.open(file_path, FileAccess.READ)
@@ -40,6 +41,7 @@ func post_export_edit_file(file_path:String, file_lines:Variant=null) -> Variant
 		printerr("ParseTSCN - Issue reading file: %s" % file_path)
 		return
 	
+	var file_dependencies_keys = export_obj.file_dependencies.keys()
 	var adjusted_file_lines = []
 	while not file_access.eof_reached():
 		var line = file_access.get_line()
@@ -48,7 +50,7 @@ func post_export_edit_file(file_path:String, file_lines:Variant=null) -> Variant
 			var uid = line.get_slice(' uid="', 1)
 			uid = uid.get_slice('"', 0)
 			var path = UFile.uid_to_path(uid)
-			if path in export_obj.file_dependencies.keys():
+			if path in file_dependencies_keys:
 				var new_uid = ResourceUID.id_to_text(ResourceUID.create_id())
 				var old_uid_line = 'uid="%s"' % uid
 				var new_uid_line = 'uid="%s"' % new_uid
@@ -61,8 +63,15 @@ func post_export_edit_file(file_path:String, file_lines:Variant=null) -> Variant
 			var id = line.get_slice(' id="', 1)
 			id = id.get_slice('"', 0)
 			var new_path = export_obj.adjusted_remote_paths.get(path)
-			if new_path != null:
-				line = '[ext_resource type="%s" path="%s" id="%s"]' % [type, new_path, id]
+			if not use_relative_paths:
+				if new_path != null:
+					line = RES_LINE_TEMPLATE % [type, new_path, id]
+			else:
+				if new_path == null:
+					new_path = path
+				new_path = export_obj.get_relative_path(new_path)
+				new_path = "./" + new_path
+				line = RES_LINE_TEMPLATE % [type, new_path, id]
 		
 		adjusted_file_lines.append(line)
 	

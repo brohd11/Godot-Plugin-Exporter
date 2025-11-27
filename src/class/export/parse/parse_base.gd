@@ -9,6 +9,8 @@ const ExportFileUtils = UtilsLocal.ExportFileUtils
 const ExportFileKeys = ExportFileUtils.ExportFileKeys
 const CompatData = UtilsLocal.CompatData
 
+const RES_LINE_TEMPLATE = '[ext_resource type="%s" path="%s" id="%s"]'
+
 var _string_regex:RegEx
 
 var export_obj: UtilsLocal.ExportData.Export
