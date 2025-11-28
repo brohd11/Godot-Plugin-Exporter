@@ -1,5 +1,5 @@
 
-const UtilsRemote = preload("res://addons/plugin_exporter/src/class/utils_remote.gd") #>remote
+const UtilsRemote = preload("res://addons/plugin_exporter/src/class/utils_remote.gd")
 const UtilsLocal = preload("res://addons/plugin_exporter/src/class/utils_local.gd")
 
 const UFile = UtilsRemote.UFile

@@ -2,6 +2,7 @@
 
 const UConfig = preload("res://addons/addon_lib/brohd/alib_runtime/utils/src/u_config.gd")
 const UFile = preload("res://addons/addon_lib/brohd/alib_runtime/utils/src/u_file.gd")
+const UString = preload("res://addons/addon_lib/brohd/alib_runtime/utils/src/u_string.gd")
 const UTree = preload("res://addons/addon_lib/brohd/alib_runtime/utils/src/u_tree.gd")
 const URegex = preload("res://addons/addon_lib/brohd/alib_runtime/utils/src/u_regex.gd")
 const ConfirmationDialogHandler = preload("res://addons/addon_lib/brohd/alib_runtime/utils/src/dialog/confirmation/confirmation_dialog_handler.gd")

@@ -38,6 +38,8 @@ func _init(export_config_path):
 	if not export_data:
 		return
 	
+	_UtilsLocal.ParseBase.string_maps = {}
+	
 	export_root = export_data.get(_ExportFileKeys.export_root)
 	plugin_folder = export_data.get(_ExportFileKeys.plugin_folder)
 	full_export_path = _ExportFileUtils.get_full_export_path(export_root, plugin_folder, export_config_path)

@@ -1,15 +1,19 @@
 extends RefCounted
 
-static var preload_regex:RegEx
+
 const UtilsLocal = preload("res://addons/plugin_exporter/src/class/utils_local.gd")
 const UtilsRemote = preload("res://addons/plugin_exporter/src/class/utils_remote.gd") #>remote
 const UFile = UtilsRemote.UFile
+const UString = UtilsRemote.UString
 const URegex = UtilsRemote.URegex
 const ExportFileUtils = UtilsLocal.ExportFileUtils
 const ExportFileKeys = ExportFileUtils.ExportFileKeys
 const CompatData = UtilsLocal.CompatData
 
 const RES_LINE_TEMPLATE = '[ext_resource type="%s" path="%s" id="%s"]'
+
+static var preload_regex:RegEx
+static var string_maps = {}
 
 var _string_regex:RegEx
 
@@ -114,13 +118,41 @@ static func _check_for_comment(line, check_array) -> bool:
 	
 	return false
 
+static func _check_text_valid(line:String, to_check:String) -> bool:
+	if line.begins_with("#"):
+		return false
+	var string_map
+	if string_maps.has(line):
+		string_map = string_maps[line]
+	else:
+		string_map = UString.get_string_map(line, UString.StringMap.Mode.STRING)
+	var idx = line.find(to_check)
+	if idx == -1:
+		return false
+	if string_map.string_mask[idx] == 1:
+		return false
+	if string_map.comment_index > -1 and string_map.comment_index < idx:
+		return false
+	return true
+
+static func _strip_comment(line:String):
+	var string_map
+	if string_maps.has(line):
+		string_map = string_maps[line]
+	else:
+		string_map = UString.get_string_map(line, UString.StringMap.Mode.STRING)
+	var com_idx = string_map.comment_index
+	if com_idx == -1:
+		return line
+	return line.substr(0, com_idx)
 
 static func get_preload_path(line):
 	if preload_regex == null:
 		preload_regex = UtilsRemote.URegex.get_preload_path()
 	
-	if _check_for_comment(line, "preload("):
+	if not _check_text_valid(line, "preload("):
 		return
+	
 	var _match = preload_regex.search(line)
 	if _match:
 		var file_path = _match.get_string(2)
@@ -128,17 +160,22 @@ static func get_preload_path(line):
 		return file_path
 
 static func _construct_pre(class_nm:String, path:String):
-	var c = "const" # "" '' <- for parser
-	var p = 'preload("%s")' % path # "" '' <- for parser
+	var c = "const"
+	var p = 'preload("%s")' % path
 	var constructed = "%s %s = %s" % [c, class_nm, p]
 	return constructed
 
 static func get_extended_class(line:String):
-	if not line.begins_with("extends "): # "" "" <- parser
+	if not _check_text_valid(line, "extends"):
 		return
-	var code = line
-	if line.find("#") > -1:
-		code = line.get_slice("#", 0)
-	
-	var _class = code.get_slice("extends ", 1).strip_edges() # "" "" <- parser
+	var _class = line.get_slice("extends ", 1).strip_edges()
 	return _class
+	
+	#if not line.begins_with("extends "):
+		#return
+	#var code = line
+	#if line.find("#") > -1:
+		#code = line.get_slice("#", 0)
+	#
+	#var _class = code.get_slice("extends ", 1).strip_edges()
+	#return _class

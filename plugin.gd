@@ -4,16 +4,12 @@ extends EditorPlugin
 const PLUGIN_EXPORTED = false
 
 const UtilsRemote = preload("res://addons/plugin_exporter/src/class/utils_remote.gd")
-const DockManager = UtilsRemote.DockManager
-var dock_manager_instances: Array[DockManager]
-var main_screen_handler: DockManager.MainScreenHandlerMulti
 
 const CodeCompletion = preload("res://addons/plugin_exporter/src/editor_plugins/plugin_exporter_code_completion.gd")
 var code_completion:CodeCompletion
 
 const CONTEXT_MENU_PLUGIN = preload("res://addons/plugin_exporter/src/editor_plugins/plugin_exporter_context_menus.gd")
 var context_plugin_inst:CONTEXT_MENU_PLUGIN
-
 
 const PLUGIN_EXPORT_GUI = preload("res://addons/plugin_exporter/src/plugin_export_gui.tscn")
 
@@ -23,6 +19,7 @@ const COMMENT_TAGS = ["#! remote", "#! ignore-remote", "#! dependency", "#! sing
 
 static var instance
 
+var dm_instance_manager:DockManager.InstanceManager
 var syntax_plus:SyntaxPlus
 
 
@@ -33,7 +30,7 @@ func _get_plugin_icon() -> Texture2D:
 func _has_main_screen() -> bool:
 	return true
 func _make_visible(visible: bool) -> void:
-	main_screen_handler.on_plugin_make_visible(visible)
+	dm_instance_manager.on_plugin_make_visible(visible)
 
 func _enable_plugin() -> void:
 	if PLUGIN_EXPORTED:
@@ -45,8 +42,8 @@ func _disable_plugin() -> void:
 
 func _enter_tree() -> void:
 	instance = self
-	DockManager.hide_main_screen_button(self)
-	main_screen_handler = DockManager.MainScreenHandlerMulti.new(self)
+	
+	dm_instance_manager = DockManager.InstanceManager.new(self)
 	
 	syntax_plus = SyntaxPlus.register_node(self)
 	SyntaxPlus.call_on_ready(_add_syntax_comment_tags)
@@ -80,22 +77,17 @@ func _exit_tree() -> void:
 			SyntaxPlus.unregister_comment_tag(prefix, tag_name)
 		syntax_plus.unregister_node(self)
 	
-	for dock_manager:DockManager in dock_manager_instances:
-		if is_instance_valid(dock_manager):
-			dock_manager.clean_up()
+	if is_instance_valid(dm_instance_manager):
+		dm_instance_manager.clean_up()
+	dm_instance_manager = null
 	
-	main_screen_handler.queue_free()
 	instance = null
 
 func _on_tool_menu_pressed():
 	new_gui_instance()
 
 func new_gui_instance():
-	var can_be_freed = true
-	var dock_manager = DockManager.new(self, PLUGIN_EXPORT_GUI, DockManager.Slot.MAIN_SCREEN, can_be_freed, main_screen_handler)
-	dock_manager_instances.append(dock_manager)
-	
-	return dock_manager
+	return dm_instance_manager.new_freeable_dock_manager(PLUGIN_EXPORT_GUI, DockManager.Slot.MAIN_SCREEN)
 
 func _add_syntax_comment_tags():
 	for tag in COMMENT_TAGS:

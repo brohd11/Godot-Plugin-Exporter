@@ -50,6 +50,8 @@
 		"include_uid": true,
 		"overwrite": true,
 		"parser_settings":{
+			"use_relative_paths":true,
+			"replace_editor_interface":true,
 			"parse_cs":{},
 			"parse_gd":{
 				"class_rename_ignore":[
@@ -58,7 +60,7 @@
 				"backport_string_renames":{
 				
 				},
-				"replace_editor_interface":true,
+				
 			},
 			"parse_tscn":{},
 			"parse_tres":{},

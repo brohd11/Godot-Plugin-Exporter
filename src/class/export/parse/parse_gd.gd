@@ -40,12 +40,13 @@ func get_direct_dependencies(file_path:String) -> Dictionary:
 	var first_line = true
 	while not file_access.eof_reached():
 		var line = file_access.get_line()
+		var comment_stripped = _strip_comment(line)
 		if first_line:
 			first_line = false
 			if line.find("#! remote") > -1:
 				remote_dir_overide = line.get_slice("#! remote", 1).strip_edges()
 		
-		var tokens = Tokenizer.words_only(line)
+		var tokens = Tokenizer.words_only(comment_stripped)
 		for tok:String in tokens: ## Check for global classes
 			if tok in export_obj.export_data.class_list_array:
 				var path = export_obj.export_data.class_list.get(tok)
@@ -61,30 +62,37 @@ func get_direct_dependencies(file_path:String) -> Dictionary:
 					#var local_export_path = export_obj.remote_dir.path_join(file_name)
 					#export_obj.class_renames[tok] = local_export_path
 		
-		if line.find("extends") > -1 and line.count('"') == 2:
-			if not _check_for_comment(line, ["extends", "class"]):
-				var _class
-				if line.find("class ") > -1:
-					_class = line.get_slice("class ", 1)
-					_class = _class.get_slice(" ", 0)
-				var extend_path = line.get_slice('extends', 1).strip_edges().trim_prefix('"')
-				extend_path = extend_path.get_slice('"', 0)
-				if FileAccess.file_exists(extend_path):
-					var file_name = extend_path.get_file()
-					direct_dependencies[extend_path] = {}
+		if comment_stripped.find("extends") > -1 and comment_stripped.count('"') >= 2:
+			#if not _check_for_comment(line, ["extends", "class"]):
+			if _check_text_valid(line, "extends"):
+				#var _class
+				#if line.find("class ") > -1: #^ looks like this is just never used
+					#if _check_text_valid(line, "class "):
+						#_class = line.get_slice("class ", 1)
+						#_class = _class.get_slice(" ", 0)
+				
+				var extends_part = comment_stripped.get_slice("extends", 1).strip_edges()
+				if extends_part.count('"') == 2:
+					var extend_path = extends_part.trim_prefix('"')
+					extend_path = extend_path.get_slice('"', 0)
+					if FileAccess.file_exists(extend_path):
+						var file_name = extend_path.get_file()
+						direct_dependencies[extend_path] = {}
 		elif line.find("preload(") > -1 and line.count('"') == 2: #TODO make these regexs or something more robust.
 			var preload_path = get_preload_path(line)
 			if preload_path != null:
 				direct_dependencies[preload_path] = {}
 				## make this '#! remote custom/dir' work? recursive deps will not be in this folder without refactor
 				#direct_dependencies[preload_path][ExportFileKeys.dependency_dir] = remote_dir_overide
-		elif line.find("#! dependency") > -1 and line.count('"') == 2:
-			var dep_path = line.get_slice('"', 1)
-			dep_path = dep_path.get_slice('"', 0)
-			if FileAccess.file_exists(dep_path):
-				var file_name = dep_path.get_file()
-				var dependency_dir = line.get_slice("#! dependency", 1).strip_edges()
-				direct_dependencies[dep_path] = {ExportFileKeys.dependency_dir: dependency_dir}
+		elif line.find("#! dependency") > -1 and line.count('"') >= 2:
+			if _check_text_valid(line, "#! dependency"):
+				var slice = line.get_slice("#! dependency", 1)
+				var dep_path = line.get_slice('"', 1)
+				dep_path = dep_path.get_slice('"', 0)
+				if FileAccess.file_exists(dep_path):
+					var file_name = dep_path.get_file()
+					var dependency_dir = line.get_slice("#! dependency", 1).strip_edges()
+					direct_dependencies[dep_path] = {ExportFileKeys.dependency_dir: dependency_dir}
 	
 	return direct_dependencies
 
@@ -101,28 +109,30 @@ func post_export_edit_file(file_path:String, file_lines:Variant=null):
 	var adjusted_file_lines = []
 	while not file_access.eof_reached():
 		var line:String = file_access.get_line()
+		var comment_stripped = _strip_comment(line)
 		
 		# TODO why is this todo?
-		classes_used.append_array(UtilsLocal.get_global_classes_in_text(line, class_list_keys))
+		classes_used.append_array(UtilsLocal.get_global_classes_in_text(comment_stripped, class_list_keys))
 		# TODO
 		
-		if line.find("class_name ") > -1:
-			var class_nm = line.get_slice("class_name ", 1)
-			var comment_index = line.find("#")
-			if comment_index > -1:
-				class_nm = class_nm.get_slice("#", 0)
-			class_nm = class_nm.strip_edges()
-			if class_nm in class_renames_keys:
-				var class_path = export_obj.export_data.class_list.get(class_nm)
-				if class_path.get_file() == file_path.get_file():
-					line = ""
-					#if not class_nm in classes_preloaded:
-						#classes_preloaded.append(class_nm) # is the class, don't preload// this actually seems ok..
+		if comment_stripped.find("class_name ") > -1:
+			if _check_text_valid(line, "class_name "):
+				var class_nm = comment_stripped.get_slice("class_name ", 1)
+				if class_nm.find(" extends ") > -1:
+					class_nm = class_nm.get_slice(" extends ", 0)
+				class_nm = class_nm.strip_edges()
+				if class_nm in class_renames_keys:
+					var class_path = export_obj.export_data.class_list.get(class_nm)
+					if class_path.get_file() == file_path.get_file():
+						line = ""
+						#if not class_nm in classes_preloaded:
+							#classes_preloaded.append(class_nm) # is the class, don't preload// this actually seems ok..
 		
-		elif line.find("extends ") > -1 and line.count('"') == 2:
-			if not _check_for_comment(line, ["extends", "class"]):
-				if line.find("class ") == -1:
-					var extend_file_path = line.get_slice('"', 1)
+		elif comment_stripped.find("extends ") > -1 and comment_stripped.count('"') == 2:
+			#if not _check_for_comment(line, ["extends", "class"]):
+			if _check_text_valid(line, "extends "): #^c these 2 are mostly for checking preloaded in the current script,
+				if comment_stripped.find("class ") == -1: #^c hence no inner?
+					var extend_file_path = comment_stripped.get_slice('"', 1)
 					extend_file_path = extend_file_path.get_slice('"', 0)
 					if not FileAccess.file_exists(extend_file_path):
 						printerr("Could not find extended file in line: %s" % line)
@@ -130,30 +140,29 @@ func post_export_edit_file(file_path:String, file_lines:Variant=null):
 					var inherited_used_classes = _recursive_get_globals(extend_file_path)
 					classes_preloaded.append_array(inherited_used_classes)
 		
-		elif line.find("extends ") > -1: # "" 
-			
-			if line.find("class ") == -1: # i think this could work for both class types
-				var global_class = line.get_slice("extends ", 1) # ""
-				var comment_index = line.find("#")
-				if comment_index > -1:
-					global_class = global_class.get_slice("#", 0)
-				global_class = global_class.strip_edges()
-				if global_class.find(" ") > -1:
-					global_class = global_class.get_slice(" ", 0)
-				if global_class in global_class_names:
-					var path = export_obj.export_data.class_list.get(global_class)
-					var inherited_used_classes = _recursive_get_globals(path)
-					classes_preloaded.append_array(inherited_used_classes)
-					if global_class in class_renames_keys:
-						line = line.replace(global_class, '"%s"' % path)
+		elif comment_stripped.find("extends ") > -1:
+			if _check_text_valid(line, "extends "): #^ use line as arg so it just reuses string map
+				if comment_stripped.find("class ") == -1: #^c i think this could work for both class types
+					var global_class = comment_stripped.get_slice("extends ", 1) # ""
+					global_class = global_class.strip_edges()
+					if global_class.find(" ") > -1: #^c what is this for?
+						printerr("GETTING SPACE GLOBAL CLASS")
+						global_class = global_class.get_slice(" ", 0)
+					if global_class in global_class_names:
+						var path = export_obj.export_data.class_list.get(global_class)
+						var inherited_used_classes = _recursive_get_globals(path)
+						classes_preloaded.append_array(inherited_used_classes)
+						if global_class in class_renames_keys:
+							line = line.replace(global_class, '"%s"' % path)
 		
-		elif line.find("const") > -1:
-			var result = const_name_regex.search(line)
-			if result:
-				var const_name = result.get_string(1)
-				if const_name in class_renames_keys:
-					if not const_name in classes_preloaded:
-						classes_preloaded.append(const_name)
+		elif comment_stripped.find("const") > -1:
+			if _check_text_valid(line, "const"):
+				var result = const_name_regex.search(line)
+				if result:
+					var const_name = result.get_string(1)
+					if const_name in class_renames_keys:
+						if not const_name in classes_preloaded:
+							classes_preloaded.append(const_name)
 		
 		line = _update_paths(line)
 		
@@ -178,8 +187,10 @@ func post_export_edit_file(file_path:String, file_lines:Variant=null):
 		if adjusted_path == "":
 			printerr("Error renaming class: %s, could not get export path." % name)
 			continue
+		if use_relative_paths:
+			adjusted_path = export_obj.get_relative_path(adjusted_path)
 		var line = 'const %s' % name 
-		line = line + ' = preload("%s")' % adjusted_path # "" <- stop parse issue. Get export path
+		line = line + ' = preload("%s")' % adjusted_path
 		rename_lines.append(line)
 		
 	
@@ -221,17 +232,21 @@ func _update_paths(line:String):
 				continue
 			if export_obj.rename_plugin:
 				if old_path.find(export_obj.plugin_name) > -1:
-					#new_path = old_path.replace(export_obj.plugin_name, export_obj.new_plugin_name)
 					new_path = export_obj.get_renamed_path(old_path)
+					
 					#^ comment out for testing relative
 					#line = line.substr(0, start) + new_path + line.substr(end)
 		#else:
 			#line = line.substr(0, start) + new_path + line.substr(end)
 		
-		if new_path == null: # should this just be in 'use_relative_paths' branch?
-			new_path = old_path
+		if new_path == null and not use_relative_paths: # if null at this point
+			continue
 		if use_relative_paths: #^ set a bool for this
-			new_path = export_obj.get_relative_path(new_path)
+			var has_ignore_tag = line.find("#! ignore-remote") > -1
+			if not has_ignore_tag: # skip getting relative, but still allow rename from above
+				if new_path == null:
+					new_path = old_path #^ this means internal path, just adjust normal one
+				new_path = export_obj.get_relative_path(new_path)
 		
 		line = line.substr(0, start) + new_path + line.substr(end)
 	

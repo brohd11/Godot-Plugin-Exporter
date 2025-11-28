@@ -18,7 +18,7 @@ const CompatData = preload("res://addons/plugin_exporter/src/class/export/backpo
 
 const DUMMY_GDIGNORE_FILE = "res://addons/plugin_exporter/src/template/_gdignore.txt"
 
-const PARSE_FOLDER_PATH = "res://addons/plugin_exporter/src/class/export/parse"
+const PARSE_FOLDER_PATH = "res://addons/plugin_exporter/src/class/export/parse" #! ignore-remote
 
 const CONFIG_FILE_PATH = "res://.godot/addons/plugin_exporter/plugin_exporter_config.json" #! ignore-remote
 
