@@ -26,7 +26,6 @@ func pre_export() -> void:
 		if not first_line.find('[gd_resource type="DPITexture"') > -1:
 			continue
 		var file_data = {}
-		
 		var is_remote = not UFile.is_file_in_directory(file, export_obj.source)
 		
 		var file_name = file.get_basename().get_file()
@@ -50,7 +49,6 @@ func pre_export() -> void:
 	
 	for file in dpi_texture_files.keys():
 		export_obj.files_to_copy.erase(file)
-	
 	
 	export_obj.shared_data["DPITextureBackport"] = dpi_texture_files
 	

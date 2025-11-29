@@ -6,10 +6,16 @@ const ExportData = UtilsLocal.ExportData
 const FileParser = UtilsLocal.FileParser
 
 const UFile = UtilsRemote.UFile
+const UString = UtilsRemote.UString
 const UConfig = UtilsRemote.UConfig
 const UEditor = UtilsRemote.UEditor
 
 const ConfirmationDialogHandler = UtilsRemote.ConfirmationDialogHandler
+
+static var _global_class_regex:RegEx
+static var _lookback_regex:RegEx
+
+static var string_maps = {}
 
 
 static func get_export_data(export_config_path):
@@ -180,6 +186,7 @@ static func scan_file_for_global_classes(file_path:String, export_obj:ExportData
 	var class_names = export_obj.export_data.class_list.keys()
 	
 	var classes_used = {}
+	#var global_classes_in_files = 
 	
 	while not file_access.eof_reached():
 		var line = file_access.get_line()
@@ -298,6 +305,62 @@ static func is_remote_file(file_path:String):
 
 static func name_to_export_config_path(plugin_name:String):
 	return "res://addons".path_join(plugin_name).path_join("export_ignore").path_join("plugin_export.json")
+
+static func _get_global_classes_in_file(file_path:String, global_class_dict:Dictionary):
+	if not is_instance_valid(_global_class_regex):
+		_global_class_regex = RegEx.new()
+		_global_class_regex.compile("\\b[a-zA-Z_]\\w*\\b")
+	
+	var file_access = FileAccess.open(file_path, FileAccess.READ)
+	if not file_access:
+		printerr("Could not open file: %s" % file_path)
+		return {}
+	var file_as_string = file_access.get_as_text()
+	var string_map = get_string_map(file_as_string)
+	var found_classes = {}
+	
+	var matches = _global_class_regex.search_all(file_as_string)
+	for m in matches:
+		var start_index = m.get_start()
+		var word = m.get_string()
+		if not global_class_dict.has(word):
+			continue
+		if string_map.comment_mask[start_index] == 1:
+			continue
+		if string_map.string_mask[start_index] == 1:
+			continue
+		if is_class_definition(file_as_string, start_index):
+			found_classes["global_class_definition"] = word
+			continue
+		
+		found_classes[word] = true
+	
+	return found_classes
+
+static func get_string_map(text:String):
+	if not is_instance_valid(string_maps):
+		string_maps = {}
+	if string_maps.has(text):
+		return string_maps[text]
+	var string_map = UString.get_string_map_multi_line(text, UString.StringMapMultiLine.Mode.STRING)
+	string_maps[text] = string_map
+	return string_map
+
+static func is_class_definition(text: String, current_index: int) -> bool:
+	if not is_instance_valid(_lookback_regex):
+		_lookback_regex = RegEx.new()
+		_lookback_regex.compile("\\bclass_name\\s*$")
+	
+	if current_index < 10:
+		return false
+	var lookback_amount = 20
+	var start = max(0, current_index - lookback_amount)
+	var length = current_index - start
+	var preceding_text = text.substr(start, length)
+	# Check if that chunk ends with "class_name" + whitespace
+	return _lookback_regex.search(preceding_text) != null
+
+
 
 
 class ExportFileKeys:

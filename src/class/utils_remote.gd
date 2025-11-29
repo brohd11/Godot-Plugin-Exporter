@@ -5,6 +5,7 @@ const UFile = preload("res://addons/addon_lib/brohd/alib_runtime/utils/src/u_fil
 const UString = preload("res://addons/addon_lib/brohd/alib_runtime/utils/src/u_string.gd")
 const UTree = preload("res://addons/addon_lib/brohd/alib_runtime/utils/src/u_tree.gd")
 const URegex = preload("res://addons/addon_lib/brohd/alib_runtime/utils/src/u_regex.gd")
+const UClassDetail = preload("res://addons/addon_lib/brohd/alib_editor/utils/src/u_class_detail.gd")
 const ConfirmationDialogHandler = preload("res://addons/addon_lib/brohd/alib_runtime/utils/src/dialog/confirmation/confirmation_dialog_handler.gd")
 const UEditor = preload("res://addons/addon_lib/brohd/alib_editor/utils/src/u_editor.gd")
 const PopupHelper = preload("res://addons/addon_lib/brohd/alib_runtime/popup_menu/popup_menu_path_helper.gd")

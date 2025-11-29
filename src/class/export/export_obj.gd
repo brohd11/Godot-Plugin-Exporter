@@ -1,3 +1,5 @@
+const PLUGIN_EXPORTED = false
+
 const _UtilsRemote = preload("res://addons/plugin_exporter/src/class/utils_remote.gd")
 const _UEditor = _UtilsRemote.UEditor
 const _UtilsLocal = preload("res://addons/plugin_exporter/src/class/utils_local.gd")
@@ -24,6 +26,8 @@ var ignore_dependencies:= false
 var rename_plugin := false
 var plugin_name := ""
 var new_plugin_name := ""
+
+var use_relative_paths := false
 
 var parser_overide_settings:Dictionary = {}
 var file_parser:_FileParser
@@ -143,10 +147,18 @@ func sort_valid_files():
 				var line = file_access.get_line()
 				var extend_idx = line.find("extends ") # ""
 				var class_idx = line.find("class ") # ""
+				var comment_idx = line.find("#")
+				if comment_idx > -1 and comment_idx < extend_idx:
+					continue
 				
 				if extend_idx > -1 and line.count('"') == 2 and (class_idx == -1 or class_idx > extend_idx):
 					var remote_file_path = line.get_slice('"', 1)
 					remote_file_path = remote_file_path.get_slice('"', 0)
+					if not remote_file_path.is_absolute_path(): #TODO TEST
+						var absolute = ensure_absolute_path(remote_file_path, file)
+						print("Not absolute path: %s -> %s" % [remote_file_path, absolute])
+						remote_file_path = absolute
+						
 					if FileAccess.file_exists(remote_file_path):
 						var file_export_data = {
 							_ExportFileKeys.to: standard_export_path,
@@ -383,8 +395,14 @@ func get_remote_file_local_path(file_path:String) -> String:
 	return remote_dir_path
 
 func get_renamed_path(file_path:String) -> String:
-	if rename_plugin:
-		file_path = file_path.replace(plugin_name, new_plugin_name)
+	if not rename_plugin:
+		return file_path
+	var plugin_dir = "res://addons".path_join(plugin_name)
+	if file_path.begins_with(plugin_dir):
+		var new_plugin_dir = "res://addons".path_join(new_plugin_name)
+		file_path = new_plugin_dir.path_join(file_path.trim_prefix(plugin_dir))
+	#if rename_plugin: #^ old way
+		#file_path = file_path.replace(plugin_name, new_plugin_name)
 	return file_path
 
 func get_export_path(file_path:String) -> String:
@@ -396,6 +414,23 @@ func get_relative_path(file_path:String) -> String:
 	var current_file_export = adjusted_remote_paths.get(current_file, current_file)
 	var new_path = _UtilsRemote.UFile.get_relative_path(current_file_export, file_path)
 	return new_path
+
+func ensure_absolute_path(file_path:String, current_file_path:String):
+	if file_path.begins_with("uid:"):
+		return _UtilsRemote.UFile.uid_to_path(file_path)
+	var abs = _UtilsRemote.UFile.path_from_relative(file_path, current_file_path)
+	#if not file_path.is_absolute_path() and not PLUGIN_EXPORTED:
+		#print("Rel to Abs: %s -> %s" % [file_path, abs])
+	return abs
+
+func get_rel_or_absolute_path(path:String) -> String:
+	if use_relative_paths:
+		var rel = get_relative_path(path)
+		if not rel.begins_with("."):
+			rel = "./" + rel
+		return rel
+	else:
+		return ensure_absolute_path(path, file_parser.current_file_path_parsing)
 
 func invalidate():
 	export_valid = false

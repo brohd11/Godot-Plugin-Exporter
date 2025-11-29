@@ -31,7 +31,7 @@ func post_export_edit_file(file_path:String, file_lines:Variant=null) -> Variant
 			line = line.replace("@abstract", "")
 			line = line.strip_edges()
 			file_lines[i] = line
-			break
+			#break why was this break here??
 	
 	return file_lines
 

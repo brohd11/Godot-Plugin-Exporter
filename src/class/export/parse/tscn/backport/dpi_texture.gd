@@ -47,21 +47,16 @@ func post_export_edit_file(file_path:String, file_lines:Variant=null) -> Variant
 	var dpi_tex_paths = dpi_texture_data.keys()
 	
 	if not dpi_tex_paths.is_empty():
-		# Get all [ext_resource] matches from the original content
+		# get all [ext_resource]
 		var ext_resource_matches = _ext_resource_regex.search_all(content)
-		
-		# Loop through each match and perform a conditional replacement
 		for _match in ext_resource_matches:
 			var original_path = _match.get_string(2)
-			
 			if original_path in dpi_tex_paths:
 				var new_path = export_obj.adjusted_remote_paths.get(original_path)
-				if new_path != null:
-					# Construct the new line
+				if new_path != null: # this runs after parse tscn, so these won't show up if they have been processed. Issue?
+					new_path = export_obj.get_rel_or_absolute_path(new_path)
 					var new_line = _match.get_string(1) + new_path + _match.get_string(3)
-					# Get the original full line that was matched
 					var original_line = _match.get_string(0)
-					# Replace the original line with the new one in our main content string
 					content = content.replace(original_line, new_line)
 	
 	
@@ -72,6 +67,7 @@ func post_export_edit_file(file_path:String, file_lines:Variant=null) -> Variant
 	var sub_resource_block_matches = _full_sub_resource_block_regex.search_all(content)
 	if sub_resource_block_matches.is_empty():
 		return file_lines
+	
 	for block_match in sub_resource_block_matches:
 		var full_block_to_process = block_match.get_string(0)
 		var sub_resource_id_string = block_match.get_string(2)
@@ -81,17 +77,18 @@ func post_export_edit_file(file_path:String, file_lines:Variant=null) -> Variant
 			continue
 		
 		var svg_source = source_match.get_string(1).c_unescape()
-		
-		# 1. Generate a unique file name for the new SVG
+		#unique id
 		var hash_input = "%s_%s" % [file_path, sub_resource_id_string]
 		var hash = UFile.hash_string(hash_input).substr(0, 10)
 		var svg_file_name = "%s.svg" % hash
 		
 		var svg_resource_path = generated_files_path.path_join(svg_file_name)
 		var renamed_svg_resource_path = export_obj.get_renamed_path(svg_resource_path)
+		renamed_svg_resource_path = export_obj.get_rel_or_absolute_path(renamed_svg_resource_path)
+		
 		var svg_output_path = export_obj.get_export_path(svg_resource_path)
 		svg_output_path = export_obj.get_renamed_path(svg_output_path)
-		# 2. Save the new SVG file
+		# save new
 		if not DirAccess.dir_exists_absolute(svg_output_path.get_base_dir()):
 			DirAccess.make_dir_recursive_absolute(svg_output_path.get_base_dir())
 		var svg_file = FileAccess.open(svg_output_path, FileAccess.WRITE)
@@ -102,7 +99,6 @@ func post_export_edit_file(file_path:String, file_lines:Variant=null) -> Variant
 			printerr("Failed to write SVG file: ", svg_output_path)
 			return file_lines
 		
-		# 3. Generate a new ExtResource ID
 		var new_id_suffix = hash.substr(0, 5) # e.g., "a1b2c"
 		var new_id_full_string = "%d_%s" % [new_id_counter, new_id_suffix] # e.g., "100_a1b2c"
 		new_id_counter += 1
@@ -113,12 +109,8 @@ func post_export_edit_file(file_path:String, file_lines:Variant=null) -> Variant
 		]
 		new_ext_resources.append(new_ext_resource_def)
 		
-		# 4. Perform replacements on the content string
-		# Replace the SubResource reference with the new ExtResource reference
 		content = content.replace('SubResource("%s")' % sub_resource_id_string, 'ExtResource("%s")' % new_id_full_string)
-		
-		# Remove the entire original sub-resource block
-		content = content.replace(full_block_to_process, "")
+		content = content.replace(full_block_to_process, "") # remove old
 	
 	var header_match = _scene_header_regex.search(content)
 	if header_match:
@@ -128,7 +120,7 @@ func post_export_edit_file(file_path:String, file_lines:Variant=null) -> Variant
 		content = content.replace(header_line, new_header)
 	
 	
-	# --- Part 2: Write changes back to the file ---
+	# write changes
 	if content != original_content:
 		content = content.replace("\n\n\n", "\n\n")
 		file_lines = content.split("\n")
@@ -145,7 +137,7 @@ func post_export_edit_line(line:String) -> String:
 
 
 
-
+#^r this is obsolete i think?
 	#var dpi_sub_resources = {}
 	#
 	#var in_dpi_sub_res:= false

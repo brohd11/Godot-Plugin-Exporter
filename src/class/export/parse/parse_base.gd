@@ -6,6 +6,7 @@ const UtilsRemote = preload("res://addons/plugin_exporter/src/class/utils_remote
 const UFile = UtilsRemote.UFile
 const UString = UtilsRemote.UString
 const URegex = UtilsRemote.URegex
+const UClassDetail = UtilsRemote.UClassDetail
 const ExportFileUtils = UtilsLocal.ExportFileUtils
 const ExportFileKeys = ExportFileUtils.ExportFileKeys
 const CompatData = UtilsLocal.CompatData
@@ -13,7 +14,6 @@ const CompatData = UtilsLocal.CompatData
 const RES_LINE_TEMPLATE = '[ext_resource type="%s" path="%s" id="%s"]'
 
 static var preload_regex:RegEx
-static var string_maps = {}
 
 var _string_regex:RegEx
 
@@ -21,6 +21,7 @@ var export_obj: UtilsLocal.ExportData.Export
 
 func _init() -> void:
 	preload_regex = UtilsRemote.URegex.get_preload_path()
+	
 
 func set_parse_settings(settings) -> void:
 	pass
@@ -41,6 +42,12 @@ func post_export_edit_file(file_path:String, file_lines:Variant=null) -> Variant
 func _update_file_export_flags(line:String) -> String:
 	return line
 
+func get_adjusted_path_or_old_renamed(file_path:String) -> String:
+	var new_path = export_obj.adjusted_remote_paths.get(file_path, file_path)
+	new_path = export_obj.get_rel_or_absolute_path(new_path)
+	if not export_obj.use_relative_paths:
+		new_path = export_obj.get_renamed_path(new_path)
+	return new_path
 
 func _string_safe_regex_sub(line: String, processor: Callable) -> String:
 	if not is_instance_valid(_string_regex):
@@ -55,13 +62,13 @@ func _string_safe_regex_sub(line: String, processor: Callable) -> String:
 		code_part = line.substr(0, comment_pos)
 		comment_part = line.substr(comment_pos)
 	
-	# 1. Find all string matches and store both their values and positions
+	# find all string matches and store values and positions
 	var string_matches = _string_regex.search_all(code_part)
 	var string_literals = []
 	for _match in string_matches:
 		string_literals.append(_match.get_string())
 	
-	# 2. Replace strings with placeholders by POSITION, iterating BACKWARDS
+	# replace with placeholders by POSITION, iterating BACKWARDS
 	var sanitized_code = code_part
 	for i in range(string_matches.size() - 1, -1, -1):
 		var _match = string_matches[i]
@@ -69,10 +76,10 @@ func _string_safe_regex_sub(line: String, processor: Callable) -> String:
 		# Reconstruct the string using the match's start and end positions
 		sanitized_code = sanitized_code.left(_match.get_start()) + placeholder + sanitized_code.substr(_match.get_end())
 	
-	# 3. Call the provided processor function on the sanitized code
+	# call the provided callable on the sanitized code
 	var converted_code = processor.call(sanitized_code)
 	
-	# 4. Restore strings (this part can remain the same)
+	# restore strings
 	var final_code = converted_code
 	for i in range(string_literals.size()):
 		var placeholder = "__STRING_PLACEHOLDER_%d__" % i
@@ -118,36 +125,32 @@ static func _check_for_comment(line, check_array) -> bool:
 	
 	return false
 
+
 static func _check_text_valid(line:String, to_check:String) -> bool:
 	if line.begins_with("#"):
 		return false
-	var string_map
-	if string_maps.has(line):
-		string_map = string_maps[line]
-	else:
-		string_map = UString.get_string_map(line, UString.StringMap.Mode.STRING)
+	var string_map = ExportFileUtils.get_string_map(line) as UString.StringMapMultiLine
 	var idx = line.find(to_check)
 	if idx == -1:
 		return false
 	if string_map.string_mask[idx] == 1:
 		return false
-	if string_map.comment_index > -1 and string_map.comment_index < idx:
+	var com_idx = string_map.comment_mask.find(1)
+	if com_idx > -1 and com_idx < idx:
 		return false
 	return true
 
+
 static func _strip_comment(line:String):
-	var string_map
-	if string_maps.has(line):
-		string_map = string_maps[line]
-	else:
-		string_map = UString.get_string_map(line, UString.StringMap.Mode.STRING)
-	var com_idx = string_map.comment_index
+	var string_map = ExportFileUtils.get_string_map(line) as UString.StringMapMultiLine
+	var com_idx = string_map.comment_mask.find(1)
 	if com_idx == -1:
 		return line
 	return line.substr(0, com_idx)
 
+
 static func get_preload_path(line):
-	if preload_regex == null:
+	if not is_instance_valid(preload_regex):
 		preload_regex = UtilsRemote.URegex.get_preload_path()
 	
 	if not _check_text_valid(line, "preload("):
@@ -156,7 +159,6 @@ static func get_preload_path(line):
 	var _match = preload_regex.search(line)
 	if _match:
 		var file_path = _match.get_string(2)
-		file_path = UFile.uid_to_path(file_path)
 		return file_path
 
 static func _construct_pre(class_nm:String, path:String):
@@ -170,12 +172,10 @@ static func get_extended_class(line:String):
 		return
 	var _class = line.get_slice("extends ", 1).strip_edges()
 	return _class
-	
-	#if not line.begins_with("extends "):
-		#return
-	#var code = line
-	#if line.find("#") > -1:
-		#code = line.get_slice("#", 0)
-	#
-	#var _class = code.get_slice("extends ", 1).strip_edges()
-	#return _class
+
+static func line_has_tag(line:String, tag:String, prefix:="#!") -> bool:
+	var pre_idx = line.find(prefix)
+	if pre_idx == -1:
+		return false
+	var tags = line.substr(pre_idx)
+	return tags.find(tag) > -1

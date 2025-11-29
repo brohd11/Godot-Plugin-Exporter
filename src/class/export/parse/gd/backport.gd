@@ -104,8 +104,8 @@ func post_export_edit_file(file_path:String, file_lines:Variant=null) -> Variant
 	if not extends_class:
 		if backport_target < 2:
 			file_lines.append("# PLUGIN EXPORTER EDITORINTERFACE BACKPORT")
-			var adj_path = export_obj.adjusted_remote_paths.get(EI_BACKPORT_PATH, EI_BACKPORT_PATH)
-			file_lines.append(_construct_pre(EI_BACKPORT, adj_path))
+			file_lines.append(get_backport_file_path(self, EI_BACKPORT, EI_BACKPORT_PATH, export_obj))
+			
 			#file_lines.append("### PLUGIN EXPORTER EDITORINTERFACE BACKPORT")
 			file_lines.append("")
 		
@@ -116,8 +116,8 @@ func post_export_edit_file(file_path:String, file_lines:Variant=null) -> Variant
 		
 		if not has_backport_preloaded:
 			file_lines.append("# PLUGIN EXPORTER MISC BACKPORT")
-			var misc_adj_path = export_obj.adjusted_remote_paths.get(MISC_BACKPORT_PATH, MISC_BACKPORT_PATH)
-			file_lines.append(_construct_pre(MISC_BACKPORT, misc_adj_path))
+			file_lines.append(get_backport_file_path(self, MISC_BACKPORT, MISC_BACKPORT_PATH, export_obj))
+			
 			#file_lines.append("### PLUGIN EXPORTER MISC BACKPORT")
 			file_lines.append("")
 	
@@ -160,4 +160,16 @@ static func get_required_files(_backport_target):
 		files.append(EI_BACKPORT_PATH)
 		files.append(BackportStaticVar.BACKPORT_STATIC_PATH)
 	
+	var script = preload("./backport.gd") #! ignore-remote
+	for i in range(files.size()):
+		var file = files[i]
+		file = UFile.path_from_relative(file, script.resource_path)
+		files[i] = file
+	
 	return files
+
+static func get_backport_file_path(calling_obj:RefCounted, preload_name:String, path:String, _export_obj:UtilsLocal.ExportObj):
+	var abs_path = _export_obj.ensure_absolute_path(path, calling_obj.get_script().resource_path)
+	var misc_adj_path = _export_obj.adjusted_remote_paths.get(abs_path, path)
+	var proper_path = _export_obj.get_rel_or_absolute_path(misc_adj_path)
+	return _construct_pre(preload_name, proper_path)

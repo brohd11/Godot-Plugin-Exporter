@@ -6,7 +6,7 @@ Global classes can just be used as normal.
 
 ### Remote Class
 
-You can get a single unamed script from outside of the plugin like this:
+You can get a single un-named script from outside of the plugin like this:
 
 ``` gdscript
 #! remote
@@ -15,9 +15,11 @@ extends "res://some_other/folder/my_class.gd"
 
 On export, this file will be replaced with the extended class, and all dependencies copied to plugin.
 
-At this time, "#! remote" must be the first line of the file.
+"#! remote" must be within the first 10 lines of the file.
 
-Because the file is replaced any changes will not be present in the copied file. I would use this if I want this file to be in a certain spot, or if I created another script to extend it and make changes there.
+Because the file is replaced any changes will not be present in the copied file. I would use this if I want this file to be in a specific spot, or if I created another script to extend it and make changes there.
+
+This was an earlier workflow in the production of this plugin. I would suggest using the next method for most things, though there are scenarios where this is needed.
 
 **Note**: because this is extending the class, it is not the same as the class. It could have identical functionality, but if you need to type check, this class is not the same as the extended class. If you need to type check, use the plugin preload file method.
 
@@ -44,8 +46,6 @@ In another script you can access like:
 
 ``` gdscript
 ## if you don't have a global name, preload the class
-## name can be less verbose if needing to avoid name clashes between plugins
-
 const UtilsRemote = preload("res://addons/my_plugin/utils_remote.gd")
 
 func _ready():
@@ -53,7 +53,16 @@ func _ready():
 	UtilsRemote.MyOtherClass.static_func(my_instance)
 ```
 
-On export, these files will be copied into your plugin, and have their paths adjusted.
+On export, these files will be copied into your plugin, and have their paths adjusted. If you want to organize your scripts into a hierarchy, you can use my (pseudo-namespace)[https://github.com/brohd11/Godot-Pseudo-Namespace] plugin. This works well with this workflow.
+
+### Tags
+
+There are a couple of tags you can use to change how files are processed.
+ - "#! ignore-remote" - This will stop a file path from being pulled into the plugin on export and from being updated to relative or on name change
+ - "#! dependency" - This will add the path to the list to copy and process. This is mostly for non preloadable or loadable files, config, JSON, etc.
+ - "#! singleton-module" - This is for a singleton class I use to share libraries between plugins. Only useful if extending one of the Singleton classes.
+
+The reason I mention the singleton-module tag is because you could add your own tags and parse them with your own custom parser. You can add any parsers to folder "plugin_exporter/src/class/export/parse/<extension>" replace with your file extension and the parser will be called on those files. You can add parameters in the "plugin_export.json" file under "parser_settings", more info (here)[./export_settings.md].
 
 ### Full Plugin Copy
 
@@ -77,12 +86,15 @@ You don't want the main plugin to enable this sub plugin in your dev repo, and i
 
 ``` gdscript
 const PLUGIN_EXPORTED = false
+const SUB_PLUGIN_DIR = "res://addons/my_plugin/sub_plugins"
 
 func _enable_plugin():
 	if PLUGIN_EXPORTED:
-		var sub_plugin_dir = "res://addons/my_plugin/sub_plugins"
-		var sub_plugin_path = "my_plugin/sub_plugins"
-		SubPluginManager.toggle_plugins(sub_plugin_dir, sub_plugin_path, true)
+		SubPluginManager.toggle_plugins(SUB_PLUGIN_DIR, true)
+
+func _disable_plugin():
+	if PLUGIN_EXPORTED:
+		SubPluginManager.toggle_plugins(SUB_PLUGIN_DIR, false)
 ```
 
 On export, the exported flag will be changed to true, allowing the sub-plugins to be enabled. There is also a backport flag available, that can be used to change your logic depending on the backport target version.
@@ -106,5 +118,5 @@ Main backports:
  - raw strings converted to escaped strings
  - "X is not Y" syntax converted to "not X is Y"
  - various other methods recreated in a compatibility class
-
-4.5 backports are not created yet, aside from abstact keyword
+ - remove @abstract keyword
+ - convert DPITexture resources to SVG

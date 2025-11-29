@@ -1,6 +1,6 @@
 extends RefCounted
 
-const _UtilsRemote = preload("res://addons/plugin_exporter/src/class/utils_remote.gd") #>remote
+const _UtilsRemote = preload("res://addons/plugin_exporter/src/class/utils_remote.gd")
 const _UtilsLocal = preload("res://addons/plugin_exporter/src/class/utils_local.gd")
 
 const Export = _UtilsLocal.ExportObj
@@ -38,7 +38,7 @@ func _init(export_config_path):
 	if not export_data:
 		return
 	
-	_UtilsLocal.ParseBase.string_maps = {}
+	_ExportFileUtils.string_maps = {}
 	
 	export_root = export_data.get(_ExportFileKeys.export_root)
 	plugin_folder = export_data.get(_ExportFileKeys.plugin_folder)
@@ -127,6 +127,7 @@ func _init(export_config_path):
 		var parse_gd_settings = overide_settings.get("parse_gd", {})
 		export_obj.class_rename_ignore = parse_gd_settings.get("class_rename_ignore", [])
 		export_obj.get_class_renames()
+		export_obj.use_relative_paths = parse_gd_settings.get("use_relative_paths", false)
 		
 		export_obj.parser_overide_settings = overide_settings
 		export_obj.file_parser.set_parser_settings(overide_settings)
