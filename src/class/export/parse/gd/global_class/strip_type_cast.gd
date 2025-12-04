@@ -3,7 +3,8 @@ extends "res://addons/plugin_exporter/src/class/export/parse/parse_base.gd"
 var _editor_console_regex := RegEx.new()
 var _editor_node_ref := RegEx.new()
 
-const CAST_STRIP_NAMES = ["EditorConsole", "EditorNodeRef", "SyntaxPlus"]
+const CAST_STRIP_NAMES = ["EditorConsole", "EditorNodeRef", "SyntaxPlus", "EditorCodeCompletionSingleton", "PE_STRIP_CAST_SCRIPT"]
+var _cast_strip_names = []
 
 var _cast_strip_callables = []
 
@@ -22,7 +23,10 @@ func _init() -> void:
 # in parser_settings, create dictionary for extension of file,
 # ie. if extension is foo, "parse_foo": {"my_setting": "value"}
 func set_parse_settings(settings):
-	pass
+	_cast_strip_names = settings.get("strip_cast", [])
+	for nm in CAST_STRIP_NAMES:
+		if not nm in _cast_strip_names:
+			_cast_strip_names.append(nm)
 
 # logic to parse for files that are needed acts as a set, dependencies[my_dep_path] = {}
 func get_direct_dependencies(file_path:String) -> Dictionary:

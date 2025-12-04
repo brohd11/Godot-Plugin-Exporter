@@ -21,6 +21,7 @@ static var instance
 
 var dm_instance_manager:DockManager.InstanceManager
 var syntax_plus:SyntaxPlus
+var editor_console:EditorConsole
 
 
 func _get_plugin_name() -> String:
@@ -32,13 +33,6 @@ func _has_main_screen() -> bool:
 func _make_visible(visible: bool) -> void:
 	dm_instance_manager.on_plugin_make_visible(visible)
 
-func _enable_plugin() -> void:
-	if PLUGIN_EXPORTED:
-		SubPluginManager.toggle_plugins("res://addons/plugin_exporter/sub_plugins", true)
-
-func _disable_plugin() -> void:
-	if PLUGIN_EXPORTED:
-		SubPluginManager.toggle_plugins("res://addons/plugin_exporter/sub_plugins", false)
 
 func _enter_tree() -> void:
 	instance = self
@@ -50,6 +44,9 @@ func _enter_tree() -> void:
 	
 	EditorCodeCompletion.register_plugin(self)
 	code_completion = CodeCompletion.new()
+	
+	editor_console = EditorConsole.register_plugin(self)
+	editor_console.call_on_ready(_register_editor_console)
 	
 	context_plugin_inst = CONTEXT_MENU_PLUGIN.new()
 	add_context_menu_plugin(EditorContextMenuPlugin.CONTEXT_SLOT_SCRIPT_EDITOR_CODE, context_plugin_inst)
@@ -94,3 +91,12 @@ func _add_syntax_comment_tags():
 		var prefix = tag.get_slice(" ", 0)
 		var tag_name = tag.get_slice(" ", 1)
 		SyntaxPlus.register_comment_tag(prefix, tag_name)
+
+func _register_editor_console():
+	var scope_data = {
+		"plugin_exporter":{
+			"script": PluginExporter
+			}
+	}
+	editor_console.register_temp_scope(scope_data)
+	pass

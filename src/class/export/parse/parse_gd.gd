@@ -114,7 +114,7 @@ func post_export_edit_file(file_path:String, file_lines:Variant=null):
 		var line:String = file_access.get_line()
 		var comment_stripped = _strip_comment(line)
 		
-		if comment_stripped.find("class_name ") > -1:
+		if comment_stripped.begins_with("class_name "):
 			if _check_text_valid(line, "class_name "):
 				if class_renames.has(class_declaration):
 					if comment_stripped.find(" extends ") > -1:

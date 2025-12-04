@@ -54,9 +54,7 @@
 			"replace_editor_interface":true,
 			"parse_cs":{},
 			"parse_gd":{
-				"class_rename_ignore":[
-					"PluginExporter",
-					],
+				"class_rename_ignore":[],
 				"backport_string_renames":{
 				
 				},
