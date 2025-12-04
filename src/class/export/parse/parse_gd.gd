@@ -10,11 +10,8 @@ const OUT_OF_PLUGIN_MSG = \
 var path_regex:RegEx
 var const_name_regex:RegEx
 
-var use_relative_paths:= false
-
 func _init() -> void:
 	super()
-	
 	
 	path_regex = RegEx.new()
 	var all_string_paths_pattern = "[\"'](.*?)[\"']"
@@ -23,10 +20,7 @@ func _init() -> void:
 	const_name_regex = UtilsRemote.URegex.get_const_name()
 
 func set_parse_settings(settings):
-	use_relative_paths = settings.get("use_relative_paths", false)
-	#var class_renames_array = settings.get("class_rename", [])
-	#for name in class_renames_array:
-		#class_renames[name] = ""
+	pass
 
 func get_direct_dependencies(file_path:String) -> Dictionary:
 	var file_access = FileAccess.open(file_path, FileAccess.READ)
@@ -35,15 +29,15 @@ func get_direct_dependencies(file_path:String) -> Dictionary:
 		return {}
 	
 	var direct_dependencies = {}
-	
-	var global_classes_in_files = get_global_classes_in_file(file_path)
+	var global_class_data = get_global_classes_in_file(file_path)
+	var global_classes_in_files = global_class_data
 	for _class_name in global_classes_in_files:
 		var path = export_obj.export_data.class_list.get(_class_name)
-		export_obj.global_classes_used[_class_name] = {
-			ExportFileKeys.dependent: file_path,
-			ExportFileKeys.path: path
-		}
-		
+		if not export_obj.global_classes_used.has(_class_name):
+			export_obj.global_classes_used[_class_name] = {
+				ExportFileKeys.dependent: file_path,
+				ExportFileKeys.path: path
+			}
 		direct_dependencies[path] = {}
 	
 	file_access.seek(0)
@@ -59,10 +53,9 @@ func get_direct_dependencies(file_path:String) -> Dictionary:
 				remote_dir_overide = line.get_slice("#! remote", 1).strip_edges()
 		
 		if comment_stripped.find("extends") > -1 and comment_stripped.count('"') >= 2:
-			#if not _check_for_comment(line, ["extends", "class"]):
 			if _check_text_valid(line, "extends"):
-				#var _class
-				#if line.find("class ") > -1: #^ looks like this is just never used
+				#var _class #^ i think can just be removed because is covered by below
+				#if line.find("class ") > -1:
 					#if _check_text_valid(line, "class "):
 						#_class = line.get_slice("class ", 1)
 						#_class = _class.get_slice(" ", 0)
@@ -183,8 +176,9 @@ func post_export_edit_file(file_path:String, file_lines:Variant=null):
 		if adjusted_path == "":
 			printerr("Error renaming class: %s, could not get export path." % name)
 			continue
-		if use_relative_paths:
-			adjusted_path = export_obj.get_relative_path(adjusted_path)
+		#if use_relative_paths:
+			#adjusted_path = export_obj.get_relative_path(adjusted_path)
+		adjusted_path = export_obj.get_rel_or_absolute_path(adjusted_path)
 		var line = 'const %s' % name 
 		line = line + ' = preload("%s")' % adjusted_path
 		rename_lines.append(line)
@@ -253,6 +247,9 @@ func _update_paths(line:String):
 	
 	return line
 
+func get_global_class_in_file_data(file_path:String):
+	return ExportFileUtils._get_global_classes_in_file(file_path, export_obj.export_data.class_list)
+
 func get_global_classes_in_file(file_path:String) -> Array:
 	var global_classes_in_files = ExportFileUtils._get_global_classes_in_file(file_path, export_obj.export_data.class_list)
 	global_classes_in_files.erase("global_class_definition")
@@ -267,6 +264,23 @@ func _recursive_get_globals(file_path:String) -> Array:
 		for cl in global_classes:
 			_classes[cl] = true
 	return _classes.keys()
+
+#func _parse_extended_class(file_path:String):
+	#var file_text = FileAccess.get_file_as_string(file_path)
+	#var string_map = ExportFileUtils.get_string_map(file_text)
+	#var extend_index = file_text.find("extends ")
+	#while extend_index != -1:
+		#if string_map.index_not_string_or_comment(extend_index):
+			#break
+		#extend_index = file_text.find("extends ", extend_index + 1)
+	#
+	#var line = string_map.get_line_at_index(extend_index)
+	#var line_stripped = line.get_slice("#", 1).strip_edges()
+	#if line_stripped.count('"') == 2:
+		#var path = line_stripped.get_slice('"', 1)
+		#path = path.get_slice('"', 0)
+		#path = export_obj.ensure_absolute_path(path, file_path)
+		#return path
 
 
 func post_export_edit_line(line:String):

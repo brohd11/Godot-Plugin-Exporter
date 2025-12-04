@@ -11,6 +11,7 @@ const _UEditor = _UtilsRemote.UEditor
 
 var class_list_array = []
 var class_list = {}
+var class_path_lookup = {}
 
 #var class_rename_ignore = []
 #var class_renames = {}
@@ -176,6 +177,8 @@ func _get_class_list():
 	for class_dict in global_class_list:
 		var _class_name = class_dict.get("class")
 		var path = class_dict.get("path")
-		class_list[String(_class_name)] = path
+		var str_class_nm = String(_class_name)
+		class_list[str_class_nm] = path
+		class_path_lookup[path] = str_class_nm
 		if _class_name not in class_list_array:
 			class_list_array.append(_class_name)

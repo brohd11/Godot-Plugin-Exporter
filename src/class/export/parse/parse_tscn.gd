@@ -1,9 +1,7 @@
 extends "res://addons/plugin_exporter/src/class/export/parse/parse_base.gd"
 
-var use_relative_paths:= false
-
 func set_parse_settings(settings) -> void:
-	use_relative_paths = settings.get("use_relative_paths", false)
+	pass
 
 func get_direct_dependencies(file_path:String) -> Dictionary:
 	var file_access = FileAccess.open(file_path, FileAccess.READ)
@@ -49,9 +47,6 @@ func post_export_edit_file(file_path:String, file_lines:Variant=null) -> Variant
 			path = path.get_slice('"', 0)
 			var id = line.get_slice(' id="', 1)
 			id = id.get_slice('"', 0)
-			
-			#var new_path = export_obj.adjusted_remote_paths.get(path, path)
-			#new_path = export_obj.get_rel_or_absolute_path(new_path)
 			
 			var new_path = get_adjusted_path_or_old_renamed(path) # this should be able to replace
 			line = RES_LINE_TEMPLATE % [type, new_path, id]

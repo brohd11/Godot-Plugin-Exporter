@@ -288,32 +288,6 @@ static func _get_git_status(dir):
 
 static func new_plugin(plugin_dir_name, create_export:=true):
 	PluginInit.new_plugin(plugin_dir_name, create_export)
-	
-	#var new_plugin_path = "res://addons/%s" % plugin_dir_name
-	#if DirAccess.dir_exists_absolute(new_plugin_path):
-		#print("Plugin already exists.")
-		#return
-	#
-	#DirAccess.make_dir_recursive_absolute(new_plugin_path)
-	#var plugin_cap_name = plugin_dir_name.capitalize()
-	#
-	#var plugin_gd_path = new_plugin_path.path_join("plugin.gd")
-	#var file_access = FileAccess.open(plugin_gd_path, FileAccess.WRITE)
-	#file_access.store_string(_NewPluginText.PLUGIN_GD_TEXT % plugin_cap_name)
-	#file_access.close()
-	#
-	#var plugin_cfg_path = new_plugin_path.path_join("plugin.cfg")
-	#
-	#var cfg_file_access = FileAccess.open(plugin_cfg_path, FileAccess.WRITE)
-	#cfg_file_access.store_string(_NewPluginText.PLUGIN_CFG_TEXT % plugin_cap_name)
-	#cfg_file_access.close()
-	#
-	#print("Created plugin: %s" % plugin_cap_name)
-	#
-	#if create_export:
-		#ExportFileUtils.plugin_init(plugin_dir_name)
-	#
-	#EditorInterface.get_resource_filesystem().scan()
 
 static func open_export_dir(export_config_path):
 	var export_data = ExportFileUtils.get_export_data(export_config_path)
@@ -327,39 +301,3 @@ static func open_export_dir(export_config_path):
 			return
 		
 		OS.shell_open(global_path)
-
-#class _NewPluginText:
-	#const PLUGIN_GD_TEXT = \
-#'@tool
-#extends EditorPlugin
-#
-#func _get_plugin_name() -> String:
-	#return "%s"
-#func _get_plugin_icon() -> Texture2D:' + \
-#'\n\treturn EditorInterface.get_base_control().get_theme_icon("Node", &"EditorIcons")' + \
-#'\nfunc _has_main_screen() -> bool:
-	#return true
-#
-#func _make_visible(visible:bool) -> void:
-	#pass
-#
-#func _enable_plugin() -> void:
-	#pass
-#
-#func _disable_plugin() -> void:
-	#pass
-#
-#func _enter_tree() -> void:
-	#pass
-#
-#func _exit_tree() -> void:
-	#pass'
-#
-	#const PLUGIN_CFG_TEXT = \
-#'[plugin]
-#
-#name="%s"
-#description=""
-#author=""
-#version="0.1.0"
-#script="plugin.gd"'

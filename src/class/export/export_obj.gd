@@ -38,6 +38,7 @@ var file_dependencies:Dictionary = {}
 
 var adjusted_remote_paths:Dictionary = {}
 var global_classes_used:Dictionary = {}
+var global_classes_used_paths:Dictionary = {}
 
 var class_rename_ignore:Array = []
 var class_renames:Dictionary = {}
@@ -123,24 +124,23 @@ func get_valid_files_for_transfer():
 func sort_valid_files():
 	for file:String in valid_files_for_transfer.keys():
 		var standard_export_path = file.replace(source, export_dir_path)
-		#if rename_plugin:
-			#adjusted_remote_paths[file] = file.replace(plugin_name, new_plugin_name)
 		
 		if not file_parser.check_file_valid(file):
 			files_to_copy[file] = valid_files_for_transfer.get(file)
 			#files_to_copy[file] = {_ExportFileKeys.to: standard_export_path}
 			continue
 		
+		var file_ext = file.get_extension()
+		if file_ext == "tres" or file_ext == "tscn":
+			files_to_process_for_paths[file] = {_ExportFileKeys.to: standard_export_path}
+			files_to_copy[file] = valid_files_for_transfer.get(file)
+			continue
+		
 		var file_needs_processing = _ExportFileUtils.is_remote_file(file)
-		
-		#var file_access = FileAccess.open(file, FileAccess.READ)
-		#var first_line = file_access.get_line()
-		#
-		
 		if not file_needs_processing:
 			files_to_copy[file] = valid_files_for_transfer.get(file)
 			#files_to_process_for_paths[file] = valid_files_for_transfer.get(file) # TODO is this ok?
-		else:
+		else: #^ is the same as above but excludes gd, I think want to exclude, but tscn and tres should be processed no matter
 			var file_access = FileAccess.open(file, FileAccess.READ)
 			var is_remote = false
 			while not file_access.eof_reached():
@@ -188,13 +188,35 @@ func get_global_classes_used_in_valid_files():
 	for file:String in valid_files_for_transfer.keys():
 		if not file_parser.check_file_valid(file):
 			continue
-		var classes_used = _ExportFileUtils.scan_file_for_global_classes(file, self)
+		
+		var file_ext = file.get_extension()
+		var classes_used
+		if file_ext == "gd":
+			classes_used = _ExportFileUtils.get_global_classes_in_file(file, export_data.class_list)
+		elif file_ext == "tres" or file_ext == "tscn":
+			var classes = {}
+			var scripts = _ExportFileUtils.get_scripts_in_ser_file(file)
+			for path in scripts:
+				var class_nm = export_data.class_path_lookup.get(path)
+				if class_nm != null:
+					classes[class_nm] = true
+			
+			classes_used = classes.keys()
+			if classes_used.is_empty():
+				continue
+		
+		if classes_used == null:
+			continue
+		
 		for class_nm in classes_used:
-			var remote_path = classes_used.get(class_nm)
+			var remote_path = export_data.class_list.get(class_nm)
+			if global_classes_used.has(class_nm):
+				continue
 			global_classes_used[class_nm] = {
 				_ExportFileKeys.dependent: file,
 				_ExportFileKeys.path: remote_path
 				}
+			global_classes_used_paths[remote_path] = class_nm
 			if _UtilsRemote.UFile.is_file_in_directory(remote_path, source):
 				if not _ExportFileUtils.is_remote_file(remote_path):
 					continue

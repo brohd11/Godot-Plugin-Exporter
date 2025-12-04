@@ -10,7 +10,7 @@ const PluginInit = UtilsLocal.PluginInit
 const _CONSOLE_SCOPE = "plugin_exporter"
 const _CONSOLE_HELP = "Plugin Exporter available commands:
 export - Export the selected plugin
-gui_open - Open Plugin Epxorter gui instance with selected plugin.
+gui_open - Open Plugin Exporter gui instance with selected plugin.
 open_export_folder - Open export folder of plugin
 plugin_init - Initialize plugin folder with required files
 new_plugin - Create a new plugin from template and initialize"

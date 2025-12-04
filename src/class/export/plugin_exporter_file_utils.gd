@@ -181,23 +181,23 @@ static func check_ignore(local_path, export_obj:ExportData.Export):
 	return false
 
 
-static func scan_file_for_global_classes(file_path:String, export_obj:ExportData.Export):
-	var file_access = FileAccess.open(file_path, FileAccess.READ)
-	var class_names = export_obj.export_data.class_list.keys()
-	
-	var classes_used = {}
-	#var global_classes_in_files = 
-	
-	while not file_access.eof_reached():
-		var line = file_access.get_line()
-		var tokens = Tokenizer.words_only(line)
-		for tok:String in tokens:
-			if tok in class_names:
-				var path = export_obj.export_data.class_list.get(tok)
-				#export_obj.global_classes_used[tok] = path
-				classes_used[tok] = path
-	
-	return classes_used
+#static func scan_file_for_global_classes(file_path:String, export_obj:ExportData.Export):
+	#var file_access = FileAccess.open(file_path, FileAccess.READ)
+	#var class_names = export_obj.export_data.class_list.keys()
+	#
+	#var classes_used = {}
+	##var global_classes_in_files = 
+	#
+	#while not file_access.eof_reached():
+		#var line = file_access.get_line()
+		#var tokens = Tokenizer.words_only(line)
+		#for tok:String in tokens:
+			#if tok in class_names:
+				#var path = export_obj.export_data.class_list.get(tok)
+				##export_obj.global_classes_used[tok] = path
+				#classes_used[tok] = path
+	#
+	#return classes_used
 
 
 static func get_other_transfer_data(export_obj:ExportData.Export):
@@ -306,6 +306,11 @@ static func is_remote_file(file_path:String):
 static func name_to_export_config_path(plugin_name:String):
 	return "res://addons".path_join(plugin_name).path_join("export_ignore").path_join("plugin_export.json")
 
+static func get_global_classes_in_file(file_path:String, global_class_dict:Dictionary):
+	var class_data = _get_global_classes_in_file(file_path, global_class_dict)
+	class_data.erase("global_class_definition")
+	return class_data.keys()
+
 static func _get_global_classes_in_file(file_path:String, global_class_dict:Dictionary):
 	if not is_instance_valid(_global_class_regex):
 		_global_class_regex = RegEx.new()
@@ -360,6 +365,19 @@ static func is_class_definition(text: String, current_index: int) -> bool:
 	# Check if that chunk ends with "class_name" + whitespace
 	return _lookback_regex.search(preceding_text) != null
 
+static func get_scripts_in_ser_file(file_path:String):
+	var file_access = FileAccess.open(file_path, FileAccess.READ)
+	var scripts = {}
+	
+	while not file_access.eof_reached():
+		var line = file_access.get_line()
+		if line.begins_with('[ext_resource'):
+			var path = line.get_slice('path="', 1)
+			path = path.get_slice('"', 0)
+			if path.get_extension() == "gd":
+				scripts[path] = true
+	
+	return scripts.keys()
 
 
 

@@ -1,9 +1,7 @@
 extends "res://addons/plugin_exporter/src/class/export/parse/parse_base.gd"
 
-var use_relative_paths:= false
-
 func set_parse_settings(settings):
-	use_relative_paths = settings.get("use_relative_paths", false)
+	pass
 
 func get_direct_dependencies(file_path:String) -> Dictionary:
 	var file_access = FileAccess.open(file_path, FileAccess.READ)
@@ -14,14 +12,16 @@ func get_direct_dependencies(file_path:String) -> Dictionary:
 	while not file_access.eof_reached():
 		var line = file_access.get_line()
 		if line.find("[gd_resource") > -1:
-			var script_class = line.get_slice(' script_class="', 1)
-			script_class = script_class.get_slice('"', 0)
-			export_obj.global_classes_used[script_class] = {
-				#ExportFileKeys.dependent: file_path,
-				ExportFileKeys.path: file_path
-			}
-			# erase from renames, keeps resource class global
-			export_obj.class_renames.erase(script_class)
+			if line.find(' script_class="') > -1:
+				var script_class = line.get_slice(' script_class="', 1)
+				script_class = script_class.get_slice('"', 0)
+				if not export_obj.global_classes_used.has(script_class):
+					export_obj.global_classes_used[script_class] = {
+						#ExportFileKeys.dependent: file_path,
+						ExportFileKeys.path: file_path
+					}
+				# erase from renames, keeps resource class global
+				export_obj.class_renames.erase(script_class)
 		
 		if line.find('[ext_resource') > -1:
 			var path = line.get_slice('path="', 1)
@@ -62,9 +62,6 @@ func post_export_edit_file(file_path:String, file_lines:Variant=null) -> Variant
 			path = path.get_slice('"', 0)
 			var id = line.get_slice(' id="', 1)
 			id = id.get_slice('"', 0)
-			
-			#var new_path = export_obj.adjusted_remote_paths.get(path, path)
-			#new_path = export_obj.get_rel_or_absolute_path(new_path)
 			
 			var new_path = get_adjusted_path_or_old_renamed(path)
 			line = RES_LINE_TEMPLATE % [type, new_path, id]
