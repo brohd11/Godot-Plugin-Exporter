@@ -15,9 +15,3 @@ const ParseTres = preload("res://addons/plugin_exporter/src/class/export/parse/p
 
 const Backport = preload("res://addons/plugin_exporter/src/class/export/parse/gd/backport.gd")
 const CompatData = preload("res://addons/plugin_exporter/src/class/export/backport/compat_data.gd")
-
-const DUMMY_GDIGNORE_FILE = "res://addons/plugin_exporter/src/template/_gdignore.txt"
-
-const PARSE_FOLDER_PATH = "res://addons/plugin_exporter/src/class/export/parse" #! ignore-remote
-
-const CONFIG_FILE_PATH = "res://.godot/addons/plugin_exporter/plugin_exporter_config.json" #! ignore-remote

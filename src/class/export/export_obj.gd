@@ -21,6 +21,8 @@ var other_transfers:Array
 var other_transfers_data:Dictionary
 var valid_files_for_transfer:Dictionary = {}
 
+var virtual_files:Dictionary = {}
+
 var ignore_dependencies:= false
 
 var rename_plugin := false
@@ -34,6 +36,9 @@ var file_parser:_FileParser
 
 var files_to_copy:Dictionary = {}
 var files_to_process_for_paths:Dictionary = {}
+
+var replace_with_files:Dictionary = {}
+
 var file_dependencies:Dictionary = {}
 
 var adjusted_remote_paths:Dictionary = {}
@@ -96,8 +101,18 @@ func get_valid_files_for_transfer():
 		var custom_message = data.get(_ExportFileKeys.custom_tree_message)
 		for from in from_files:
 			if not FileAccess.file_exists(from):
-				_UEditor.push_toast("File_doesn't exist, aborting: " + from, 2)
-				return
+				if not from.begins_with("PE_VIRTUAL"):
+					_UEditor.push_toast("File_doesn't exist, aborting: " + from, 2)
+					return
+				var virtual_file_type = from
+				var virtual_export_path = get_export_path(to)
+				if not virtual_files.has(virtual_file_type):
+					virtual_files[virtual_file_type] = {}
+				virtual_files[virtual_file_type][to] = {
+					_ExportFileKeys.to: virtual_export_path,
+					_ExportFileKeys.custom_tree_message: custom_message
+				}
+				continue
 			
 			var to_path = to
 			if not single_from:
@@ -154,19 +169,20 @@ func sort_valid_files():
 				if extend_idx > -1 and line.count('"') == 2 and (class_idx == -1 or class_idx > extend_idx):
 					var remote_file_path = line.get_slice('"', 1)
 					remote_file_path = remote_file_path.get_slice('"', 0)
-					if not remote_file_path.is_absolute_path(): #TODO TEST
+					if not remote_file_path.is_absolute_path():
 						var absolute = ensure_absolute_path(remote_file_path, file)
 						print("Not absolute path: %s -> %s" % [remote_file_path, absolute])
 						remote_file_path = absolute
-						
+					
 					if FileAccess.file_exists(remote_file_path):
 						var file_export_data = {
 							_ExportFileKeys.to: standard_export_path,
 							_ExportFileKeys.replace_with: remote_file_path
 							}
-						files_to_process_for_paths[file] = file_export_data
+						files_to_process_for_paths[file] = file_export_data # process file for dependencies
 						files_to_copy[file] = valid_files_for_transfer.get(file)
-						files_to_copy[file][_ExportFileKeys.replace_with] = remote_file_path
+						files_to_copy[file][_ExportFileKeys.replace_with] = remote_file_path # when copying, replace with remote
+						replace_with_files[remote_file_path] = file # add to point files where this is dependency to this path
 						is_remote = true
 						break
 					else:
@@ -232,6 +248,11 @@ func get_file_dependencies():
 		file_parser.get_dependencies(file_path, file_dependencies, scanned_files)
 	
 	for remote_path:String in file_dependencies.keys():
+		if replace_with_files.has(remote_path): #^ if it is in the replace files, then it is probably out of remote folder
+			var replace_path = replace_with_files.get(remote_path) #^ get the to be replaced file path
+			adjusted_remote_paths[remote_path] = replace_path #^ set the adjusted path to the replace path
+			continue #^ and don't copy another to remote
+		
 		var data = file_dependencies.get(remote_path, {})
 		var dependent:String = data.get(_ExportFileKeys.dependent, "")
 		var dependency_dir = data.get(_ExportFileKeys.dependency_dir)
@@ -240,13 +261,11 @@ func get_file_dependencies():
 		
 		if dependent != "":
 			var dep_data = files_to_copy.get(dependent, {})
-			var replace_with = dep_data.get(_ExportFileKeys.replace_with)
-			if replace_with != null:
-				if replace_with == remote_path:
+			var replace_dep_with = dep_data.get(_ExportFileKeys.replace_with)
+			if replace_dep_with != null:
+				if replace_dep_with == remote_path:
 					continue # stop remote classes from creating extra copy in remote
 		
-		#if dependent == remote_path: # this is causing issues if class is preloaded in self
-			#continue
 		
 		var remote_dir_path = get_remote_file_local_path(remote_path)
 		if dependency_dir == "current":
@@ -255,9 +274,9 @@ func get_file_dependencies():
 			remote_dir_path = dependency_dir.path_join(remote_path.get_file())
 		
 		var adjusted_path = get_renamed_path(remote_dir_path)
+		var export_path = get_export_path(remote_dir_path)
 		adjusted_remote_paths[remote_path] = adjusted_path
 		
-		var export_path = get_export_path(remote_dir_path)
 		files_to_copy[remote_path] = {
 			_ExportFileKeys.to: export_path,
 			_ExportFileKeys.dependent: dependent
@@ -342,7 +361,6 @@ func write_export_data_file():
 	_UtilsRemote.UFile.write_to_json(export_file_data, all_data_path)
 
 
-
 func check_file_has_valid_path(source_path:String, export_path:String) -> void:
 	var globalized_source = ProjectSettings.globalize_path(source_path)
 	var globalized_export = ProjectSettings.globalize_path(export_path)
@@ -353,7 +371,6 @@ func check_file_has_valid_path(source_path:String, export_path:String) -> void:
 	if globalized_source == globalized_export:
 		print("Issue with file export, export path == source path: %s" % globalized_source)
 		export_valid = false
-
 
 
 func export_files():
@@ -396,6 +413,14 @@ func export_files():
 		
 		file_parser.post_export_edit_file(export_path)
 	##
+	
+	for virtual_file_type in virtual_files.keys():
+		var virtual_file_type_data = virtual_files[virtual_file_type]
+		for local_file_path in virtual_file_type_data.keys():
+			var export_file_data = virtual_file_type_data.get(local_file_path)
+			var export_path = export_file_data.get(_ExportFileKeys.to)
+			
+			_write_virtual_file(virtual_file_type, export_path)
 	
 
 ##
@@ -454,9 +479,9 @@ func get_rel_or_absolute_path(path:String) -> String:
 	else:
 		return ensure_absolute_path(path, file_parser.current_file_path_parsing)
 
+
 func invalidate():
 	export_valid = false
-
 
 ##
 
@@ -479,3 +504,13 @@ func _simple_export(from, export_path, export_uid_file, export_import_file):
 	var export_path_import = export_path + ".import"
 	if FileAccess.file_exists(from_import) and export_uid_file:
 		DirAccess.copy_absolute(from_import, export_path_import)
+
+
+func _write_virtual_file(virtual_file_type:String, export_path:String):
+	var export_path_dir = export_path.get_base_dir()
+	if not DirAccess.dir_exists_absolute(export_path_dir):
+		DirAccess.make_dir_recursive_absolute(export_path_dir)
+	
+	if virtual_file_type == _ExportFileKeys.PE_VIRTUAL_GDIGNORE:
+		var fa = FileAccess.open(export_path, FileAccess.WRITE)
+		fa.close()

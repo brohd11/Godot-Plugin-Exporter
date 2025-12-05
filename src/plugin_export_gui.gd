@@ -315,12 +315,29 @@ func _parse_export_data():#, write=false):
 				last_item.set_tooltip_text(0, new_tooltip)
 			
 			if last_item.get_text(0).begins_with("%s"):
-				print(local_file_path)
+				printerr("'%' in file path: ", local_file_path)
+		
+		for virtual_file_type in export.virtual_files.keys():
+			var virtual_file_type_data = export.virtual_files[virtual_file_type]
+			for local_file_path in virtual_file_type_data.keys():
+				var export_file_data = virtual_file_type_data.get(local_file_path)
+				var export_path = export_file_data.get(ExportFileKeys.to)
+				var custom_message = export_file_data.get(ExportFileKeys.custom_tree_message)
+				var last_item = TreeHelper.new_file_path(export_path, full_export_path) as TreeItem
+				last_item.set_icon(0, file_icon)
+				last_item.set_icon_modulate(0, Color.WHITE)
+				var text = last_item.get_text(0)
+				if custom_message != null:
+					var new_text = text + custom_message
+					last_item.set_text(0, new_text)
+					last_item.set_tooltip_text(0, new_text)
+			
 		# /build tree
 	
 	
 	if not first_tree_build:
 		_collapse_tree()
+
 
 
 func _collapse_tree():

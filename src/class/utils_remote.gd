@@ -13,3 +13,4 @@ const FileSystem = preload("res://addons/addon_lib/brohd/alib_editor/utils/src/e
 const UEditorTheme = preload("res://addons/addon_lib/brohd/alib_editor/utils/src/u_editor_theme.gd")
 const DockManager = preload("res://addons/addon_lib/brohd/dock_manager/dock_manager.gd")
 const PopupWrapper = preload("res://addons/addon_lib/brohd/popup_wrapper/popup_wrapper.gd")
+const TreeHelperBase = preload("res://addons/addon_lib/brohd/alib_runtime/tree_helper/tree_helper_base.gd")

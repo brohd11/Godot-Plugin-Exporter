@@ -217,7 +217,8 @@ static func get_other_transfer_data(export_obj:ExportData.Export):
 		var from_files = other.get(ExportFileKeys.from)
 		if from_files == null:
 			if to.get_file() == ".gdignore":
-				from_files = UtilsLocal.DUMMY_GDIGNORE_FILE
+				from_files = ExportFileKeys.PE_VIRTUAL_GDIGNORE
+				custom_message = " (virtual file)"
 		var single_from = false
 		if from_files is String:
 			if FileAccess.file_exists(from_files):
@@ -233,25 +234,29 @@ static func get_other_transfer_data(export_obj:ExportData.Export):
 					var path = from_files.path_join(f)
 					file_array.append(path)
 				from_files = file_array
+			elif from_files.begins_with(ExportFileKeys.PE_VIRTUAL):
+				from_files = [from_files]
+				single_from = true
 			else:
 				printerr("Path not file or dir: %s" % from_files)
-				return
+				return {}
 		elif from_files is Array:
 			for file in from_files:
 				if not FileAccess.file_exists(file):
 					printerr("File doesn't exist, aborting: %s" % file)
-					return
+					return {}
 		
 		if from_files is not Array:
 			printerr("Issues with other transfers, destination: %s" % to)
-			return
+			return {}
 		
-		if to in other_transfer_data.keys():
+		#if to in other_transfer_data.keys():
+		if other_transfer_data.has(to):
 			var to_data = other_transfer_data[to]
 			var single = to_data.get(ExportFileKeys.single)
 			if single:
 				printerr("Error with other transfers file, exporting multiple files to single file: %s" % to)
-				return
+				return {}
 			to_data[ExportFileKeys.from_files].append_array(from_files)
 		else:
 			other_transfer_data[to] = {ExportFileKeys.from_files:from_files, ExportFileKeys.single:single_from}
@@ -418,3 +423,7 @@ class ExportFileKeys:
 	
 	const parser_settings = "parser_settings"
 	const parser_overide_settings = "parser_overide_settings"
+	
+	# virtual file keys
+	const PE_VIRTUAL = "PE_VIRTUAL"
+	const PE_VIRTUAL_GDIGNORE = PE_VIRTUAL + "_GDIGNORE"

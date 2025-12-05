@@ -36,11 +36,6 @@ static func new_plugin(plugin_dir_name, create_export:=true):
 	EditorInterface.get_resource_filesystem().scan()
 
 static func plugin_init(plugin_name:=""):
-	if not FileAccess.file_exists(UtilsLocal.CONFIG_FILE_PATH):
-		if not DirAccess.dir_exists_absolute(UtilsLocal.CONFIG_FILE_PATH.get_base_dir()):
-			DirAccess.make_dir_recursive_absolute(UtilsLocal.CONFIG_FILE_PATH.get_base_dir())
-		UFile.write_to_json({}, UtilsLocal.CONFIG_FILE_PATH)
-	
 	var plugin_dir = ""
 	if plugin_name != "":
 		plugin_dir = "res://addons".path_join(plugin_name)

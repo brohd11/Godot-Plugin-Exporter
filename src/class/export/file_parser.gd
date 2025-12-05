@@ -7,6 +7,8 @@ const ExportFileKeys = UtilsLocal.ExportFileUtils.ExportFileKeys
 
 const TEXT_FILE_TYPES = ["gd", "tscn", "cs", "tres"] # TODO add tres support
 
+const PARSE_FOLDER_PATH = "./parse" #! ignore-remote
+
 var custom_text_types:Array = []
 
 var custom_parse_data:Dictionary = {}
@@ -18,13 +20,16 @@ var current_file_path_parsing:String
 var current_adjusted_file_path:String
 
 func _init() -> void:
-	var default_parse_files = DirAccess.get_files_at(UtilsLocal.PARSE_FOLDER_PATH)
+	var file_parser_path = self.get_script().resource_path
+	var parse_folder_path = file_parser_path.get_base_dir().path_join("parse")
+	
+	var default_parse_files = DirAccess.get_files_at(parse_folder_path)
 	for f in default_parse_files:
 		if f == "parse_base.gd" or f == "template.gd":
 			continue
 		if f.get_extension() == "uid":
 			continue
-		var full_path = UtilsLocal.PARSE_FOLDER_PATH.path_join(f)
+		var full_path = parse_folder_path.path_join(f)
 		var script = load(full_path)
 		if not script is Script:
 			printerr("Error loading parse script, resource is not script: %s" % full_path)
@@ -38,10 +43,10 @@ func _init() -> void:
 		default_parsers[parse_ext] = instance
 	
 	
-	var parse_dirs = DirAccess.get_directories_at(UtilsLocal.PARSE_FOLDER_PATH)
+	var parse_dirs = DirAccess.get_directories_at(parse_folder_path)
 	custom_text_types = parse_dirs
 	for dir in parse_dirs:
-		var dir_path = UtilsLocal.PARSE_FOLDER_PATH.path_join(dir)
+		var dir_path = parse_folder_path.path_join(dir)
 		var files = DirAccess.get_files_at(dir_path)
 		var parse_ins_array = []
 		for file in files:
@@ -102,6 +107,7 @@ func get_dependencies(file_path:String, all_dependencies:Dictionary, scanned_fil
 			for parse_ins in parse_ins_array:
 				var deps = parse_ins.get_direct_dependencies(current_file_path)
 				file_deps.merge(deps, true)
+				#file_deps.merge(deps)
 		
 		
 		for path in file_deps.keys():
