@@ -84,7 +84,9 @@ func _on_tool_menu_pressed():
 	new_gui_instance()
 
 func new_gui_instance():
-	return dm_instance_manager.new_freeable_dock_manager(PLUGIN_EXPORT_GUI, DockManager.Slot.MAIN_SCREEN)
+	var ins = dm_instance_manager.new_freeable_dock_manager(PLUGIN_EXPORT_GUI, DockManager.Slot.MAIN_SCREEN)
+	ins.allow_scene_reload = true
+	return ins
 
 func _add_syntax_comment_tags():
 	for tag in COMMENT_TAGS:
