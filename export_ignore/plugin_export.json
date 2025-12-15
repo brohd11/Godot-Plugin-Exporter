@@ -41,7 +41,7 @@
 				"parse_gd":{},
 				"parse_tscn":{},
 				"parse_tres":{},
-				"backport_target":0
+				"backport_target":3
 			}
 		}
 	],

@@ -250,7 +250,7 @@ func get_file_dependencies():
 	for remote_path:String in file_dependencies.keys():
 		if replace_with_files.has(remote_path): #^ if it is in the replace files, then it is probably out of remote folder
 			var replace_path = replace_with_files.get(remote_path) #^ get the to be replaced file path
-			adjusted_remote_paths[remote_path] = replace_path #^ set the adjusted path to the replace path
+			adjusted_remote_paths[remote_path] = get_renamed_path(replace_path) #^ set the adjusted path to the replace path
 			continue #^ and don't copy another to remote
 		
 		var data = file_dependencies.get(remote_path, {})
@@ -444,12 +444,8 @@ func get_remote_file_local_path(file_path:String) -> String:
 func get_renamed_path(file_path:String) -> String:
 	if not rename_plugin:
 		return file_path
-	var plugin_dir = "res://addons".path_join(plugin_name)
-	if file_path.begins_with(plugin_dir):
-		var new_plugin_dir = "res://addons".path_join(new_plugin_name)
-		file_path = new_plugin_dir.path_join(file_path.trim_prefix(plugin_dir))
-	#if rename_plugin: #^ old way
-		#file_path = file_path.replace(plugin_name, new_plugin_name)
+	if file_path.begins_with(plugin_name):
+		file_path = new_plugin_name.path_join(file_path.trim_prefix(plugin_name))
 	return file_path
 
 func get_export_path(file_path:String) -> String:

@@ -114,7 +114,7 @@ func _init(export_config_path):
 		export_obj.file_parser = _UtilsLocal.FileParser.new()
 		export_obj.file_parser.set_export_obj(export_obj)
 		var overide_settings:Dictionary = export.get(_ExportFileKeys.parser_overide_settings, {})
-		overide_settings = _sort_settings_dict(overide_settings)
+		#overide_settings = _sort_settings_dict(overide_settings)
 		
 		for parse_key in parser_settings.keys():
 			if not parse_key.begins_with("parse_"):
@@ -124,6 +124,9 @@ func _init(export_config_path):
 				overide_settings[parse_key].merge(parse_data)
 			else:
 				overide_settings[parse_key] = parse_data
+		
+		 # move this after, distributes overided settings into dict, settings in body of settings dict ovewrite ext parse settings
+		overide_settings = _sort_settings_dict(overide_settings)
 		
 		var parse_gd_settings = overide_settings.get("parse_gd", {})
 		export_obj.class_rename_ignore = parse_gd_settings.get("class_rename_ignore", [])
@@ -166,6 +169,7 @@ func _sort_settings_dict(dict:Dictionary):
 	
 	for parse_key in sorted_dict.keys():
 		var data = sorted_dict.get(parse_key)
+		
 		for key in untyped_keys:
 			data[key] = dict[key]
 		sorted_dict[parse_key] = data
