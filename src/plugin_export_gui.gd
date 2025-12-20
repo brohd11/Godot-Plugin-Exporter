@@ -81,8 +81,13 @@ func _init() -> void:
 	plugin_icon = EditorInterface.get_base_control().get_theme_icon("ActionCopy", &"EditorIcons")
 
 func _ready() -> void:
+	if is_part_of_edited_scene():
+		return
 	file_path_line.text_changed.connect(_on_file_line_text_changed)
 	search_line.text_changed.connect(_on_search_line_text_changed)
+	
+	#UEditorTheme.button_set_main_screen_theme_var(dock_button)
+	#UEditorTheme.button_set_main_screen_theme_var(menu_button)
 	
 	UEditorTheme.set_menu_button_to_editor_theme(menu_button)
 	menu_button.pressed.connect(_on_menu_button_pressed)
@@ -91,7 +96,7 @@ func _ready() -> void:
 	popup.clear()
 	PopupHelper.parse_dict_static(menu_button_dict, popup, _on_menu_button_item_pressed, PMHelper)
 	
-	TreeHelper = TreeHelperClass.new(export_tree)
+	TreeHelper = TreeHelperClass.new(export_tree, null, null, null, false)
 	
 	file_icon = EditorInterface.get_editor_theme().get_icon("File", &"EditorIcons")
 	plugin_icon = EditorInterface.get_base_control().get_theme_icon("ActionCopy", &"EditorIcons")
