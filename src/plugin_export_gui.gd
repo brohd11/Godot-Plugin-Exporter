@@ -44,32 +44,32 @@ var file_data_dict:Dictionary
 var TreeHelper: TreeHelperClass
 var PMHelper: PopupHelper.MouseHelper
 
-const CALLABLE_KEY = "CALLABLE_KEY"
+
 var menu_button_dict = {
 	"Read":{
-		PopupHelper.ParamKeys.ICON_KEY: ["FileAccess"],
-		PopupHelper.ParamKeys.TOOL_TIP_KEY: ["Read export file."],
-		CALLABLE_KEY: _on_read_file_button_pressed
+		PopupHelper.ParamKeys.ICON: ["FileAccess"],
+		PopupHelper.ParamKeys.TOOL_TIP: ["Read export file."],
+		PopupHelper.ParamKeys.CALLABLE: _on_read_file_button_pressed
 	},
 	"Export":{
-		PopupHelper.ParamKeys.ICON_KEY: ["ExternalLink"],
-		PopupHelper.ParamKeys.TOOL_TIP_KEY: ["Export files to directory defined in export file."],
-		CALLABLE_KEY: _on_export_button_pressed
+		PopupHelper.ParamKeys.ICON: ["ExternalLink"],
+		PopupHelper.ParamKeys.TOOL_TIP: ["Export files to directory defined in export file."],
+		PopupHelper.ParamKeys.CALLABLE: _on_export_button_pressed
 	},
 	"Open Export Dir":{
-		PopupHelper.ParamKeys.ICON_KEY:["ClassList"],
-		PopupHelper.ParamKeys.TOOL_TIP_KEY:["Open export dir of current file."],
-		CALLABLE_KEY: _on_open_export_dir
+		PopupHelper.ParamKeys.ICON:["ClassList"],
+		PopupHelper.ParamKeys.TOOL_TIP:["Open export dir of current file."],
+		PopupHelper.ParamKeys.CALLABLE: _on_open_export_dir
 	},
 	"Set File":{
-		PopupHelper.ParamKeys.ICON_KEY: ["Folder"],
-		PopupHelper.ParamKeys.TOOL_TIP_KEY: ["Choose export json file."],
-		CALLABLE_KEY: _on_set_file_button_pressed
+		PopupHelper.ParamKeys.ICON: ["Folder"],
+		PopupHelper.ParamKeys.TOOL_TIP: ["Choose export json file."],
+		PopupHelper.ParamKeys.CALLABLE: _on_set_file_button_pressed
 	},
 	"Plugin Init":{
-		PopupHelper.ParamKeys.ICON_KEY: ["New"],
-		PopupHelper.ParamKeys.TOOL_TIP_KEY: ["Create new export json file."],
-		CALLABLE_KEY: _on_new_file_button_pressed
+		PopupHelper.ParamKeys.ICON: ["New"],
+		PopupHelper.ParamKeys.TOOL_TIP: ["Create new export json file."],
+		PopupHelper.ParamKeys.CALLABLE: _on_new_file_button_pressed
 	},
 }
 
@@ -173,7 +173,7 @@ func _on_menu_button_pressed():
 func _on_menu_button_item_pressed(id:int, popup:PopupMenu):
 	var menu_path = PopupHelper.parse_menu_path(id, popup)
 	var data = menu_button_dict.get(menu_path, {})
-	var callable = data.get(CALLABLE_KEY)
+	var callable = data.get(PopupHelper.ParamKeys.CALLABLE)
 	if callable:
 		callable.call()
 
