@@ -4,6 +4,7 @@ const SLOT = EditorContextMenuPlugin.CONTEXT_SLOT_SCRIPT_EDITOR_CODE
 
 const UtilsRemote = preload("res://addons/plugin_exporter/src/class/utils_remote.gd")
 const PopupWrapper = UtilsRemote.PopupWrapper
+const UFile = UtilsRemote.UFile
 
 const DEPENDENCY_TAGS = ["#! dependency", "#! ignore-remote"]
 
@@ -54,7 +55,7 @@ static func get_valid_items(script_editor:CodeEdit) -> Dictionary:
 				valid_dep = false
 		var file_path = text.get_slice('"', 1)
 		file_path = file_path.get_slice('"', 0)
-		if not FileAccess.file_exists(file_path):
+		if not UFile.file_exists(file_path):
 			valid_dep = false
 		if valid_dep:
 			valid_items[DEPENDENCY] = {}

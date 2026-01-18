@@ -270,7 +270,7 @@ func _recursive_get_globals(file_path:String) -> Array:
 	#var string_map = ExportFileUtils.get_string_map(file_text)
 	#var extend_index = file_text.find("extends ")
 	#while extend_index != -1:
-		#if string_map.index_not_string_or_comment(extend_index):
+		#if string_map.index_not_string_or_comment(extend_index): # index_in_string_or_comment is new
 			#break
 		#extend_index = file_text.find("extends ", extend_index + 1)
 	#

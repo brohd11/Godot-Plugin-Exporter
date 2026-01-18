@@ -20,6 +20,8 @@ const ExportData = UtilsLocal.ExportData
 const Export = ExportData.Export
 const FileParser = UtilsLocal.FileParser
 
+const Filter = UtilsRemote.UString.Filter
+
 @onready var file_path_line = %FilePathLine
 @onready var search_line = %SearchLine
 @onready var export_tree:Tree = %ExportTree
@@ -377,9 +379,7 @@ func _update_tree_items():
 		export_tree.scroll_to_item(item, true)
 
 func _check_filter(text):
-	if UTree.check_filter_split(text, filter_text):
-		return true
-	return false
+	return Filter.Check.contains_n(text, [filter_text])
 
 
 func _can_drop_data(at_position: Vector2, data: Variant) -> bool:

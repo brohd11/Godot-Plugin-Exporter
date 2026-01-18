@@ -335,10 +335,12 @@ static func _get_global_classes_in_file(file_path:String, global_class_dict:Dict
 		var word = m.get_string()
 		if not global_class_dict.has(word):
 			continue
-		if string_map.comment_mask[start_index] == 1:
+		if string_map.index_in_string_or_comment(start_index):
 			continue
-		if string_map.string_mask[start_index] == 1:
-			continue
+		#if string_map.comment_mask[start_index] == 1:
+			#continue
+		#if string_map.string_mask[start_index] == 1:
+			#continue
 		if is_class_definition(file_as_string, start_index):
 			found_classes["global_class_definition"] = word
 			continue
@@ -352,7 +354,7 @@ static func get_string_map(text:String):
 		string_maps = {}
 	if string_maps.has(text):
 		return string_maps[text]
-	var string_map = UString.get_string_map_multi_line(text, UString.StringMapMultiLine.Mode.STRING)
+	var string_map = UString.get_string_map(text, UString.StringMap.Mode.STRING)
 	string_maps[text] = string_map
 	return string_map
 

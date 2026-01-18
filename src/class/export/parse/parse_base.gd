@@ -129,21 +129,23 @@ static func _check_for_comment(line, check_array) -> bool:
 static func _check_text_valid(line:String, to_check:String) -> bool:
 	if line.begins_with("#"):
 		return false
-	var string_map = ExportFileUtils.get_string_map(line) as UString.StringMapMultiLine
+	var string_map = ExportFileUtils.get_string_map(line) as UString.StringMap
 	var idx = line.find(to_check)
 	if idx == -1:
 		return false
 	if string_map.string_mask[idx] == 1:
 		return false
-	var com_idx = string_map.comment_mask.find(1)
+	var com_idx = string_map.get_comment_index(0)
+	#var com_idx = string_map.comment_mask.find(1)
 	if com_idx > -1 and com_idx < idx:
 		return false
 	return true
 
 
 static func _strip_comment(line:String):
-	var string_map = ExportFileUtils.get_string_map(line) as UString.StringMapMultiLine
-	var com_idx = string_map.comment_mask.find(1)
+	var string_map = ExportFileUtils.get_string_map(line) as UString.StringMap
+	#var com_idx = string_map.comment_mask.find(1)
+	var com_idx = string_map.get_comment_index(0)
 	if com_idx == -1:
 		return line
 	return line.substr(0, com_idx)
