@@ -117,31 +117,33 @@ func post_export_edit_file(file_path:String, file_lines:Variant=null):
 		
 		if comment_stripped.find("extends ") > -1 and comment_stripped.count('"') == 2: # make this if so it will scan class nm too?
 			#if not _check_for_comment(line, ["extends", "class"]):
-			if _check_text_valid(line, "extends "): #^c these 2 are mostly for checking preloaded in the current script,
-				if comment_stripped.find("class ") == -1: #^c hence no inner?
-					var extend_file_path = comment_stripped.get_slice('"', 1)
-					extend_file_path = extend_file_path.get_slice('"', 0)
-					extend_file_path = export_obj.ensure_absolute_path(extend_file_path, file_path)
-					if not FileAccess.file_exists(extend_file_path):
-						printerr("Could not find extended file in line: %s" % line)
-					
-					var inherited_used_classes = _recursive_get_globals(extend_file_path)
-					classes_preloaded.append_array(inherited_used_classes)
+			#if _check_text_valid(line, "extends "): #^c these 2 are mostly for checking preloaded in the current script,
+				#if comment_stripped.find("class ") == -1: #^c hence no inner?
+			if _is_extends_valid(line): #^c class check is handled in this func ^^
+				var extend_file_path = comment_stripped.get_slice('"', 1)
+				extend_file_path = extend_file_path.get_slice('"', 0)
+				extend_file_path = export_obj.ensure_absolute_path(extend_file_path, file_path)
+				if not FileAccess.file_exists(extend_file_path):
+					printerr("Could not find extended file in line: %s" % line)
+				
+				var inherited_used_classes = _recursive_get_globals(extend_file_path)
+				classes_preloaded.append_array(inherited_used_classes)
 		
 		elif comment_stripped.find("extends ") > -1:
-			if _check_text_valid(line, "extends "): #^ use line as arg so it just reuses string map
-				if comment_stripped.find("class ") == -1: #^c i think this could work for both class types
-					var global_class = comment_stripped.get_slice("extends ", 1) # ""
-					global_class = global_class.strip_edges()
-					if global_class.find(" ") > -1: #^c what is this for?
-						printerr("GETTING SPACE GLOBAL CLASS")
-						global_class = global_class.get_slice(" ", 0)
-					if export_obj.export_data.class_list.has(global_class):
-						var path = export_obj.export_data.class_list.get(global_class)
-						var inherited_used_classes = _recursive_get_globals(path)
-						classes_preloaded.append_array(inherited_used_classes)
-						if class_renames.has(global_class):
-							line = line.replace(global_class, '"%s"' % path)
+			#if _check_text_valid(line, "extends "): #^ use line as arg so it just reuses string map
+				#if comment_stripped.find("class ") == -1: #^c i think this could work for both class types
+			if _is_extends_valid(line): #^c class check is handled in this func ^^
+				var global_class = comment_stripped.get_slice("extends ", 1) # ""
+				global_class = global_class.strip_edges()
+				if global_class.find(" ") > -1: #^c what is this for?
+					printerr("GETTING SPACE GLOBAL CLASS")
+					global_class = global_class.get_slice(" ", 0)
+				if export_obj.export_data.class_list.has(global_class):
+					var path = export_obj.export_data.class_list.get(global_class)
+					var inherited_used_classes = _recursive_get_globals(path)
+					classes_preloaded.append_array(inherited_used_classes)
+					if class_renames.has(global_class):
+						line = line.replace(global_class, '"%s"' % path)
 		
 		elif comment_stripped.find("const") > -1:
 			if _check_text_valid(line, "const"):
@@ -291,3 +293,13 @@ func _update_file_export_flags(line:String):
 	if line.find(PLUGIN_EXPORTED_STRING) > -1:
 		line = line.replace(PLUGIN_EXPORTED_STRING, PLUGIN_EXPORTED_REPLACE)
 	return line
+
+
+func _is_extends_valid(line:String):
+	var valid_text = _check_text_valid(line, "extends")
+	if not valid_text:
+		return false
+	if line.begins_with("extends ") or line.begins_with("class_name "):
+		return true
+	
+	return false
