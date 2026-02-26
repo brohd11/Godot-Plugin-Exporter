@@ -9,24 +9,36 @@ var _cast_strip_names = []
 var _cast_strip_callables = []
 
 func _init() -> void:
-	for _class_name in CAST_STRIP_NAMES:
-		#var strip_pattern = r"\s*(?:->|:)\s*%s\b\s*" % _class_name
-		var strip_pattern = r"\s*(?:->|:)\s*%s(\.\w+)*\b\s*" % _class_name
-		var regex = RegEx.new()
-		regex.compile(strip_pattern)
-		var anon = func(line:String) -> String:
-			return regex.sub(line, "", true)
-		
-		_cast_strip_callables.append(anon)
+	#_cast_strip_names = CAST_STRIP_NAMES.duplicate()
+	
+	pass
+	#for _class_name in CAST_STRIP_NAMES:
+		##var strip_pattern = r"\s*(?:->|:)\s*%s\b\s*" % _class_name
+		#var strip_pattern = r"\s*(?:->|:)\s*%s(\.\w+)*\b\s*" % _class_name
+		#var regex = RegEx.new()
+		#regex.compile(strip_pattern)
+		#var anon = func(line:String) -> String:
+			#return regex.sub(line, "", true)
+		#
+		#_cast_strip_callables.append(anon)
 
 
 # in parser_settings, create dictionary for extension of file,
 # ie. if extension is foo, "parse_foo": {"my_setting": "value"}
 func set_parse_settings(settings):
 	_cast_strip_names = settings.get("strip_cast", [])
+	_cast_strip_names.append_array(CAST_STRIP_NAMES.duplicate())
 	for nm in CAST_STRIP_NAMES:
 		if not nm in _cast_strip_names:
 			_cast_strip_names.append(nm)
+	
+	for file in ExportFileUtils.get_global_singleton_module_scripts():
+		var script = load(file) as GDScript
+		var global_name = script.get_global_name()
+		if global_name != "" and not global_name in _cast_strip_names:
+			_cast_strip_names.append(global_name)
+	
+	_build_regexes()
 
 # logic to parse for files that are needed acts as a set, dependencies[my_dep_path] = {}
 func get_direct_dependencies(file_path:String) -> Dictionary:
@@ -51,3 +63,14 @@ func post_export_edit_line(line:String) -> String:
 	for callable in _cast_strip_callables:
 		line = _string_safe_regex_sub(line, callable)
 	return line
+
+
+func _build_regexes():
+	for _class_name in _cast_strip_names:
+		var strip_pattern = r"\s*(?:->|:)\s*%s(\.\w+)*\b\s*" % _class_name
+		var regex = RegEx.new()
+		regex.compile(strip_pattern)
+		var anon = func(line:String) -> String:
+			return regex.sub(line, "", true)
+		
+		_cast_strip_callables.append(anon)

@@ -21,6 +21,8 @@ func set_parse_settings(settings):
 	strip_type_cast.export_obj = export_obj
 	global_rename.export_obj = export_obj
 	remove_namespace.export_obj = export_obj
+	
+	strip_type_cast.set_parse_settings(settings)
 
 # logic to parse for files that are needed acts as a set, dependencies[my_dep_path] = {}
 func get_direct_dependencies(file_path:String) -> Dictionary:

@@ -9,6 +9,7 @@ const UFile = UtilsRemote.UFile
 const UString = UtilsRemote.UString
 const UConfig = UtilsRemote.UConfig
 const UEditor = UtilsRemote.UEditor
+const UClassDetail = UtilsRemote.UClassDetail
 
 const ConfirmationDialogHandler = UtilsRemote.ConfirmationDialogHandler
 
@@ -386,6 +387,23 @@ static func get_scripts_in_ser_file(file_path:String):
 	
 	return scripts.keys()
 
+static func get_global_singleton_module_scripts():
+	var global_classes = UClassDetail.get_all_global_class_paths()
+	var valid = []
+	for path in global_classes.values():
+		if is_singleton_module_script(path):
+			valid.append(path)
+	return valid
+
+static func is_singleton_module_script(file_path:String):
+	if not file_path.get_extension() == "gd": return false
+	var singleton_scripts = ["singleton_base.gd", "singleton_ref_count.gd"]
+	if file_path.get_file() in singleton_scripts:
+		return false
+	var script = load(file_path) as GDScript
+	var base_type = script.get_base_script()
+	if base_type == null: return false
+	return base_type.resource_path.get_file() in singleton_scripts
 
 
 class ExportFileKeys:

@@ -321,38 +321,46 @@ func check_all_files_have_valid_path():
 func get_singleton_modules():
 	var all_data = []
 	for file_path:String in files_to_copy.keys():
+		if not _ExportFileUtils.is_singleton_module_script(file_path):
+			continue
 		if not file_parser.check_file_valid(file_path):
 			continue
 		var file_access = FileAccess.open(file_path, FileAccess.READ)
 		var count = 0
+		var _class_name = ""
+		var version = ""
 		while not file_access.eof_reached() and count < 10:
 			var line = file_access.get_line()
 			if line.find("class_name") == -1:
 				continue
-			if line.find("#! singleton-module") == -1:
-				break
-			var _class_name = line.get_slice("class_name", 1).get_slice("#!", 0).strip_edges()
-			var version = line.get_slice("#! singleton-module", 1).strip_edges()
-			if version == "":
-				var base_dir = file_path.get_base_dir()
-				while base_dir != "res://":
-					var config_path = base_dir.path_join("plugin.cfg")
-					if not FileAccess.file_exists(config_path):
-						config_path = base_dir.path_join("version.cfg")
-					if not FileAccess.file_exists(config_path):
-						base_dir = base_dir.get_base_dir()
-					else:
-						version = _UtilsRemote.UConfig.load_val_from_config("plugin", "version", "0.0.0", config_path)
-						break
-			
-			var adjusted_path = adjusted_remote_paths.get(file_path, file_path)
-			var singleton_data = {
-				"name":_class_name,
-				"version": str(version),
-				"path": adjusted_path
-			}
-			all_data.append(singleton_data)
+			if line.find("#! singleton-module") > -1: #^ this should be removable at this point, the whole singleton tag system
+				version = line.get_slice("#! singleton-module", 1).strip_edges()
 			break
+		
+		var script = load(file_path)
+		_class_name = script.get_singleton_name()
+		
+		if version == "":
+			version = "0.0.0"
+			var base_dir = file_path.get_base_dir()
+			while base_dir != "res://":
+				var config_path = base_dir.path_join("plugin.cfg")
+				if not FileAccess.file_exists(config_path):
+					config_path = base_dir.path_join("version.cfg")
+				if not FileAccess.file_exists(config_path):
+					base_dir = base_dir.get_base_dir()
+				else:
+					version = _UtilsRemote.UConfig.load_val_from_config("plugin", "version", "0.0.0", config_path)
+					break
+		
+		
+		var adjusted_path = adjusted_remote_paths.get(file_path, file_path)
+		var singleton_data = {
+			"name":_class_name,
+			"version": str(version),
+			"path": adjusted_path
+		}
+		all_data.append(singleton_data)
 	
 	export_file_data["singleton_modules"] = all_data
 
