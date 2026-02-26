@@ -150,11 +150,9 @@ func post_export_edit_file(file_path:String, file_lines:Variant=null):
 					
 					var current_script = load(export_obj.file_parser.current_file_path_parsing)
 					var constants = UClassDetail.script_get_all_constants(current_script,UClassDetail.IncludeInheritance.NONE)
-					print(export_obj.file_parser.current_file_path_parsing)
 					if constants.has(global_class):
 						extended_class_string = global_class
 						var extended_script = constants.get(extended_class_string)
-						print("GLOBALS ", _recursive_get_globals(extended_script.resource_path), current_script.resource_path)
 						classes_preloaded.append_array(_recursive_get_globals(extended_script.resource_path))
 						line = 'extends "%s"' % extended_script.resource_path
 					elif global_class.find(".") > -1:
