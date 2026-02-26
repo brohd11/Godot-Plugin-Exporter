@@ -102,6 +102,8 @@ func post_export_edit_file(file_path:String, file_lines:Variant=null):
 	
 	var file_access = FileAccess.open(file_path, FileAccess.READ)
 	
+	var extended_class_string = ""
+	
 	var adjusted_file_lines = []
 	while not file_access.eof_reached():
 		var line:String = file_access.get_line()
@@ -144,13 +146,36 @@ func post_export_edit_file(file_path:String, file_lines:Variant=null):
 					classes_preloaded.append_array(inherited_used_classes)
 					if class_renames.has(global_class):
 						line = line.replace(global_class, '"%s"' % path)
+				else:
+					
+					var current_script = load(export_obj.file_parser.current_file_path_parsing)
+					var constants = UClassDetail.script_get_all_constants(current_script,UClassDetail.IncludeInheritance.NONE)
+					print(export_obj.file_parser.current_file_path_parsing)
+					if constants.has(global_class):
+						extended_class_string = global_class
+						var extended_script = constants.get(extended_class_string)
+						print("GLOBALS ", _recursive_get_globals(extended_script.resource_path), current_script.resource_path)
+						classes_preloaded.append_array(_recursive_get_globals(extended_script.resource_path))
+						line = 'extends "%s"' % extended_script.resource_path
+					elif global_class.find(".") > -1:
+						var extended_script_path = UClassDetail.resolve_script_access_path(current_script, global_class)
+						if extended_script_path.ends_with(".gd"):
+							line = 'extends "%s"' % extended_script_path
+						else:
+							var path = extended_script_path.get_slice(".gd.", 0)
+							var suffix = extended_script_path.get_slice(".gd.", 1)
+							extended_script_path = path + ".gd"
+							line = 'extends "%s".%s' % [extended_script_path, suffix]
+						classes_preloaded.append_array(_recursive_get_globals(extended_script_path))
 		
 		elif comment_stripped.find("const") > -1:
 			if _check_text_valid(line, "const"):
 				var result = const_name_regex.search(line)
 				if result:
 					var const_name = result.get_string(1)
-					if class_renames.has(const_name):
+					if const_name == extended_class_string:
+						line = ""
+					elif class_renames.has(const_name):
 						if not const_name in classes_preloaded:
 							classes_preloaded.append(const_name)
 		
