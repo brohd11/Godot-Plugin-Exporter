@@ -1,10 +1,10 @@
 #! remote
 
-const UConfig = preload("res://addons/addon_lib/brohd/alib_runtime/utils/src/u_config.gd")
-const UFile = preload("res://addons/addon_lib/brohd/alib_runtime/utils/src/u_file.gd")
-const UString = preload("res://addons/addon_lib/brohd/alib_runtime/utils/src/u_string.gd")
-const UTree = preload("res://addons/addon_lib/brohd/alib_runtime/utils/src/u_tree.gd")
-const URegex = preload("res://addons/addon_lib/brohd/alib_runtime/utils/src/u_regex.gd")
+const UConfig = preload("res://addons/addon_lib/brohd/alib_runtime/utils/u_config.gd")
+const UFile = preload("res://addons/addon_lib/brohd/alib_runtime/utils/u_file.gd")
+const UString = preload("res://addons/addon_lib/brohd/alib_runtime/utils/u_string.gd")
+const UTree = preload("res://addons/addon_lib/brohd/alib_runtime/utils/u_tree.gd")
+const URegex = preload("res://addons/addon_lib/brohd/alib_runtime/utils/u_regex.gd")
 const UClassDetail = preload("res://addons/addon_lib/brohd/alib_editor/utils/src/u_class_detail.gd")
 const ConfirmationDialogHandler = ALibRuntime.Dialog.Handlers.Confirmation
 const UEditor = preload("res://addons/addon_lib/brohd/alib_editor/utils/src/u_editor.gd")
