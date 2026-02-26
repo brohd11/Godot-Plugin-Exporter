@@ -9,18 +9,7 @@ var _cast_strip_names = []
 var _cast_strip_callables = []
 
 func _init() -> void:
-	#_cast_strip_names = CAST_STRIP_NAMES.duplicate()
-	
 	pass
-	#for _class_name in CAST_STRIP_NAMES:
-		##var strip_pattern = r"\s*(?:->|:)\s*%s\b\s*" % _class_name
-		#var strip_pattern = r"\s*(?:->|:)\s*%s(\.\w+)*\b\s*" % _class_name
-		#var regex = RegEx.new()
-		#regex.compile(strip_pattern)
-		#var anon = func(line:String) -> String:
-			#return regex.sub(line, "", true)
-		#
-		#_cast_strip_callables.append(anon)
 
 
 # in parser_settings, create dictionary for extension of file,
