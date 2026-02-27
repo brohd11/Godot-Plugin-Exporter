@@ -11,6 +11,8 @@ var code_completion:CodeCompletion
 const CONTEXT_MENU_PLUGIN = preload("res://addons/plugin_exporter/src/editor_plugins/plugin_exporter_context_menus.gd")
 var context_plugin_inst:CONTEXT_MENU_PLUGIN
 
+const ConsoleCommand = preload("res://addons/plugin_exporter/src/editor_plugins/console_command.gd")
+
 const PLUGIN_EXPORT_GUI = preload("res://addons/plugin_exporter/src/plugin_export_gui.tscn")
 
 const SHOW_TOOL_MENU_ITEM = "plugin/plugin_exporter/show_tool_menu_item"
@@ -20,8 +22,6 @@ const COMMENT_TAGS = ["#! remote", "#! ignore-remote", "#! dependency", "#! sing
 static var instance
 
 var dm_instance_manager:DockManager.InstanceManager
-var syntax_plus:SyntaxPlus
-var editor_console:EditorConsole
 
 
 func _get_plugin_name() -> String:
@@ -39,14 +39,14 @@ func _enter_tree() -> void:
 	
 	dm_instance_manager = DockManager.InstanceManager.new(self)
 	
-	syntax_plus = SyntaxPlus.register_node(self)
-	SyntaxPlus.call_on_ready(_add_syntax_comment_tags)
+	SyntaxPlusSingleton.register_node(self)
+	SyntaxPlusSingleton.call_on_ready(_add_syntax_comment_tags)
 	
 	EditorCodeCompletion.register_plugin(self)
 	code_completion = CodeCompletion.new()
 	
-	editor_console = EditorConsole.register_plugin(self)
-	editor_console.call_on_ready(_register_editor_console)
+	#EditorConsoleSingleton.register_node(self) # don't think this is needed, register plugin above should handle it
+	EditorConsoleSingleton.call_on_ready(_register_editor_console)
 	
 	context_plugin_inst = CONTEXT_MENU_PLUGIN.new()
 	add_context_menu_plugin(EditorContextMenuPlugin.CONTEXT_SLOT_SCRIPT_EDITOR_CODE, context_plugin_inst)
@@ -67,12 +67,11 @@ func _exit_tree() -> void:
 	
 	EditorCodeCompletion.unregister_plugin(self)
 	
-	if is_instance_valid(syntax_plus):
-		for tag in COMMENT_TAGS:
-			var prefix = tag.get_slice(" ", 0)
-			var tag_name = tag.get_slice(" ", 1)
-			SyntaxPlus.unregister_comment_tag(prefix, tag_name)
-		syntax_plus.unregister_node(self)
+	for tag in COMMENT_TAGS:
+		var prefix = tag.get_slice(" ", 0)
+		var tag_name = tag.get_slice(" ", 1)
+		SyntaxPlusSingleton.unregister_comment_tag(prefix, tag_name)
+	SyntaxPlusSingleton.unregister_node(self)
 	
 	if is_instance_valid(dm_instance_manager):
 		dm_instance_manager.clean_up()
@@ -92,13 +91,7 @@ func _add_syntax_comment_tags():
 	for tag in COMMENT_TAGS:
 		var prefix = tag.get_slice(" ", 0)
 		var tag_name = tag.get_slice(" ", 1)
-		SyntaxPlus.register_comment_tag(prefix, tag_name)
+		SyntaxPlusSingleton.register_comment_tag(prefix, tag_name)
 
 func _register_editor_console():
-	var scope_data = {
-		"plugin_exporter":{
-			"script": PluginExporter
-			}
-	}
-	editor_console.register_temp_scope(scope_data)
-	pass
+	EditorConsoleSingleton.register_temp_scope("plugin_exporter", ConsoleCommand.new())
