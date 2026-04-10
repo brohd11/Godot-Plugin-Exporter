@@ -25,7 +25,8 @@ func _get_valid_commands_for_index(completion_context:CompletionContext, cmd_idx
 	var arguments = completion_context.arguments
 	var command = commands[cmd_idx]
 	var commands_object = Commands.new()
-	if arguments.size() > 0:
+	
+	if arguments.size() > 0 and not completion_context.execute:
 		return {}
 	match command:
 		"plugin_exporter":
