@@ -10,6 +10,8 @@ var code_completion:CodeCompletion
 
 const CONTEXT_MENU_PLUGIN = preload("res://addons/plugin_exporter/src/editor_plugins/plugin_exporter_context_menus.gd")
 var context_plugin_inst:CONTEXT_MENU_PLUGIN
+const ClassResolveContext = preload("res://addons/plugin_exporter/src/editor_plugins/class_resolve_context.gd")
+var class_resolve_context:ClassResolveContext
 
 const ConsoleCommand = preload("res://addons/plugin_exporter/src/editor_plugins/console_command.gd")
 
@@ -51,6 +53,9 @@ func _enter_tree() -> void:
 	context_plugin_inst = CONTEXT_MENU_PLUGIN.new()
 	add_context_menu_plugin(EditorContextMenuPlugin.CONTEXT_SLOT_SCRIPT_EDITOR_CODE, context_plugin_inst)
 	
+	class_resolve_context = ClassResolveContext.new()
+	add_context_menu_plugin(EditorContextMenuPlugin.CONTEXT_SLOT_SCRIPT_EDITOR_CODE, class_resolve_context)
+	
 	var ed_settings = EditorInterface.get_editor_settings()
 	if not ed_settings.has_setting(SHOW_TOOL_MENU_ITEM):
 		ed_settings.set_setting(SHOW_TOOL_MENU_ITEM, true)
@@ -60,6 +65,8 @@ func _enter_tree() -> void:
 
 func _exit_tree() -> void:
 	remove_context_menu_plugin(context_plugin_inst)
+	if is_instance_valid(class_resolve_context):
+		remove_context_menu_plugin(class_resolve_context)
 	remove_tool_menu_item("Plugin Exporter")
 	
 	if is_instance_valid(code_completion):

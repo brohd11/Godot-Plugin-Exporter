@@ -23,6 +23,7 @@ func _popup_menu(paths: PackedStringArray) -> void:
 
 
 func _on_popup_pressed(script_editor, item_name):
+	print("SELECTED ITEM::", item_name)
 	if item_name == SINGLETON_MODULE:
 		add_singleton_module(script_editor)
 	elif item_name == DEPENDENCY:
