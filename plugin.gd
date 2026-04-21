@@ -3,42 +3,37 @@ extends EditorPlugin
 
 const PLUGIN_EXPORTED = false
 
+const PLUGIN_EXPORT_GUI = preload("res://addons/plugin_exporter/src/plugin_export_gui.tscn")
+const COMMENT_TAGS = ["#! remote", "#! ignore-remote", "#! dependency", "#! singleton-module"]
+const SHOW_TOOL_MENU_ITEM = &"plugin/plugin_exporter/show_tool_menu_item"
+
 const UtilsRemote = preload("res://addons/plugin_exporter/src/class/utils_remote.gd")
 
-const CodeCompletion = preload("res://addons/plugin_exporter/src/editor_plugins/plugin_exporter_code_completion.gd")
-var code_completion:CodeCompletion
-
-const CONTEXT_MENU_PLUGIN = preload("res://addons/plugin_exporter/src/editor_plugins/plugin_exporter_context_menus.gd")
-var context_plugin_inst:CONTEXT_MENU_PLUGIN
-const ClassResolveContext = preload("res://addons/plugin_exporter/src/editor_plugins/class_resolve_context.gd")
-var class_resolve_context:ClassResolveContext
-
 const ConsoleCommand = preload("res://addons/plugin_exporter/src/editor_plugins/console_command.gd")
-
-const PLUGIN_EXPORT_GUI = preload("res://addons/plugin_exporter/src/plugin_export_gui.tscn")
-
-const SHOW_TOOL_MENU_ITEM = "plugin/plugin_exporter/show_tool_menu_item"
-
-const COMMENT_TAGS = ["#! remote", "#! ignore-remote", "#! dependency", "#! singleton-module"]
+const CodeCompletion = preload("res://addons/plugin_exporter/src/editor_plugins/plugin_exporter_code_completion.gd")
+const ContextMenuPlugin = preload("res://addons/plugin_exporter/src/editor_plugins/plugin_exporter_context_menus.gd")
 
 static var instance
 
+var code_completion:CodeCompletion
+var context_plugin_inst:ContextMenuPlugin
 var dm_instance_manager:DockManager.InstanceManager
-
 
 func _get_plugin_name() -> String:
 	return "Plugin Exporter"
+
 func _get_plugin_icon() -> Texture2D:
 	return EditorInterface.get_base_control().get_theme_icon("ActionCopy", &"EditorIcons")
+
 func _has_main_screen() -> bool:
 	return true
+
 func _make_visible(visible: bool) -> void:
 	dm_instance_manager.on_plugin_make_visible(visible)
 
 
 func _enter_tree() -> void:
 	instance = self
-	
 	dm_instance_manager = DockManager.InstanceManager.new(self)
 	
 	SyntaxPlusSingleton.register_node(self)
@@ -47,14 +42,10 @@ func _enter_tree() -> void:
 	EditorCodeCompletion.register_plugin(self)
 	code_completion = CodeCompletion.new()
 	
-	#EditorConsoleSingleton.register_node(self) # don't think this is needed, register plugin above should handle it
 	EditorConsoleSingleton.call_on_ready(_register_editor_console)
 	
-	context_plugin_inst = CONTEXT_MENU_PLUGIN.new()
+	context_plugin_inst = ContextMenuPlugin.new()
 	add_context_menu_plugin(EditorContextMenuPlugin.CONTEXT_SLOT_SCRIPT_EDITOR_CODE, context_plugin_inst)
-	
-	class_resolve_context = ClassResolveContext.new()
-	add_context_menu_plugin(EditorContextMenuPlugin.CONTEXT_SLOT_SCRIPT_EDITOR_CODE, class_resolve_context)
 	
 	var ed_settings = EditorInterface.get_editor_settings()
 	if not ed_settings.has_setting(SHOW_TOOL_MENU_ITEM):
@@ -65,8 +56,7 @@ func _enter_tree() -> void:
 
 func _exit_tree() -> void:
 	remove_context_menu_plugin(context_plugin_inst)
-	if is_instance_valid(class_resolve_context):
-		remove_context_menu_plugin(class_resolve_context)
+	
 	remove_tool_menu_item("Plugin Exporter")
 	
 	if is_instance_valid(code_completion):
