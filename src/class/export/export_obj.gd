@@ -7,6 +7,7 @@ const _ExportFileUtils = _UtilsLocal.ExportFileUtils
 const _ExportFileKeys = _ExportFileUtils.ExportFileKeys
 const _ExportData = _UtilsLocal.ExportData
 const _FileParser = _UtilsLocal.FileParser
+const _UClassDetail = _UtilsRemote.UClassDetail
 
 var export_data: _ExportData
 var source:String
@@ -54,7 +55,7 @@ var shared_data:Dictionary = {}
 
 var export_file_data:Dictionary = {}
 
-var export_valid = true
+var export_valid:bool = true
 
 func get_backport_files(backport_target):
 	var required_backport_files = _UtilsLocal.Backport.get_required_files(backport_target)
@@ -83,7 +84,7 @@ func get_valid_files_for_transfer():
 		var export_path = get_export_path(l_path)
 		
 		if FileAccess.file_exists(export_path) and not export_data.overwrite:
-			_UEditor.push_toast("File exists, aborting: " + export_path, 2)
+			_UEditor.push_toast("File exists, aborting: " + export_path, 2 as _UEditor.ToastSeverity)
 			return
 		
 		if FileAccess.file_exists(l_path): # check that it is file vs dir
@@ -102,7 +103,7 @@ func get_valid_files_for_transfer():
 		for from in from_files:
 			if not FileAccess.file_exists(from):
 				if not from.begins_with("PE_VIRTUAL"):
-					_UEditor.push_toast("File_doesn't exist, aborting: " + from, 2)
+					_UEditor.push_toast("File_doesn't exist, aborting: " + from, 2 as _UEditor.ToastSeverity)
 					return
 				var virtual_file_type = from
 				var virtual_export_path = get_export_path(to)
@@ -119,7 +120,7 @@ func get_valid_files_for_transfer():
 				to_path = to.path_join(from.get_file())
 			
 			if FileAccess.file_exists(to_path) and not export_data.overwrite:
-				_UEditor.push_toast("File exists, aborting: " + to_path, 2)
+				_UEditor.push_toast("File exists, aborting: " + to_path, 2 as _UEditor.ToastSeverity)
 				return
 			
 			var export_path = get_export_path(to_path)
@@ -150,6 +151,15 @@ func sort_valid_files():
 			files_to_process_for_paths[file] = {_ExportFileKeys.to: standard_export_path}
 			files_to_copy[file] = valid_files_for_transfer.get(file)
 			continue
+		
+		if file_ext == "gd":
+			var global_name = _UClassDetail.get_global_class_name(file)
+			if global_name != "" and not global_classes_used.has(global_name):
+				global_classes_used[global_name] = {
+					#_ExportFileKeys.dependent: file,
+					_ExportFileKeys.path: file
+					}
+				global_classes_used_paths[file] = global_name
 		
 		var file_needs_processing = _ExportFileUtils.is_remote_file(file)
 		if not file_needs_processing:
@@ -285,27 +295,36 @@ func get_file_dependencies():
 
 func get_global_class_export_paths():
 	for name in global_classes_used.keys():
-		if name in class_renames.keys():
-			var data = global_classes_used.get(name)
-			var remote_path = data.get(_ExportFileKeys.path)
-			var dependent = data.get(_ExportFileKeys.dependent)
-			var remote_dir_path = get_remote_file_local_path(remote_path)
-			
-			if _UtilsRemote.UFile.is_file_in_directory(remote_path, source):
-				remote_dir_path = remote_path # if in plugin, do not move to remote
-				dependent = null # if in plugin, no dependent, will be transferred regardless
-			elif dependent == remote_path:
-				dependent = null # if global class was found in self, no dependent
-			var adjusted_path = remote_dir_path
-			adjusted_path = get_renamed_path(adjusted_path)
-			adjusted_remote_paths[remote_path] = adjusted_path
-			class_renames[name] = remote_path
-			
-			var export_path = get_export_path(remote_dir_path)
-			files_to_copy[remote_path] = {
-				_ExportFileKeys.to: export_path,
-				_ExportFileKeys.dependent: dependent,
-				}
+		var to_rename = name in class_renames.keys()
+		#if to_rename: # originally limited to only those that would be renamed
+		var data = global_classes_used.get(name)
+		var remote_path = data.get(_ExportFileKeys.path)
+		var dependent = data.get(_ExportFileKeys.dependent)
+		var remote_dir_path = get_remote_file_local_path(remote_path)
+		
+		if not to_rename:
+			print(remote_dir_path)
+			pass
+		elif _UtilsRemote.UFile.is_file_in_directory(remote_path, source):
+			remote_dir_path = remote_path # if in plugin, do not move to remote
+			dependent = null # if in plugin, no dependent, will be transferred regardless
+		elif dependent == remote_path:
+			dependent = null # if global class was found in self, no dependent
+		
+		if not to_rename: # non renamed ones will be moved to "global", allowing src to be hidden
+			remote_dir_path = source.path_join("global").path_join(remote_dir_path.trim_prefix(remote_dir))
+		
+		var adjusted_path = remote_dir_path
+		
+		adjusted_path = get_renamed_path(adjusted_path)
+		adjusted_remote_paths[remote_path] = adjusted_path
+		class_renames[name] = remote_path
+		
+		var export_path = get_export_path(remote_dir_path)
+		files_to_copy[remote_path] = {
+			_ExportFileKeys.to: export_path,
+			_ExportFileKeys.dependent: dependent,
+			}
 
 func check_all_files_have_valid_path():
 	for file_path in files_to_copy.keys():
