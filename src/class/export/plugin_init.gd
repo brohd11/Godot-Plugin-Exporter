@@ -95,6 +95,10 @@ static func plugin_init(plugin_name:=""):
 	
 	UFile.write_to_json(template_data, export_config_path)
 	
+	var gitignore_fa = FileAccess.open(export_ignore_dir.path_join(".gitignore"), FileAccess.WRITE)
+	gitignore_fa.store_line("exports/")
+	gitignore_fa.close()
+	
 	EditorInterface.get_resource_filesystem().scan()
 	
 	print("Plugin init complete: %s" % plugin_dir)

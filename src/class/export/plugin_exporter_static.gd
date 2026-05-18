@@ -108,10 +108,14 @@ static func export_plugin(export_config_path:String, include_uid_overide=null, i
 			file.close()
 			print("Created .gdignore for in-resource file system export.")
 	
-	var gitignore_path = full_export_path.path_join(".gitignore")
-	var file = FileAccess.open(gitignore_path, FileAccess.WRITE)
-	file.store_string("**")
-	file.close()
+	
+	# moved to the export ignore folder, just ignoring all exports now
+	#var gitignore_path = export_data.export_root.path_join(".gitignore")
+	#if not FileAccess.file_exists(gitignore_path):
+		##var gitignore_path = full_export_path.path_join(".gitignore")
+		#var file = FileAccess.open(gitignore_path, FileAccess.WRITE)
+		#file.store_string("**")
+		#file.close()
 	
 	return true
 	
