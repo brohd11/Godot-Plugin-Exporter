@@ -57,11 +57,23 @@ func _init(export_config_path):
 		if not _ExportFileUtils.check_export_script_valid(pre_script, "pre_export"):
 			return
 	
+	var strip_cast_path = export_config_path.get_base_dir().path_join("strip_cast.txt")
+	var strip_cast_names = []
+	if FileAccess.file_exists(strip_cast_path):
+		var file = FileAccess.get_file_as_string(strip_cast_path)
+		strip_cast_names = file.split("\n", false)
+		for i in range(strip_cast_names.size()):
+			strip_cast_names[i] = strip_cast_names[i].strip_edges()
+	
 	options = export_data.get(_ExportFileKeys.options)
 	overwrite = options.get(_ExportFileKeys.overwrite, false)
 	include_uid = options.get(_ExportFileKeys.include_uid, true)
 	include_import = options.get(_ExportFileKeys.include_import, true)
 	parser_settings = options.get(_ExportFileKeys.parser_settings, {})
+	
+	if not strip_cast_names.is_empty():
+		parser_settings["parse_gd"]["strip_cast"] = strip_cast_names
+	
 	parser_settings = _sort_settings_dict(parser_settings)
 	
 	_get_class_list()
