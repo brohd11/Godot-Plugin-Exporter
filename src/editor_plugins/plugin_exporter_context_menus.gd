@@ -2,8 +2,9 @@ extends EditorContextMenuPlugin
 
 const SLOT = EditorContextMenuPlugin.CONTEXT_SLOT_SCRIPT_EDITOR_CODE
 
+const Params = PopupWrapper.ItemParams
+
 const UtilsRemote = preload("res://addons/plugin_exporter/src/class/utils_remote.gd")
-const PopupWrapper = UtilsRemote.PopupWrapper
 const UFile = UtilsRemote.UFile
 
 const DEPENDENCY_TAGS = ["#! dependency", "#! ignore-remote"]
@@ -14,6 +15,11 @@ const EXPORTED_FLAG = "Plugin Exporter/Exported Flag"
 const BACKPORT_FLAG = "Plugin Exporter/Backport Flag"
 const IGNORE_REMOTE = "Plugin Exporter/Ignore Remote"
 
+const STD_META = {
+	Params.PRIORITY: 1020,
+	Params.POSITION: Params.Position.BOTTOM,
+}
+
 
 func _popup_menu(paths: PackedStringArray) -> void:
 	var script_editor:CodeEdit = Engine.get_main_loop().root.get_node(paths[0]);
@@ -23,7 +29,6 @@ func _popup_menu(paths: PackedStringArray) -> void:
 
 
 func _on_popup_pressed(script_editor, item_name):
-	print("SELECTED ITEM::", item_name)
 	if item_name == SINGLETON_MODULE:
 		add_singleton_module(script_editor)
 	elif item_name == DEPENDENCY:
@@ -42,12 +47,12 @@ static func get_valid_items(script_editor:CodeEdit) -> Dictionary:
 	var line = script_editor.get_caret_line()
 	var text = script_editor.get_line(line)
 	if text == "":
-		valid_items[EXPORTED_FLAG] = {}
-		valid_items[BACKPORT_FLAG] = {}
+		valid_items[EXPORTED_FLAG] = STD_META
+		valid_items[BACKPORT_FLAG] = STD_META
 	
 	if text.begins_with("class_name"):
 		if text.find("#! singleton-module") == -1:
-			valid_items[SINGLETON_MODULE] = {}
+			valid_items[SINGLETON_MODULE] = STD_META
 	
 	if text.count('"') == 2:
 		var valid_dep = true
@@ -59,11 +64,11 @@ static func get_valid_items(script_editor:CodeEdit) -> Dictionary:
 		if not UFile.file_exists(file_path):
 			valid_dep = false
 		if valid_dep:
-			valid_items[DEPENDENCY] = {}
+			valid_items[DEPENDENCY] = STD_META
 			if _is_remote_file(script_editor):
 				pass
 			else:
-				valid_items[IGNORE_REMOTE] = {}
+				valid_items[IGNORE_REMOTE] = STD_META
 	
 	return valid_items
 
