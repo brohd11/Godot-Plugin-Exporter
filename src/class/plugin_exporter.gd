@@ -37,3 +37,20 @@ static func open_export_folder(plugin_name:String):
 		printerr("Could not find file: %s" % export_config_path)
 		return
 	PluginExporterStatic.open_export_dir(export_config_path)
+
+
+static func get_addons_dirs(limit_to:="valid"):
+	var addons_dirs = DirAccess.get_directories_at("res://addons")
+	var data = {}
+	for dir in addons_dirs:
+		var plugin_export_path = "res://addons".path_join(dir).path_join("export_ignore/plugin_export.json")
+		if limit_to == "valid":
+			if not FileAccess.file_exists(plugin_export_path):
+				continue
+		elif limit_to == "not_valid":
+			if FileAccess.file_exists(plugin_export_path):
+				continue
+		elif limit_to != "all":
+			continue
+		data[dir] = {}
+	return data

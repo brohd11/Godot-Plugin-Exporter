@@ -9,7 +9,7 @@ const SHOW_TOOL_MENU_ITEM = &"plugin/plugin_exporter/show_tool_menu_item"
 
 const UtilsRemote = preload("res://addons/plugin_exporter/src/class/utils_remote.gd")
 
-const ConsoleCommand = preload("res://addons/plugin_exporter/src/editor_plugins/console_command.gd")
+const ConsoleCommand = preload("res://addons/plugin_exporter/src/editor_plugins/console_command/console_command.gd")
 const CodeCompletion = preload("res://addons/plugin_exporter/src/editor_plugins/plugin_exporter_code_completion.gd")
 const ContextMenuPlugin = preload("res://addons/plugin_exporter/src/editor_plugins/plugin_exporter_context_menus.gd")
 
