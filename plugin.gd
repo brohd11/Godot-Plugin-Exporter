@@ -91,4 +91,4 @@ func _add_syntax_comment_tags():
 		SyntaxPlusSingleton.register_comment_tag(prefix, tag_name)
 
 func _register_editor_console():
-	EditorConsoleSingleton.register_temp_scope("plugin_exporter", ConsoleCommand.new())
+	EditorConsoleSingleton.register_temp_scope("plugin_exporter", ConsoleCommand)
