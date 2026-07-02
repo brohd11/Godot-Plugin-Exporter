@@ -5,8 +5,16 @@ extends RefCounted
 ## literal forms). Everything with an engine-API footprint is dated data-driven
 ## via `version_api.gd` instead — this table stays deliberately small.
 ##
-## Patterns are lifted verbatim from the backport parsers
-## (`.../parse/gd/backport/4_0_backports.gd`, `4_4_backports.gd`).
+## Patterns match the string/comment-sanitized line (on_raw = false) except raw
+## strings, which must inspect the literal itself (on_raw = true).
+##
+## Intentionally NOT covered (not reliably detectable by regex):
+##   - Local constants used as type hints (4.2) — indistinguishable from normal
+##     typing.
+##   - Typed node exports `@export var x: NodeType` (4.2) — the `@export var x: T`
+##     syntax isn't new; only a Node-typed target is, which needs a type check.
+## `@export_storage` (4.3) is grouped with the 4.3 export additions but is
+## UNVERIFIED (no 4.3 binary to confirm against).
 
 ## Each rule: { name, version, on_raw, regex:RegEx }
 ##   on_raw = true  -> match against the untouched line (needed for string
@@ -14,18 +22,37 @@ extends RefCounted
 ##                     sanitizer would otherwise mask).
 ##   on_raw = false -> match against string/comment-sanitized code.
 const _DEFS := [
+	# 4.1
 	{"name": "static var", "version": "4.1", "on_raw": false,
 		"pattern": "^\\s*static\\s+var\\s+"},
+	{"name": "_static_init() static constructor", "version": "4.1", "on_raw": false,
+		"pattern": "^\\s*(static\\s+)?func\\s+_static_init\\b"},
+	{"name": "@static_unload", "version": "4.1", "on_raw": false,
+		"pattern": "^\\s*@static_unload\\b"},
+	# 4.2
+	{"name": "typed for-loop variable", "version": "4.2", "on_raw": false,
+		"pattern": "^\\s*for\\s+[A-Za-z_][A-Za-z0-9_]*\\s*:"},
+	# 4.3
+	{"name": "is not operator", "version": "4.3", "on_raw": false,
+		"pattern": "\\S+\\s+is\\s+not\\s+\\S+"},
+	{"name": "not in operator", "version": "4.3", "on_raw": false,
+		"pattern": "\\bnot\\s+in\\b"},
+	{"name": "@export_custom", "version": "4.3", "on_raw": false,
+		"pattern": "^\\s*@export_custom\\b"},
+	{"name": "@export_storage", "version": "4.3", "on_raw": false,  # unverified
+		"pattern": "^\\s*@export_storage\\b"},
+	# 4.4
 	{"name": "@export_tool_button", "version": "4.4", "on_raw": false,
 		"pattern": "^\\s*@export_tool_button\\b"},
-	{"name": "is not operator", "version": "4.4", "on_raw": false,
-		"pattern": "\\S+\\s+is\\s+not\\s+\\S+"},
 	{"name": "typed Dictionary", "version": "4.4", "on_raw": false,
 		"pattern": "\\bDictionary\\s*\\["},
 	{"name": "raw string literal", "version": "4.4", "on_raw": true,
 		"pattern": "(?<!\\w)r(\"\"\"|'''|\"|')"},
+	# 4.5
 	{"name": "@abstract / abstract class", "version": "4.5", "on_raw": false,
 		"pattern": "^\\s*(@abstract\\b|abstract\\s+(class|func)\\b)"},
+	{"name": "variadic function arguments", "version": "4.5", "on_raw": false,
+		"pattern": "\\.\\.\\.[A-Za-z_]"},
 ]
 
 var _rules: Array = []
