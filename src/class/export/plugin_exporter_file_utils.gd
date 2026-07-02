@@ -400,6 +400,9 @@ static func is_singleton_module_script(file_path:String):
 	var singleton_scripts = ["singleton_base.gd", "singleton_ref_count.gd"]
 	if file_path.get_file() in singleton_scripts:
 		return false
+	if not FileAccess.file_exists(file_path):
+		printerr("Could not find file: ", file_path)
+		return false
 	var script = load(file_path) as GDScript
 	var base_type = script.get_base_script()
 	if base_type == null: return false

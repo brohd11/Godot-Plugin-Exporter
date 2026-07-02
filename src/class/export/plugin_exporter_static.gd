@@ -11,6 +11,14 @@ const UFile = UtilsRemote.UFile
 const ExportData = UtilsLocal.ExportData
 const FileParser = UtilsLocal.FileParser
 
+static func get_export_data_by_name(plugin_dir_name:String) -> ExportData:
+	var addon_dir = "res://addons".path_join(plugin_dir_name)
+	var export_config_path = addon_dir.path_join("export_ignore/plugin_export.json")
+	if not FileAccess.file_exists(export_config_path):
+		return null
+	var export_data = ExportData.new(export_config_path)
+	return export_data
+
 static func export_by_gui(export_config_path:String, include_uid_overide=null, include_import_overide=null):
 	var success = export_plugin(export_config_path, include_uid_overide, include_import_overide)
 	

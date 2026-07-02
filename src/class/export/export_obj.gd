@@ -303,7 +303,7 @@ func get_global_class_export_paths():
 		var remote_dir_path = get_remote_file_local_path(remote_path)
 		
 		if not to_rename:
-			print(remote_dir_path)
+			#print(remote_dir_path)
 			pass
 		elif _UtilsRemote.UFile.is_file_in_directory(remote_path, source):
 			remote_dir_path = remote_path # if in plugin, do not move to remote
