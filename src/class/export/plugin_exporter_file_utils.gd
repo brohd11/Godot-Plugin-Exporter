@@ -18,8 +18,21 @@ static var _lookback_regex:RegEx
 
 static var string_maps = {}
 
+static func get_export_config_path(addon_name:String):
+	var file_paths = [
+		"res://addons/%s/export_ignore/plugin_export.yml" % addon_name,
+		"res://addons/%s/export_ignore/plugin_export.yaml" % addon_name,
+		"res://addons/%s/export_ignore/plugin_export.json" % addon_name,
+	]
+	for file in file_paths:
+		if FileAccess.file_exists(file):
+			return file
+	return file_paths[0]
 
-static func get_export_data(export_config_path):
+static func name_to_export_config_path(plugin_name:String):
+	return get_export_config_path(plugin_name)
+
+static func get_export_data(export_config_path:String):
 	if not FileAccess.file_exists(export_config_path):
 		print("Export file path does not exist.")
 		return
@@ -29,12 +42,17 @@ static func get_export_data(export_config_path):
 		return
 	
 	var config_string = export_file.get_as_text()
-	var json = JSON.new()
-	var parse_result = json.parse(config_string)
-	if parse_result != OK:
-		printerr("Plugin Exporter - Error parsing JSON: " + json.get_error_message() + " at line " + str(json.get_error_line()))
-		return
-	return json.data
+	if export_config_path.get_extension() == "json":
+		var json = JSON.new()
+		var parse_result = json.parse(config_string)
+		if parse_result != OK:
+			printerr("Plugin Exporter - Error parsing JSON: " + json.get_error_message() + " at line " + str(json.get_error_line()))
+			return
+		return json.data
+	elif export_config_path.get_extension() in ["yml", "yaml"]:
+		var parser = YAMLParser.new()
+		var result = parser.parse(config_string)
+		return result
 
 static func get_file_export_path(file_path:String, export_config_path:String, desired_export:int=-1, export_data:ExportData=null):
 	if not FileAccess.file_exists(file_path):
@@ -309,8 +327,7 @@ static func is_remote_file(file_path:String):
 		#return false
 	#return true
 
-static func name_to_export_config_path(plugin_name:String):
-	return "res://addons".path_join(plugin_name).path_join("export_ignore").path_join("plugin_export.json")
+
 
 static func get_global_classes_in_file(file_path:String, global_class_dict:Dictionary):
 	var class_data = _get_global_classes_in_file(file_path, global_class_dict)

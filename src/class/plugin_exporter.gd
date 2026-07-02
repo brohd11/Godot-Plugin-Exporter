@@ -17,7 +17,7 @@ static func plugin_init(plugin_name:String):
 	PluginInit.plugin_init(plugin_name)
 
 static func gui_open(plugin_name:String):
-	var export_file_path = "res://addons/%s/export_ignore/plugin_export.json" % plugin_name
+	var export_file_path = UtilsLocal.ExportFileUtils.get_export_config_path(plugin_name)
 	if not FileAccess.file_exists(export_file_path):
 		printerr("File does not exist: %s" % export_file_path)
 		return
@@ -32,7 +32,7 @@ static func gui_open(plugin_name:String):
 	gui_instance.load_export_file(export_file_path, read_file)
 
 static func open_export_folder(plugin_name:String):
-	var export_config_path = UtilsLocal.ExportFileUtils.name_to_export_config_path(plugin_name)
+	var export_config_path = UtilsLocal.ExportFileUtils.get_export_config_path(plugin_name)
 	if not FileAccess.file_exists(export_config_path):
 		printerr("Could not find file: %s" % export_config_path)
 		return
@@ -43,7 +43,7 @@ static func get_addons_dirs(limit_to:="valid"):
 	var addons_dirs = DirAccess.get_directories_at("res://addons")
 	var data = {}
 	for dir in addons_dirs:
-		var plugin_export_path = "res://addons".path_join(dir).path_join("export_ignore/plugin_export.json")
+		var plugin_export_path = UtilsLocal.ExportFileUtils.get_export_config_path(dir)
 		if limit_to == "valid":
 			if not FileAccess.file_exists(plugin_export_path):
 				continue

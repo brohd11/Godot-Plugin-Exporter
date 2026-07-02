@@ -55,7 +55,8 @@ static func plugin_init(plugin_name:=""):
 	if not DirAccess.dir_exists_absolute(export_ignore_dir):
 		DirAccess.make_dir_recursive_absolute(export_ignore_dir)
 	
-	var export_config_path = export_ignore_dir.path_join("plugin_export.json")
+	#var export_config_path = export_ignore_dir.path_join("plugin_export.json")
+	var export_config_path = export_ignore_dir.path_join("plugin_export.yml")
 	if FileAccess.file_exists(export_config_path):
 		var conf = ALibRuntime.Dialog.Handlers.Confirmation.new("Overwrite: %s?" % export_config_path)
 		var conf_handled = await conf.handled
@@ -93,7 +94,10 @@ static func plugin_init(plugin_name:=""):
 	template_data[ExportFileKeys.pre_script] = export_pre_post
 	template_data[ExportFileKeys.post_script] = export_pre_post
 	
-	UFile.write_to_json(template_data, export_config_path)
+	#UFile.write_to_json(template_data, export_config_path)
+	var dump = YAMLParser.dump(template_data)
+	var f = FileAccess.open(export_config_path, FileAccess.WRITE)
+	f.store_string(dump)
 	
 	var gitignore_fa = FileAccess.open(export_ignore_dir.path_join(".gitignore"), FileAccess.WRITE)
 	gitignore_fa.store_line("exports/")
@@ -159,7 +163,8 @@ class PluginExportJSON:
 		return {
 			"export_root": "",
 			"plugin_folder": "",
-			"exports": [],
+			"pre_script": "",
+			"post_script": "",
 			"options": {
 				"overwrite": true,
 				"include_uid": true,
@@ -178,7 +183,8 @@ class PluginExportJSON:
 					"parse_tscn":{},
 					"parse_tres":{},
 				}
-			}
+			},
+			"exports": [],
 		}
 	
 	static func get_export_obj_data():
