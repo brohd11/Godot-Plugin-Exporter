@@ -9,11 +9,9 @@ extends RefCounted
 
 const UFile = preload("res://addons/addon_lib/brohd/alib_runtime/utils/u_file.gd")
 
-const BASELINE := "4.0"
-
-const VERSIONS := {
-	"4.0": 0, "4.1": 1, "4.2": 2, "4.3": 3, "4.4": 4, "4.5": 5, "4.6": 6, "4.7": 7,
-}
+## Lowest version the index covers; findings at/below it don't raise the floor.
+## Derived from the index's baked "versions" list (fallback if the index lacks it).
+var baseline := "4.0"
 
 var _index := {}
 var _loaded := false
@@ -26,6 +24,9 @@ func _ensure_loaded() -> void:
 	var path: String = get_script().resource_path.get_base_dir().path_join("extension_api/api_min_version.json")
 	if FileAccess.file_exists(path):
 		_index = UFile.read_from_json(path)
+		var versions: Array = _index.get("versions", [])
+		if not versions.is_empty():
+			baseline = versions[0]
 
 
 func has_index() -> bool:
@@ -75,14 +76,14 @@ func member_min_version(class_nm: String, member: String) -> String:
 	return ""
 
 
-# --- version math helpers (real versions only) ---
+# --- version math helpers ---
 
+## Ordering key for a "major.minor" version string (major*1000+minor), so 4.7 <
+## 4.8 < 4.10 < 5.0 with no version table. -1 when unparseable.
 static func version_code(v: String) -> int:
-	if VERSIONS.has(v):
-		return VERSIONS[v]
 	var parts := v.split(".")
-	if parts.size() >= 2 and parts[1].is_valid_int():
-		return int(parts[1])
+	if parts.size() >= 2 and parts[0].is_valid_int() and parts[1].is_valid_int():
+		return int(parts[0]) * 1000 + int(parts[1])
 	return -1
 
 

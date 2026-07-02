@@ -57,7 +57,7 @@ static func _re(pattern: String) -> RegEx:
 
 ## Scan one file. Returns { min_version:String, findings:[{line,feature,version}] }.
 func scan_file(file_path: String) -> Dictionary:
-	var result := {"min_version": VersionApi.BASELINE, "findings": [], "_seen": {}}
+	var result := {"min_version": api.baseline, "findings": [], "_seen": {}}
 	var ext := file_path.get_extension()
 	if ext != "gd" and ext != "tscn" and ext != "tres":
 		result.erase("_seen")
@@ -159,11 +159,11 @@ func _scan_resource_line(line: String, line_no: int, result: Dictionary) -> void
 
 
 ## Fold one (feature, version) hit into the result. "" is ignored (unknown /
-## user-defined), "4.0" is the baseline (no floor), anything higher raises it.
-## Deduped by feature+line so verbose can list every distinct occurrence while a
-## feature matched twice on one line collapses.
+## user-defined), the baseline version (no floor) is dropped, anything higher
+## raises it. Deduped by feature+line so verbose can list every distinct
+## occurrence while a feature matched twice on one line collapses.
 func _record(result: Dictionary, line_no: int, feature: String, version: String) -> void:
-	if version == "" or version == VersionApi.BASELINE:
+	if version == "" or VersionApi.version_code(version) <= VersionApi.version_code(api.baseline):
 		return
 	var seen: Dictionary = result["_seen"]
 	var key := "%s@%d" % [feature, line_no]

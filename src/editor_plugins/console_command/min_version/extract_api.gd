@@ -21,15 +21,24 @@ const OUTPUT_PATH := "res://addons/plugin_exporter/src/editor_plugins/console_co
 
 ## Build the merged index. Returns the output path (empty on failure).
 static func build() -> String:
-	# Collect available dumps, ascending by minor version.
-	var versions := []  # [{minor:int, path:String, version:String}]
-	for minor in range(0, 30):
-		var path := SOURCE_DIR.path_join("extension_api_4%d.json" % minor)
-		if FileAccess.file_exists(path):
-			versions.append({"minor": minor, "path": path, "version": "4.%d" % minor})
-	if versions.is_empty():
-		printerr("extract_api: no extension_api_4X.json dumps in ", SOURCE_DIR)
+	# Discover every extension_api_*.json dump and read its version from the
+	# header (authoritative, major-agnostic), ascending by version.
+	var dumps := []  # [{path:String, version:String}]
+	for file_name in DirAccess.get_files_at(SOURCE_DIR):
+		if not (file_name.begins_with("extension_api_") and file_name.ends_with(".json")):
+			continue
+		var path := SOURCE_DIR.path_join(file_name)
+		var data: Dictionary = UFile.read_from_json(path)
+		var header: Dictionary = data.get("header", {})
+		if not header.has("version_minor"):
+			printerr("extract_api: no header version in ", path)
+			continue
+		var version := "%d.%d" % [int(header.get("version_major", 4)), int(header.get("version_minor"))]
+		dumps.append({"path": path, "version": version})
+	if dumps.is_empty():
+		printerr("extract_api: no extension_api_*.json dumps in ", SOURCE_DIR)
 		return ""
+	dumps.sort_custom(func(a, b): return _version_code(a["version"]) < _version_code(b["version"]))
 
 	var classes := {}       # name -> earliest version
 	var members := {}       # class -> { member -> earliest version }
@@ -37,7 +46,7 @@ static func build() -> String:
 	var global_enums := {}  # enum value name -> earliest version
 	var inherits := {}      # class -> parent (newest dump wins)
 
-	for entry in versions:
+	for entry in dumps:
 		var v: String = entry["version"]
 		var data: Dictionary = UFile.read_from_json(entry["path"])
 		if data.is_empty():
@@ -66,7 +75,12 @@ static func build() -> String:
 				if vname != "" and not global_enums.has(vname):
 					global_enums[vname] = v
 
+	var version_list := []
+	for entry in dumps:
+		version_list.append(entry["version"])
+
 	var index := {
+		"versions": version_list,
 		"classes": classes,
 		"members": members,
 		"utils": utils,
@@ -87,8 +101,16 @@ static func build() -> String:
 	print("extract_api: wrote ", OUTPUT_PATH, " — ", classes.size(), " classes, ",
 		member_total, " members, ", utils.size(), " utils, ",
 		global_enums.size(), " global enum values (versions ",
-		versions[0]["version"], "..", versions[-1]["version"], ")")
+		dumps[0]["version"], "..", dumps[-1]["version"], ")")
 	return OUTPUT_PATH
+
+
+## Ordering key for a "major.minor" version string (major*1000+minor).
+static func _version_code(v: String) -> int:
+	var parts := v.split(".")
+	if parts.size() >= 2 and parts[0].is_valid_int() and parts[1].is_valid_int():
+		return int(parts[0]) * 1000 + int(parts[1])
+	return -1
 
 
 ## Add a class dict's own members to `md`, keeping the earliest version seen.

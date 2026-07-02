@@ -11,13 +11,18 @@ const VersionApi = preload("res://addons/plugin_exporter/src/editor_plugins/cons
 const _HELP = \
 "Report the minimum Godot version a plugin's exports can run on.
 Scans every file in each export package for version-gated syntax and API usage.
-Usage: min_version <addon_name> [--verbose] [--full]
+Usage: min_version [--min=4.4] <addon_name> [--verbose] [--full]
   --verbose  List every occurrence with its file:line location.
   --full     Future GDScript-parser deep scan (variable type inference); not yet
-             implemented — currently runs the standard scan."
+             implemented — currently runs the standard scan.
+  --min=VER  Only show findings introduced above VER (e.g. --min=4.4). Does not
+             change the scan or the reported minimum, only what is listed.
+             Can set $PLUGIN_EXPORTER_MIN_VERSION for persistence, flag overides variable."
 
 var verbose_flag := false
 var full_flag := false
+var min_flag := ""
+var _min_provided := false
 
 static func get_command_name():
 	return "min_version"
@@ -33,6 +38,10 @@ func _get_flags() -> Dictionary:
 	var options = Options.new()
 	options.add_option("--verbose", {&"help": "List every occurrence with its file:line location."})
 	options.add_option("--full", {&"help": "Future parser-based deep scan (not yet implemented)."})
+	options.add_option("--min=", {
+		&"help": "Only show findings introduced above this Godot version (e.g. 4.4).",
+		&"trailing_char": "",
+	})
 	return options.get_options()
 
 func _process_flag(flag:String):
@@ -40,8 +49,13 @@ func _process_flag(flag:String):
 		verbose_flag = true
 	elif flag == "--full":
 		full_flag = true
+	elif flag.begins_with("--min="):
+		min_flag = _get_flag_value(flag)
+		_min_provided = true
 
 func _get_completions(ctx:CompletionContext):
+	if _completion_last_is_flag(ctx):
+		return _get_completion_std_w_context(ctx, false)
 	var options = Options.new()
 	var addon_dirs = PluginExporter.get_addons_dirs("valid")
 	for d in addon_dirs:
@@ -49,6 +63,12 @@ func _get_completions(ctx:CompletionContext):
 	return options.get_options()
 
 func _execute(ctx:CompletionContext):
+	if min_flag == "":
+		var min_var = ctx.get_variable("$PLUGIN_EXPORTER_MIN_VERSION")
+		min_flag = UString.unquote(min_var)
+		if not min_flag.is_empty():
+			_min_provided = true
+	
 	var addon_name = positional_args[0]
 	var export_data = PluginExporter.PluginExporterStatic.get_export_data_by_name(addon_name)
 
@@ -64,10 +84,20 @@ func _execute(ctx:CompletionContext):
 	if full_flag:
 		ctx.append_output("(--full parser-based deep scan not yet implemented; running standard scan)")
 
-	var overall := VersionApi.BASELINE
+	# Display filter: only list findings introduced strictly above --min. -1 = no filter.
+	var min_code := -1
+	if _min_provided:
+		if min_flag == "":
+			ctx.append_error("--min needs a version and must appear before the addon name, e.g. `min_version --min=4.4 %s`." % addon_name)
+		else:
+			min_code = VersionApi.version_code(min_flag)
+			if min_code == -1:
+				ctx.append_error("Unrecognized --min version '%s'; showing all findings." % min_flag)
+
+	var overall: String = scanner.api.baseline
 
 	for export:Export in export_data.exports:
-		var export_min := VersionApi.BASELINE
+		var export_min: String = scanner.api.baseline
 		var all_findings := []    # every occurrence: {feature, version, location}
 
 		for file_path:String in export.files_to_copy.keys():
@@ -94,11 +124,15 @@ func _execute(ctx:CompletionContext):
 					return ca > cb
 				return a["feature"] < b["feature"])
 			for data in all_findings:
+				if VersionApi.version_code(data["version"]) <= min_code:
+					continue
 				ctx.append_output("  %s  %s  ([url=%s]%s[/url])" % [data["version"], data["feature"], data["location"], data["location"].get_file()])
 		else:
 			# Distinct reasons only, no location, highest version first.
 			var reasons := {}
 			for data in all_findings:
+				if VersionApi.version_code(data["version"]) <= min_code:
+					continue
 				reasons[data["feature"]] = data["version"]
 			var features := reasons.keys()
 			features.sort_custom(func(a, b):
