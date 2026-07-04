@@ -425,6 +425,23 @@ static func is_singleton_module_script(file_path:String):
 	if base_type == null: return false
 	return base_type.resource_path.get_file() in singleton_scripts
 
+#! keys exit:int output:Array
+static func run_git_exec(dir:String, args:Array):
+	var final_args = [
+		"-C",
+		dir.replace("res://", ""),
+	]
+	final_args.append_array(args)
+	var output = []
+	var exit_code = OS.execute("git", final_args, output)
+	return {
+		&"exit":exit_code,
+		&"output": output
+	}
+
+#! keys i-run_git_exec;
+static func run_git_describe(dir:String) -> Dictionary:
+	return run_git_exec(dir, ["describe", "--tags", "--always", "--dirty" ])
 
 class ExportFileKeys:
 	const export_root = "export_root"
@@ -458,6 +475,8 @@ class ExportFileKeys:
 	const options = "options"
 	const include_import = "include_import"
 	const include_uid = "include_uid"
+	const use_tag_in_cfg = "use_tag_in_cfg"
+	const remove_cfg_deps = "remove_cfg_deps"
 	const overwrite = "overwrite"
 	const ignore_dependencies = "ignore_dependencies"
 	

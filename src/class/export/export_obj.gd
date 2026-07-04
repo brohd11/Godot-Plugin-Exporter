@@ -387,6 +387,49 @@ func write_export_data_file():
 	var all_data_path = export_dir_path.path_join(".export_data")
 	_UtilsRemote.UFile.write_to_json(export_file_data, all_data_path)
 
+func update_plugin_cfg():
+	var plugin_cfg_path = export_dir_path.path_join("plugin.cfg")
+	if not FileAccess.file_exists(plugin_cfg_path):
+		return
+	var use_tag = export_data.options.get(_ExportFileKeys.use_tag_in_cfg, false)
+	var remove_deps = export_data.options.get(_ExportFileKeys.remove_cfg_deps, false)
+	if not (use_tag or remove_deps):
+		return
+	var as_string = FileAccess.get_file_as_string(plugin_cfg_path)
+	var lines = as_string.split("\n")
+	if use_tag:
+		var describe = _ExportFileUtils.run_git_describe(source)
+		if describe.exit == 0:
+			for i in range(lines.size()):
+				var line = lines[i]
+				if not line.begins_with("version="):
+					continue
+				var current = _UtilsRemote.UString.unquote(line.get_slice("version=", 1))
+				var new_string = ""
+				var describe_str = describe.output[0].strip_edges()
+				var v_regex = RegEx.new()
+				v_regex.compile("^v(?=\\d)") 
+				if v_regex.search(describe_str):
+					new_string = describe_str.substr(1)
+				else:
+					var no_tag_regex = RegEx.new()
+					no_tag_regex.compile("^[0-9a-f]{7,}(?:-dirty)?$")
+					if no_tag_regex.search(describe_str):
+						new_string = current + "-" + describe_str
+				
+				if new_string != "":
+					lines[i] = 'version="%s"' % new_string
+	if remove_deps:
+		var idx = -1
+		for i in range(lines.size()):
+			if lines[i].begins_with("deps="):
+				idx = i
+				break
+		if idx != -1:
+			lines.remove_at(idx)
+	
+	var file_access = FileAccess.open(plugin_cfg_path, FileAccess.WRITE)
+	file_access.store_string("\n".join(lines))
 
 func check_file_has_valid_path(source_path:String, export_path:String) -> void:
 	var globalized_source = ProjectSettings.globalize_path(source_path)

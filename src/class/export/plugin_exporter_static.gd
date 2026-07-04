@@ -98,6 +98,7 @@ static func export_plugin(export_config_path:String, include_uid_overide=null, i
 		
 		export.export_files()
 		export.write_export_data_file()
+		export.update_plugin_cfg()
 		count += 1
 	
 	if export_data.post_script != "":
@@ -165,8 +166,8 @@ static func _clear_export_dir(full_export_path):
 
 
 static func update_git_submodule_details(export_config_path, export_data:ExportData=null):
-	var check_exit = OS.execute("git", ["--version"])
-	if check_exit != 0:
+	#var check_exit = OS.execute("git", ["--version"])
+	if OS.execute("git", ["--version"]) != 0:
 		print("Error accessing git. Skipping git export details file.")
 		return
 	
@@ -241,22 +242,17 @@ static func _get_git_data(dir, git_file_lines, repo_type="Submodule"):
 	if repo_line in git_file_lines:
 		return []
 	
-	
-	var args = [
-		"-C",
-		dir.replace("res://", ""),
-		"rev-parse",
-		"HEAD"
-	]
-	var output = []
-	var exit_code = OS.execute("git", args, output)
-	if exit_code == -1:
+	var rev_parse = ExportFileUtils.run_git_exec(dir, ["rev-parse", "HEAD"])
+	if rev_parse.exit == -1:
 		printerr("Error getting commit: %s" % dir)
 		return
-	var commit = output[0].strip_edges()
+	var commit = rev_parse.output[0].strip_edges()
 	if commit == "":
 		printerr("Error getting commit: %s" % dir)
 		return []
+	
+	var describe = ExportFileUtils.run_git_describe(dir)
+	var describe_str = describe.output[0] if describe.exit == 0 else ""
 	
 	var plugin_version
 	var plugin_cfg = dir.path_join("plugin.cfg")
@@ -272,29 +268,20 @@ static func _get_git_data(dir, git_file_lines, repo_type="Submodule"):
 	]
 	if plugin_version:
 		lines.append("\t\tPlugin Version: %s" % plugin_version)
-	lines.append("\t\tCommit: %s" % commit)
-	var git_status = _get_git_status(dir)
-	if git_status == true:
-		lines.append("\t\t*has uncommited changes")
+	lines.append("\t\tCommit: %s" % commit) # maybe can be removed in favor of describe
+	if describe_str:
+		lines.append("\t\tDescribe: %s" % describe_str.strip_edges())
+	#var git_status = _get_git_status(dir)
+	#if git_status == true:
+		#lines.append("\t\t*has uncommited changes")
 	return lines
 
 static func _get_git_status(dir):
-	var args = [
-		"-C",
-		dir.replace("res://", ""),
-		"diff",
-		"--quiet",
-		"--exit-code"
-	]
-	var output = []
-	var exit_code = OS.execute("git", args, output)
-	if exit_code == -1:
+	var res = ExportFileUtils.run_git_exec(dir, ["diff", "--quiet", "--exit-code"])
+	if res.exit == -1 or res.exit == 0:
 		printerr("Error getting git status: %s" % dir)
-		return
-	
-	if exit_code == 0:
 		return false
-	elif exit_code == 1: #dirty
+	elif res.exit == 1: #dirty
 		return true
 
 
