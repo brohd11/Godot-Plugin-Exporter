@@ -1,6 +1,7 @@
 extends EditorConsoleSingleton.CommandBase
 
 const PluginExporter = preload("res://addons/plugin_exporter/src/class/plugin_exporter.gd")
+const PECommandUtils = preload("res://addons/plugin_exporter/src/editor_plugins/console_command/command_utils.gd")
 
 const _HELP = \
 "Open PluginExporter gui instance with selected plugin
@@ -16,11 +17,7 @@ static func get_self_command_data() -> Dictionary:
 	})
 
 func _get_completions(ctx:CompletionContext):
-	var options = Options.new()
-	var addon_dirs = PluginExporter.get_addons_dirs("valid")
-	for d in addon_dirs:
-		options.add_option(d)
-	return options.get_options()
+	return PECommandUtils.plugin_name_completion(self, ctx, PECommandUtils.TargetAddons.VALID)
 
 func _execute(ctx:CompletionContext):
 	var plugin_name = positional_args[0]

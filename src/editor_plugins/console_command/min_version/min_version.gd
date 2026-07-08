@@ -2,6 +2,7 @@ extends EditorConsoleSingleton.CommandBase
 
 
 const PluginExporter = preload("res://addons/plugin_exporter/src/class/plugin_exporter.gd")
+const PECommandUtils = preload("res://addons/plugin_exporter/src/editor_plugins/console_command/command_utils.gd")
 const ExportData = PluginExporter.PluginExporterStatic.ExportData
 const Export = ExportData.Export
 
@@ -56,11 +57,7 @@ func _process_flag(flag:String):
 func _get_completions(ctx:CompletionContext):
 	if _completion_last_is_flag(ctx):
 		return _get_completion_std_w_context(ctx, false)
-	var options = Options.new()
-	var addon_dirs = PluginExporter.get_addons_dirs("valid")
-	for d in addon_dirs:
-		options.add_option(d)
-	return options.get_options()
+	return PECommandUtils.plugin_name_completion(self, ctx, PECommandUtils.TargetAddons.VALID)
 
 func _execute(ctx:CompletionContext):
 	if min_flag == "":

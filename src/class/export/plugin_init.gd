@@ -171,6 +171,7 @@ class PluginExportJSON:
 				"include_import": true,
 				"use_tag_in_cfg": true,
 				"remove_cfg_deps": true,
+				"include_min_version": true,
 				"parser_settings":{
 					"use_relative_paths":false,
 					"backport_target": 100,

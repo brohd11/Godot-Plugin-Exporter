@@ -7,6 +7,12 @@ const UtilsLocal = preload("res://addons/plugin_exporter/src/class/utils_local.g
 const PluginExporterStatic = UtilsLocal.PluginExporterStatic
 const PluginInit = UtilsLocal.PluginInit
 
+enum TargetAddons {
+	ALL,
+	VALID,
+	NOT_VALID,
+}
+
 static func export(plugin_name:String):
 	PluginExporterStatic.export_by_name(plugin_name)
 
@@ -39,18 +45,18 @@ static func open_export_folder(plugin_name:String):
 	PluginExporterStatic.open_export_dir(export_config_path)
 
 
-static func get_addons_dirs(limit_to:="valid"):
+static func get_addons_dirs(limit_to:=TargetAddons.VALID) -> Dictionary:
 	var addons_dirs = DirAccess.get_directories_at("res://addons")
 	var data = {}
 	for dir in addons_dirs:
 		var plugin_export_path = UtilsLocal.ExportFileUtils.get_export_config_path(dir)
-		if limit_to == "valid":
+		if limit_to == TargetAddons.VALID:
 			if not FileAccess.file_exists(plugin_export_path):
 				continue
-		elif limit_to == "not_valid":
+		elif limit_to == TargetAddons.NOT_VALID:
 			if FileAccess.file_exists(plugin_export_path):
 				continue
-		elif limit_to != "all":
+		elif limit_to != TargetAddons.ALL:
 			continue
 		data[dir] = {}
 	return data

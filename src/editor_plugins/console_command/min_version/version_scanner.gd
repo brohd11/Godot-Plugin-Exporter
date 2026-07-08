@@ -50,7 +50,7 @@ func _init() -> void:
 
 
 static func _re(pattern: String) -> RegEx:
-	var re := RegEx.new()
+	var re:RegEx = RegEx.new()
 	re.compile(pattern)
 	return re
 

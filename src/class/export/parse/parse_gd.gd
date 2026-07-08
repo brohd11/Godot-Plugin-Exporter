@@ -68,6 +68,7 @@ func get_direct_dependencies(file_path:String) -> Dictionary:
 					if FileAccess.file_exists(extend_path):
 						var file_name = extend_path.get_file()
 						direct_dependencies[extend_path] = {}
+			
 		elif line.find("preload(") > -1 and line.count('"') == 2: #TODO make these regexs or something more robust.
 			var preload_path = get_preload_path(line)
 			if preload_path != null:

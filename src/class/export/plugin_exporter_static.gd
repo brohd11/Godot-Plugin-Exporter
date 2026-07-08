@@ -12,8 +12,7 @@ const ExportData = UtilsLocal.ExportData
 const FileParser = UtilsLocal.FileParser
 
 static func get_export_data_by_name(plugin_dir_name:String) -> ExportData:
-	var addon_dir = "res://addons".path_join(plugin_dir_name)
-	var export_config_path = addon_dir.path_join("export_ignore/plugin_export.json")
+	var export_config_path = UtilsLocal.ExportFileUtils.get_export_config_path(plugin_dir_name)
 	if not FileAccess.file_exists(export_config_path):
 		return null
 	var export_data = ExportData.new(export_config_path)
@@ -26,10 +25,9 @@ static func export_by_gui(export_config_path:String, include_uid_overide=null, i
 
 
 static func export_by_name(plugin_dir_name):
-	var addon_dir = "res://addons".path_join(plugin_dir_name)
-	var export_config_path = addon_dir.path_join("export_ignore/plugin_export.json")
+	var export_config_path = UtilsLocal.ExportFileUtils.get_export_config_path(plugin_dir_name)
 	if not FileAccess.file_exists(export_config_path):
-		printerr("Plugin Export config not found at: %s" % addon_dir)
+		printerr("Plugin Export config not found at: %s" % plugin_dir_name)
 		return
 	var success = export_plugin(export_config_path)
 	

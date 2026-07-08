@@ -318,7 +318,9 @@ func get_global_class_export_paths():
 		
 		adjusted_path = get_renamed_path(adjusted_path)
 		adjusted_remote_paths[remote_path] = adjusted_path
-		class_renames[name] = remote_path
+		
+		if to_rename: # don't want to add to renames
+			class_renames[name] = remote_path
 		
 		var export_path = get_export_path(remote_dir_path)
 		files_to_copy[remote_path] = {
@@ -393,7 +395,8 @@ func update_plugin_cfg():
 		return
 	var use_tag = export_data.options.get(_ExportFileKeys.use_tag_in_cfg, false)
 	var remove_deps = export_data.options.get(_ExportFileKeys.remove_cfg_deps, false)
-	if not (use_tag or remove_deps):
+	var include_min = export_data.options.get(_ExportFileKeys.include_min_version, true)
+	if not (use_tag or remove_deps or include_min):
 		return
 	var as_string = FileAccess.get_file_as_string(plugin_cfg_path)
 	var lines = as_string.split("\n")
@@ -419,6 +422,7 @@ func update_plugin_cfg():
 				
 				if new_string != "":
 					lines[i] = 'version="%s"' % new_string
+	
 	if remove_deps:
 		var idx = -1
 		for i in range(lines.size()):
@@ -427,6 +431,24 @@ func update_plugin_cfg():
 				break
 		if idx != -1:
 			lines.remove_at(idx)
+	
+	if include_min:
+		var trimmed = plugin_name.trim_suffix("/").trim_prefix("res://addons/")
+		var cmd = "plugin_exporter min_version %s | tail 1" % trimmed
+		var ctx = EditorConsoleSingleton.get_main_ctx()
+		EditorConsoleSingleton.Execution.execute_command_multiline(cmd, ctx)
+		var result = ctx.stdout.strip_edges()
+		var min_version = ""
+		if result.begins_with("Minimum Godot version:"):
+			min_version = result.get_slice(":", 1).strip_edges()
+		if min_version != "":
+			var min_msg = 'minimum_version="%s"' % min_version
+			for i in range(lines.size() - 1, -1, -1):
+				var l = lines[i]
+				if l.strip_edges() != "":
+					lines.insert(i + 1, min_msg)
+					break
+	
 	
 	var file_access = FileAccess.open(plugin_cfg_path, FileAccess.WRITE)
 	file_access.store_string("\n".join(lines))

@@ -19,6 +19,7 @@ static var _lookback_regex:RegEx
 static var string_maps = {}
 
 static func get_export_config_path(addon_name:String):
+	addon_name = addon_name.trim_prefix("/").trim_suffix("/")
 	var file_paths = [
 		"res://addons/%s/export_ignore/plugin_export.yml" % addon_name,
 		"res://addons/%s/export_ignore/plugin_export.yaml" % addon_name,
@@ -477,6 +478,7 @@ class ExportFileKeys:
 	const include_uid = "include_uid"
 	const use_tag_in_cfg = "use_tag_in_cfg"
 	const remove_cfg_deps = "remove_cfg_deps"
+	const include_min_version = "include_min_version"
 	const overwrite = "overwrite"
 	const ignore_dependencies = "ignore_dependencies"
 	
