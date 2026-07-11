@@ -10,4 +10,8 @@ static func plugin_name_completion(cmd:CommandBase, ctx:CompletionContext, targe
 		return {}
 	if cmd.positional_arg_index == target_position - 1 and not ctx.char_before_cursor == " ":
 		return {}
-	return PluginExporter.get_addons_dirs(target_addons)
+	var dirs = PluginExporter.get_addons_dirs(target_addons)
+	var options = CommandBase.Options.new()
+	for d in dirs.keys():
+		options.add_option(d)
+	return options.get_options()

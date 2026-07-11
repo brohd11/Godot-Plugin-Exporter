@@ -24,10 +24,6 @@ func _mouse_left_clicked():
 
 func _mouse_right_clicked(data):
 	mouse_right_clicked.emit()
-	if popup_on_right_click:
-		pass
 
 func _mouse_double_clicked():
 	mouse_double_clicked.emit()
-	if edit_on_double_click:
-		pass
