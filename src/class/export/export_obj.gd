@@ -383,16 +383,23 @@ func get_singleton_modules():
 		}
 		all_data.append(singleton_data)
 	
-	export_file_data["singleton_modules"] = all_data
+	if not all_data.is_empty():
+		export_file_data["singleton_modules"] = all_data
 
 func write_export_data_file():
+	if export_file_data.is_empty():
+		return
 	var all_data_path = export_dir_path.path_join(".export_data")
 	_UtilsRemote.UFile.write_to_json(export_file_data, all_data_path)
 
 func update_plugin_cfg():
 	var plugin_cfg_path = export_dir_path.path_join("plugin.cfg")
+	var version_cfg_path = export_dir_path.path_join("version.cfg")
 	if not FileAccess.file_exists(plugin_cfg_path):
-		return
+		if not FileAccess.file_exists(version_cfg_path):
+			return
+		plugin_cfg_path = version_cfg_path
+	
 	var use_tag = export_data.options.get(_ExportFileKeys.use_tag_in_cfg, false)
 	var remove_deps = export_data.options.get(_ExportFileKeys.remove_cfg_deps, false)
 	var include_min = export_data.options.get(_ExportFileKeys.include_min_version, true)
@@ -401,27 +408,34 @@ func update_plugin_cfg():
 	var as_string = FileAccess.get_file_as_string(plugin_cfg_path)
 	var lines = as_string.split("\n")
 	if use_tag:
-		var describe = _ExportFileUtils.run_git_describe(source)
-		if describe.exit == 0:
-			for i in range(lines.size()):
-				var line = lines[i]
-				if not line.begins_with("version="):
-					continue
-				var current = _UtilsRemote.UString.unquote(line.get_slice("version=", 1))
-				var new_string = ""
-				var describe_str = describe.output[0].strip_edges()
-				var v_regex = RegEx.new()
-				v_regex.compile("^v(?=\\d)") 
-				if v_regex.search(describe_str):
-					new_string = describe_str.substr(1)
-				else:
+		var rev_parse_result = _ExportFileUtils.run_git_exec(source, ["rev-parse", "--show-toplevel"])
+		if rev_parse_result.exit == 0:
+			var os_repo_dir = rev_parse_result.output[0].strip_edges()
+			var describe = _ExportFileUtils.run_git_describe(os_repo_dir)
+			if describe.exit == 0:
+				for i in range(lines.size()):
+					var line = lines[i]
+					if not line.begins_with("version="):
+						continue
+					var current = _UtilsRemote.UString.unquote(line.get_slice("version=", 1))
+					var new_string = ""
+					var describe_str = describe.output[0].strip_edges()
+					
+					var v_regex = RegEx.new()
+					v_regex.compile("^v(?=\\d)") 
 					var no_tag_regex = RegEx.new()
 					no_tag_regex.compile("^[0-9a-f]{7,}(?:-dirty)?$")
-					if no_tag_regex.search(describe_str):
+					
+					if v_regex.search(describe_str):
+						new_string = describe_str.substr(1)
+					elif no_tag_regex.search(describe_str):
 						new_string = current + "-" + describe_str
-				
-				if new_string != "":
-					lines[i] = 'version="%s"' % new_string
+					else:
+						new_string = describe_str
+					
+					if new_string != "":
+						lines[i] = 'version="%s"' % new_string
+					break
 	
 	if remove_deps:
 		var idx = -1

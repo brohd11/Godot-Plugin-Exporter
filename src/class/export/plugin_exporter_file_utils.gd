@@ -433,7 +433,7 @@ static func is_singleton_module_script(file_path:String):
 static func run_git_exec(dir:String, args:Array):
 	var final_args = [
 		"-C",
-		dir.replace("res://", ""),
+		ProjectSettings.globalize_path(dir),
 	]
 	final_args.append_array(args)
 	var output = []
