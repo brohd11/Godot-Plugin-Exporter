@@ -302,20 +302,21 @@ func get_global_class_export_paths():
 		var dependent = data.get(_ExportFileKeys.dependent)
 		var remote_dir_path = get_remote_file_local_path(remote_path)
 		
-		if not to_rename:
-			#print(remote_dir_path)
-			pass
-		elif _UtilsRemote.UFile.is_file_in_directory(remote_path, source):
+		var local_to_plugin = _UtilsRemote.UFile.is_file_in_directory(remote_path, source)
+		
+		if _UtilsRemote.UFile.is_file_in_directory(remote_path, source):
 			remote_dir_path = remote_path # if in plugin, do not move to remote
 			dependent = null # if in plugin, no dependent, will be transferred regardless
+		elif not to_rename:
+			#print(remote_dir_path)
+			pass
 		elif dependent == remote_path:
 			dependent = null # if global class was found in self, no dependent
 		
-		if not to_rename: # non renamed ones will be moved to "global", allowing src to be hidden
+		if not to_rename and export_data.should_move_global(): # non renamed ones will be moved to "global", allowing src to be hidden
 			remote_dir_path = source.path_join("global").path_join(remote_dir_path.trim_prefix(remote_dir))
 		
 		var adjusted_path = remote_dir_path
-		
 		adjusted_path = get_renamed_path(adjusted_path)
 		adjusted_remote_paths[remote_path] = adjusted_path
 		

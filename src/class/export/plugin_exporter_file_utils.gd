@@ -485,6 +485,7 @@ class ExportFileKeys:
 	const overwrite = "overwrite"
 	const ignore_dependencies = "ignore_dependencies"
 	const ignore_src = "ignore_src"
+	const move_global_files = "move_global_files"
 	
 	const parser_settings = "parser_settings"
 	const parser_overide_settings = "parser_overide_settings"

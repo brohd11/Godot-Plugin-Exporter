@@ -159,19 +159,20 @@ func post_export():
 class PluginExportJSON:
 	static func get_body_data():
 		return {
-			"export_root": "",
-			"plugin_folder": "",
-			"pre_script": "",
-			"post_script": "",
-			"options": {
-				"overwrite": true,
-				"include_uid": true,
-				"include_import": true,
-				"ignore_src": true,
-				"use_tag_in_cfg": true,
-				"remove_cfg_deps": true,
-				"include_min_version": true,
-				"parser_settings":{
+			ExportFileKeys.export_root: "",
+			ExportFileKeys.plugin_folder: "",
+			ExportFileKeys.pre_script: "",
+			ExportFileKeys.post_script: "",
+			ExportFileKeys.options: {
+				ExportFileKeys.overwrite: true,
+				ExportFileKeys.include_uid: true,
+				ExportFileKeys.include_import: true,
+				ExportFileKeys.ignore_src: true,
+				ExportFileKeys.use_tag_in_cfg: true,
+				ExportFileKeys.remove_cfg_deps: true,
+				ExportFileKeys.include_min_version: true,
+				ExportFileKeys.move_global_files: true,
+				ExportFileKeys.parser_settings:{
 					"use_relative_paths":false,
 					"backport_target": 100,
 					"parse_cs":{
@@ -191,15 +192,15 @@ class PluginExportJSON:
 	
 	static func get_export_obj_data():
 		return {
-			"source": "",
-			"export_folder": "",
-			"exclude": {
-				"directories": [],
-				"file_extensions": [],
-				"files": [],
+			ExportFileKeys.source: "",
+			ExportFileKeys.export_folder: "",
+			ExportFileKeys.exclude: {
+				ExportFileKeys.directories: [],
+				ExportFileKeys.file_extensions: [],
+				ExportFileKeys.files: [],
 				},
-			"other_transfers":[],
-			"parser_overide_settings":{
+			ExportFileKeys.other_transfers:[],
+			ExportFileKeys.parser_overide_settings:{
 				"parse_cs":{},
 				"parse_gd":{},
 				"parse_tscn":{},

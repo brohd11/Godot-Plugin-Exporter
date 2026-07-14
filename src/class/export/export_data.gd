@@ -28,6 +28,8 @@ var options:Dictionary = {}
 var overwrite:bool = true
 var include_uid:bool = true
 var include_import:bool = true
+var move_global_files:bool = true
+var ignore_src:bool = true
 
 var file_parser: _UtilsLocal.FileParser
 var parser_settings:Dictionary = {}
@@ -69,9 +71,10 @@ func _init(export_config_path):
 	overwrite = options.get(_ExportFileKeys.overwrite, false)
 	include_uid = options.get(_ExportFileKeys.include_uid, true)
 	include_import = options.get(_ExportFileKeys.include_import, true)
-	parser_settings = options.get(_ExportFileKeys.parser_settings, {})
+	move_global_files = options.get(_ExportFileKeys.move_global_files, true)
+	ignore_src = options.get(_ExportFileKeys.ignore_src, false)
 	
-	var ignore_src = options.get(_ExportFileKeys.ignore_src, false)
+	parser_settings = options.get(_ExportFileKeys.parser_settings, {})
 	
 	if not strip_cast_names.is_empty():
 		parser_settings["parse_gd"]["strip_cast"] = strip_cast_names
@@ -203,3 +206,6 @@ func _get_class_list():
 		class_path_lookup[path] = str_class_nm
 		if _class_name not in class_list_array:
 			class_list_array.append(_class_name)
+
+func  should_move_global():
+	return move_global_files or ignore_src
