@@ -19,8 +19,7 @@ extends RefCounted
 ## and is deferred to the future parser-based scan.
 ## Members not present in the index are assumed user-defined and skipped.
 ##
-## Matching is string/comment-safe via URegex's sanitizer (except raw-string
-## detection, which must inspect the literal itself).
+## Matching is string/comment-safe via URegex's sanitizer.
 
 const URegex = preload("res://addons/addon_lib/brohd/alib_runtime/utils/u_regex.gd")
 const VersionApi = preload("res://addons/plugin_exporter/src/editor_plugins/console_command/min_version/version_api.gd")
@@ -102,17 +101,16 @@ func _scan_gd_line(line: String, line_no: int, result: Dictionary, base: String)
 	if stripped == "" or stripped.begins_with("#"):
 		return
 
-	# Sanitized code (strings -> placeholders, comment stripped) for everything
-	# except raw-string detection. Lambdas capture locals by value, so use a
-	# by-reference Array holder to get the sanitized string back out.
+	# Sanitized code: strings -> placeholders, comment stripped. Lambdas capture
+	# locals by value, so use a by-reference Array holder to get the sanitized
+	# string back out.
 	var holder := [""]
 	URegex.string_safe_regex_read(line, func(c): holder[0] = c, _string_regex)
 	var sanitized: String = holder[0]
 
 	# 1. Syntax rules.
 	for rule in _syntax.get_rules():
-		var target: String = line if rule["on_raw"] else sanitized
-		if (rule["regex"] as RegEx).search(target) != null:
+		if (rule["regex"] as RegEx).search(sanitized) != null:
 			_record(result, line_no, rule["name"], rule["version"])
 
 	# 2a. Static ClassName.member access (every class). Class existence is dated
