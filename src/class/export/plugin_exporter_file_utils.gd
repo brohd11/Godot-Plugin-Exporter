@@ -484,6 +484,7 @@ class ExportFileKeys:
 	const include_min_version = "include_min_version"
 	const overwrite = "overwrite"
 	const ignore_dependencies = "ignore_dependencies"
+	const ignore_src = "ignore_src"
 	
 	const parser_settings = "parser_settings"
 	const parser_overide_settings = "parser_overide_settings"

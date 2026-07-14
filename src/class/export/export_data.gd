@@ -71,6 +71,8 @@ func _init(export_config_path):
 	include_import = options.get(_ExportFileKeys.include_import, true)
 	parser_settings = options.get(_ExportFileKeys.parser_settings, {})
 	
+	var ignore_src = options.get(_ExportFileKeys.ignore_src, false)
+	
 	if not strip_cast_names.is_empty():
 		parser_settings["parse_gd"]["strip_cast"] = strip_cast_names
 	
@@ -122,7 +124,7 @@ func _init(export_config_path):
 		export_obj.source_files = _UtilsRemote.UFile.scan_for_files_no_fs(export_obj.source, [])
 		export_obj.export_dir_path = full_export_path.path_join(export_obj.export_folder)
 		export_obj.other_transfers = export.get(_ExportFileKeys.other_transfers, [])
-		if true: # TEST to hide the files of src, but leave globals available
+		if ignore_src and DirAccess.dir_exists_absolute(plugin_folder.path_join("src")): # TEST to hide the files of src, but leave globals available
 			export_obj.other_transfers.append({"to": "src/.gdignore"})
 		export_obj.ignore_dependencies = export.get(_ExportFileKeys.ignore_dependencies, false)
 		

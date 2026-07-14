@@ -167,6 +167,7 @@ class PluginExportJSON:
 				"overwrite": true,
 				"include_uid": true,
 				"include_import": true,
+				"ignore_src": true,
 				"use_tag_in_cfg": true,
 				"remove_cfg_deps": true,
 				"include_min_version": true,
