@@ -95,9 +95,7 @@ static func plugin_init(plugin_name:=""):
 	template_data[ExportFileKeys.post_script] = export_pre_post
 	
 	#UFile.write_to_json(template_data, export_config_path)
-	var dump = YAMLParser.dump(template_data)
-	var f = FileAccess.open(export_config_path, FileAccess.WRITE)
-	f.store_string(dump)
+	YAMLParser.dump_to_file(template_data, export_config_path)
 	
 	var gitignore_fa = FileAccess.open(export_ignore_dir.path_join(".gitignore"), FileAccess.WRITE)
 	gitignore_fa.store_line("exports/")

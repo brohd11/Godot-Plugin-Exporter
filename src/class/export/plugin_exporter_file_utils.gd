@@ -52,8 +52,11 @@ static func get_export_data(export_config_path:String):
 		return json.data
 	elif export_config_path.get_extension() in ["yml", "yaml"]:
 		var parser = YAMLParser.new()
-		var result = parser.parse(config_string)
-		return result
+		var err = parser.parse(config_string)
+		if err != OK:
+			printerr("Plugin Exporter - Error parsing YAML: " , err)
+			return
+		return parser.data
 
 static func get_file_export_path(file_path:String, export_config_path:String, desired_export:int=-1, export_data:ExportData=null):
 	if not FileAccess.file_exists(file_path):
