@@ -123,8 +123,7 @@ func _init(export_config_path):
 		if not export_obj.remote_dir.begins_with(export_obj.source):
 			export_obj.remote_dir = export_obj.source.path_join(export_obj.remote_dir)
 		
-		# scan no fs to force license capture
-		export_obj.source_files = _UtilsRemote.UFile.scan_for_files_no_fs(export_obj.source, [])
+		export_obj.source_files = _UtilsRemote.UFile.GetFiles.scan(export_obj.source)
 		export_obj.export_dir_path = full_export_path.path_join(export_obj.export_folder)
 		export_obj.other_transfers = export.get(_ExportFileKeys.other_transfers, [])
 		if ignore_src and DirAccess.dir_exists_absolute(plugin_folder.path_join("src")): # TEST to hide the files of src, but leave globals available
