@@ -164,6 +164,8 @@ func _init(export_config_path):
 		export_obj.get_file_dependencies()
 		export_obj.get_global_class_export_paths()
 		
+		export_obj.gather_licenses()
+		
 		export_obj.check_all_files_have_valid_path()
 		
 		export_obj.get_singleton_modules()

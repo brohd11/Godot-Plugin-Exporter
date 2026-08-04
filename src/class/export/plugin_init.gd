@@ -169,7 +169,7 @@ class PluginExportJSON:
 				ExportFileKeys.include_import: true,
 				ExportFileKeys.ignore_src: true,
 				ExportFileKeys.use_tag_in_cfg: true,
-				ExportFileKeys.remove_cfg_deps: true,
+				ExportFileKeys.exported_deps: [],
 				ExportFileKeys.include_min_version: true,
 				ExportFileKeys.move_global_files: true,
 				ExportFileKeys.parser_settings:{

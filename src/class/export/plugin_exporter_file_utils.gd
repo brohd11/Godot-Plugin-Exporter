@@ -480,7 +480,7 @@ class ExportFileKeys:
 	const include_import = "include_import"
 	const include_uid = "include_uid"
 	const use_tag_in_cfg = "use_tag_in_cfg"
-	const remove_cfg_deps = "remove_cfg_deps"
+	const exported_deps = "exported_deps"
 	const include_min_version = "include_min_version"
 	const overwrite = "overwrite"
 	const ignore_dependencies = "ignore_dependencies"

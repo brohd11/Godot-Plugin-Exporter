@@ -105,8 +105,11 @@ static func export_plugin(export_config_path:String, include_uid_overide=null, i
 	var exported_dirs = DirAccess.get_directories_at(full_export_path)
 	for dir in exported_dirs:
 		var dir_path = full_export_path.path_join(dir)
-		var zip_files = UFile.scan_for_files(dir_path, [], false,[],true)
-		ExportFileUtils.write_zip_file(dir_path + ".zip", zip_files)
+		var search = UFile.GetFiles.open(dir_path)
+		search.show_hidden = true
+		search.enter_gdignore = true
+		var search_files = search.get_files() # need to double check before switch
+		ExportFileUtils.write_zip_file(dir_path + ".zip", search_files)
 	
 	if UtilsRemote.UFile.is_dir_in_or_equal_to_dir(export_data.export_root, "res://"):
 		var gdignore_path = export_data.export_root.path_join(".gdignore")

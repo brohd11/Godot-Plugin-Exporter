@@ -8,6 +8,7 @@ const _ExportFileKeys = _ExportFileUtils.ExportFileKeys
 const _ExportData = _UtilsLocal.ExportData
 const _FileParser = _UtilsLocal.FileParser
 const _UClassDetail = _UtilsRemote.UClassDetail
+const _UFile = _UtilsRemote.UFile
 
 var export_data: _ExportData
 var source:String
@@ -35,6 +36,7 @@ var use_relative_paths := false
 var parser_overide_settings:Dictionary = {}
 var file_parser:_FileParser
 
+## final dict that will be iterated over in export
 var files_to_copy:Dictionary = {}
 var files_to_process_for_paths:Dictionary = {}
 
@@ -401,11 +403,13 @@ func update_plugin_cfg():
 			return
 		plugin_cfg_path = version_cfg_path
 	
+	_update_deps(plugin_cfg_path)
+	
 	var use_tag = export_data.options.get(_ExportFileKeys.use_tag_in_cfg, false)
-	var remove_deps = export_data.options.get(_ExportFileKeys.remove_cfg_deps, false)
 	var include_min = export_data.options.get(_ExportFileKeys.include_min_version, true)
-	if not (use_tag or remove_deps or include_min):
+	if not (use_tag or include_min):
 		return
+	
 	var as_string = FileAccess.get_file_as_string(plugin_cfg_path)
 	var lines = as_string.split("\n")
 	if use_tag:
@@ -438,15 +442,6 @@ func update_plugin_cfg():
 						lines[i] = 'version="%s"' % new_string
 					break
 	
-	if remove_deps:
-		var idx = -1
-		for i in range(lines.size()):
-			if lines[i].begins_with("deps="):
-				idx = i
-				break
-		if idx != -1:
-			lines.remove_at(idx)
-	
 	if include_min:
 		var trimmed = plugin_name.trim_suffix("/").trim_prefix("res://addons/")
 		var cmd = "plugin_exporter min_version %s | tail 1" % trimmed
@@ -467,6 +462,49 @@ func update_plugin_cfg():
 	
 	var file_access = FileAccess.open(plugin_cfg_path, FileAccess.WRITE)
 	file_access.store_string("\n".join(lines))
+
+func _update_deps(plugin_cfg_path:String):
+	var exported_deps = export_data.options.get(_ExportFileKeys.exported_deps)
+	if exported_deps == null:
+		return
+	var cfg = ConfigFile.new()
+	var err = cfg.load(plugin_cfg_path)
+	if err != OK:
+		printerr("Could not load config: ", plugin_cfg_path)
+		return
+	if not cfg.has_section_key("plugin", "deps"):
+		return
+	cfg.set_value("plugin", "deps", exported_deps)
+	cfg.save(plugin_cfg_path)
+
+func gather_licenses():
+	var license_map = {}
+	var all_files = _UFile.GetFiles.scan("res://")
+	for file in all_files:
+		if file.get_file().get_basename().to_lower() == "license":
+			license_map[file.get_base_dir()] = file
+	
+	var used_licenses = {}
+	var domains = license_map.keys()
+	for file in files_to_copy.keys():
+		for d in domains:
+			if _UFile.is_file_in_directory(file, d):
+				used_licenses[license_map[d]] = true
+				domains.erase(d)
+				break
+	
+	var seen_license_paths = {}
+	for file in used_licenses.keys():
+		if files_to_copy.has(file):
+			continue # keeps already found licenses where they would be ie. plugin root
+		var license_name = file.get_file()
+		var dir_name = file.get_base_dir().trim_prefix("res://").trim_prefix("addons/").replace("/", "_")
+		var local_path = source.path_join("licenses").path_join(dir_name).path_join(license_name)
+		if seen_license_paths.has(local_path):
+			printerr("Potential LICENSE clash: ", local_path)
+		var export_path = get_export_path(get_renamed_path(local_path))
+		files_to_copy[file] = {_ExportFileKeys.to:export_path}
+	
 
 func check_file_has_valid_path(source_path:String, export_path:String) -> void:
 	var globalized_source = ProjectSettings.globalize_path(source_path)
@@ -503,6 +541,7 @@ func export_files():
 		var file_import = include_import
 		if replace_with == null:
 			var is_dep = false
+			# dependencies need a new uid to avoid clashes
 			if file_path in file_dep_keys or file_path in unique_files:
 				is_dep = true
 				file_uid = false
@@ -524,8 +563,8 @@ func export_files():
 	for virtual_file_type in virtual_files.keys():
 		var virtual_file_type_data = virtual_files[virtual_file_type]
 		for local_file_path in virtual_file_type_data.keys():
-			var export_file_data = virtual_file_type_data.get(local_file_path)
-			var export_path = export_file_data.get(_ExportFileKeys.to)
+			var export_data_for_file = virtual_file_type_data.get(local_file_path)
+			var export_path = export_data_for_file.get(_ExportFileKeys.to)
 			
 			_write_virtual_file(virtual_file_type, export_path)
 	
