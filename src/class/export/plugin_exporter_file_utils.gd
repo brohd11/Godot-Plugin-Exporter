@@ -13,6 +13,8 @@ const UClassDetail = UtilsRemote.UClassDetail
 
 const ConfirmationDialogHandler = UtilsRemote.ConfirmationDialogHandler
 
+const VALID_FILE_NAMES = ["plugin_export.yml", "plugin_export.yaml", "plugin_export.json"]
+
 static var _global_class_regex:RegEx
 static var _lookback_regex:RegEx
 
@@ -21,10 +23,13 @@ static var string_maps = {}
 static func get_export_config_path(addon_name:String):
 	addon_name = addon_name.trim_prefix("/").trim_suffix("/")
 	var file_paths = [
-		"res://addons/%s/export_ignore/plugin_export.yml" % addon_name,
-		"res://addons/%s/export_ignore/plugin_export.yaml" % addon_name,
-		"res://addons/%s/export_ignore/plugin_export.json" % addon_name,
+		#"res://addons/%s/export_ignore/plugin_export.yml" % addon_name,
+		#"res://addons/%s/export_ignore/plugin_export.yaml" % addon_name,
+		#"res://addons/%s/export_ignore/plugin_export.json" % addon_name,
 	]
+	for nm in VALID_FILE_NAMES:
+		file_paths.append("res://addons/%s/export_ignore/%s" % [addon_name, nm])
+	
 	for file in file_paths:
 		if FileAccess.file_exists(file):
 			return file

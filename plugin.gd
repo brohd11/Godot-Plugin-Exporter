@@ -4,6 +4,7 @@ extends EditorPlugin
 const PLUGIN_EXPORTED = false
 
 const PLUGIN_EXPORT_GUI = preload("res://addons/plugin_exporter/src/plugin_export_gui.tscn")
+const GUI = preload("res://addons/plugin_exporter/src/gui/gui.gd")
 const COMMENT_TAGS = ["#! remote", "#! ignore-remote", "#! dependency", "#! singleton-module"]
 const SHOW_TOOL_MENU_ITEM = &"plugin/plugin_exporter/show_tool_menu_item"
 
@@ -80,7 +81,10 @@ func _on_tool_menu_pressed():
 	new_gui_instance()
 
 func new_gui_instance():
-	var ins = dm_instance_manager.new_freeable_dock_manager(PLUGIN_EXPORT_GUI, DockManager.Slot.MAIN_SCREEN)
+	var gui = GUI.new()
+	#gui.name = "PluginExporter"
+	#gui.name = "PE"
+	var ins = dm_instance_manager.new_freeable_dock_manager(gui, DockManager.Slot.MAIN_SCREEN)
 	ins.allow_scene_reload = true
 	return ins
 

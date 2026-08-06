@@ -5,7 +5,10 @@ const UtilsLocal = preload("res://addons/plugin_exporter/src/class/utils_local.g
 
 const ExportFileKeys = UtilsLocal.ExportFileUtils.ExportFileKeys
 
-const TEXT_FILE_TYPES = ["gd", "tscn", "cs", "tres"] # TODO add tres support
+const Dependencies = UtilsRemote.Dependencies
+
+const TEXT_FILE_TYPES = ["gd", "tscn", "cs", "tres"]
+const DEPSCAN_TYPES = ["gd", "tscn", "tres"]
 
 const PARSE_FOLDER_PATH = "./parse" #! ignore-remote
 
@@ -99,8 +102,20 @@ func get_dependencies(file_path:String, all_dependencies:Dictionary, scanned_fil
 		var file_deps = {}
 		var ext = current_file_path.get_extension()
 		if ext in TEXT_FILE_TYPES:
+			#if ext == "cs":
 			var parse_ins = default_parsers.get(ext)
 			file_deps = parse_ins.get_direct_dependencies(current_file_path)
+			#file_deps.erase(current_file_path)
+			#else:
+			#if ext != "cs":
+				#var dep_scan = Dependencies.open(current_file_path)
+				#dep_scan.resolve_access_paths = false
+				##dep_scan.add_tag_handler("dependency")
+				#var new_deps = dep_scan.get_graph().get_dependencies(current_file_path)
+				#if file_deps.size() != new_deps.size():
+					#print("&*&*& -- ", current_file_path)
+					#print("====")
+					#print(file_deps.keys(), " \n==\n", new_deps)
 		
 		if ext in custom_text_types:
 			var parse_ins_array = custom_parse_data.get(ext)

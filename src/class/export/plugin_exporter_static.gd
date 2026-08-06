@@ -11,6 +11,9 @@ const UFile = UtilsRemote.UFile
 const ExportData = UtilsLocal.ExportData
 const FileParser = UtilsLocal.FileParser
 
+static func get_export_config_by_name(plugin_dir_name:String) -> String:
+	return UtilsLocal.ExportFileUtils.get_export_config_path(plugin_dir_name)
+
 static func get_export_data_by_name(plugin_dir_name:String) -> ExportData:
 	var export_config_path = UtilsLocal.ExportFileUtils.get_export_config_path(plugin_dir_name)
 	if not FileAccess.file_exists(export_config_path):

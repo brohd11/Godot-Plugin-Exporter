@@ -316,7 +316,14 @@ func get_global_class_export_paths():
 			dependent = null # if global class was found in self, no dependent
 		
 		if not to_rename and export_data.should_move_global(): # non renamed ones will be moved to "global", allowing src to be hidden
-			remote_dir_path = source.path_join("global").path_join(remote_dir_path.trim_prefix(remote_dir))
+			print("REM::", remote_dir_path, ":", remote_dir)
+			#remote_dir_path = source.path_join("global").path_join(remote_dir_path.trim_prefix(remote_dir))
+			
+			# this places the file in global directly, meaning name clashes are possible, above doesn't
+			# work with code completions for example
+			remote_dir_path = source.path_join("global").path_join(remote_dir_path.get_file())
+
+			
 		
 		var adjusted_path = remote_dir_path
 		adjusted_path = get_renamed_path(adjusted_path)

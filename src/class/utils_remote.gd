@@ -7,8 +7,27 @@ const UTree = preload("res://addons/addon_lib/brohd/alib_runtime/utils/u_tree.gd
 const URegex = preload("res://addons/addon_lib/brohd/alib_runtime/utils/u_regex.gd")
 const UClassDetail = preload("res://addons/addon_lib/brohd/alib_editor/utils/src/u_class_detail.gd")
 const ConfirmationDialogHandler = preload("uid://bccd38qwc47vu").Handlers.Confirmation # dialog.gd
+const Conf = preload("uid://b4rwv7tgks0b5") #! resolve ALibRuntime.Dialog.Handlers.Confirmation
+
 const UEditor = preload("res://addons/addon_lib/brohd/alib_editor/utils/src/u_editor.gd")
 const PopupHelper = preload("res://addons/addon_lib/brohd/alib_runtime/popup_menu/popup_menu_path_helper.gd")
 const FileSystem = preload("res://addons/addon_lib/brohd/alib_editor/utils/src/editor_nodes/filesystem.gd")
 const UEditorTheme = preload("res://addons/addon_lib/brohd/alib_editor/utils/src/u_editor_theme.gd")
 const TreeHelperBase = preload("res://addons/addon_lib/brohd/alib_runtime/tree_helper/tree_helper_base.gd")
+
+const TabBarContainer = ALibEditor.UIHelpers.Tab.TabBarContainer
+const EditorIcons = ALibEditor.Singleton.EditorIcons
+
+const Options = ALibRuntime.Popups.Options
+
+const SplitWrapper = ALibRuntime.UICustom.SplitWrapper
+
+const UControl = ALibRuntime.Utils.UControl
+
+const FSTreeClasses = preload("res://addons/addon_lib/brohd/alib_editor/file_system/components/tree/fs_tree_classes.gd")
+
+const Dependencies = ALibRuntime.Utils.UResource.Dependencies
+const DepGraphPanel = preload("res://addons/addon_lib/brohd/alib_runtime/ui/dep_graph/dep_graph_panel.gd")
+
+const JSONHighlighter = preload("res://addons/addon_lib/brohd/alib_runtime/misc/syntax_highlighters/text/types/json_highlighter.gd")
+const YAMLHighlighter = preload("res://addons/addon_lib/brohd/alib_runtime/misc/syntax_highlighters/text/types/yaml_highlighter.gd")
