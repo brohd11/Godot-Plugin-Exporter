@@ -22,21 +22,14 @@ static var string_maps = {}
 
 static func get_export_config_path(addon_name:String):
 	addon_name = addon_name.trim_prefix("/").trim_suffix("/")
-	var file_paths = [
-		#"res://addons/%s/export_ignore/plugin_export.yml" % addon_name,
-		#"res://addons/%s/export_ignore/plugin_export.yaml" % addon_name,
-		#"res://addons/%s/export_ignore/plugin_export.json" % addon_name,
-	]
+	var file_paths = []
 	for nm in VALID_FILE_NAMES:
 		file_paths.append("res://addons/%s/export_ignore/%s" % [addon_name, nm])
-	
+
 	for file in file_paths:
 		if FileAccess.file_exists(file):
 			return file
 	return file_paths[0]
-
-static func name_to_export_config_path(plugin_name:String):
-	return get_export_config_path(plugin_name)
 
 static func get_export_data(export_config_path:String):
 	if not FileAccess.file_exists(export_config_path):
@@ -209,25 +202,6 @@ static func check_ignore(local_path, export_obj:ExportData.Export):
 	return false
 
 
-#static func scan_file_for_global_classes(file_path:String, export_obj:ExportData.Export):
-	#var file_access = FileAccess.open(file_path, FileAccess.READ)
-	#var class_names = export_obj.export_data.class_list.keys()
-	#
-	#var classes_used = {}
-	##var global_classes_in_files = 
-	#
-	#while not file_access.eof_reached():
-		#var line = file_access.get_line()
-		#var tokens = Tokenizer.words_only(line)
-		#for tok:String in tokens:
-			#if tok in class_names:
-				#var path = export_obj.export_data.class_list.get(tok)
-				##export_obj.global_classes_used[tok] = path
-				#classes_used[tok] = path
-	#
-	#return classes_used
-
-
 static func get_other_transfer_data(export_obj:ExportData.Export):
 	var other_transfers_array = export_obj.other_transfers
 	var export_dir_path = export_obj.export_dir_path
@@ -327,14 +301,36 @@ static func is_remote_file(file_path:String):
 		if line.begins_with("#! remote"):
 			return true
 		count += 1
-	
+
 	return false
-	
-	#var first_line = file_access.get_line()
-	#file_access.close()
-	#if first_line.find("#! remote") == -1:
-		#return false
-	#return true
+
+
+## The path a `#! remote` file extends, resolved absolute, or "" if it does not extend one.
+## Such a file is a stub standing in for the real script, which is what gets copied in its place.
+static func get_remote_extends_path(file_path:String, export_obj:ExportData.Export) -> String:
+	var file_access = FileAccess.open(file_path, FileAccess.READ)
+	while not file_access.eof_reached():
+		var line = file_access.get_line()
+		var extend_idx = line.find("extends ") # ""
+		var class_idx = line.find("class ") # ""
+		var comment_idx = line.find("#")
+		if comment_idx > -1 and comment_idx < extend_idx:
+			continue
+
+		if extend_idx > -1 and line.count('"') == 2 and (class_idx == -1 or class_idx > extend_idx):
+			var remote_file_path = line.get_slice('"', 1)
+			remote_file_path = remote_file_path.get_slice('"', 0)
+			if not remote_file_path.is_absolute_path():
+				var absolute = export_obj.ensure_absolute_path(remote_file_path, file_path)
+				print("Not absolute path: %s -> %s" % [remote_file_path, absolute])
+				remote_file_path = absolute
+
+			if FileAccess.file_exists(remote_file_path):
+				return remote_file_path
+			printerr("Extended file could not be found: %s" % remote_file_path)
+			return ""
+
+	return ""
 
 
 
@@ -482,7 +478,6 @@ class KeysData:
 	
 	const PATH = "path"
 	const REPLACE_WITH = "replace_with"
-	const ADJUSTED_REMOTE_PATH = "adjusted_remote_path"
 	const DEPENDENT = "dependent"
 	const DEPENDENCY_DIR = "dependency_dir"
 	
@@ -524,7 +519,6 @@ class KeysConfig:
 		const MOVE_GLOBAL_FILES = "move_global_files"
 		
 		const PARSER_SETTINGS = "parser_settings"
+		# the per-parser keys inside these (class_rename_ignore, use_relative_paths,
+		# reduce_access_paths, backport_target, ...) are still read as string literals
 		const PARSER_OVERIDE_SETTINGS = "parser_overide_settings"
-		class ParserSettings:
-			const RESOLVE_ACCESS_PATH = "resolve_access_path"
-	

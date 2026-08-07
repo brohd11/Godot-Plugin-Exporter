@@ -15,8 +15,8 @@ func _init() -> void:
 # in parser_settings, create dictionary for extension of file,
 # ie. if extension is foo, "parse_foo": {"my_setting": "value"}
 func set_parse_settings(settings):
-	_cast_strip_names = settings.get("strip_cast", [])
-	_cast_strip_names.append_array(CAST_STRIP_NAMES.duplicate())
+	# Copied: what follows appends to this list, and the settings dictionary belongs to the caller.
+	_cast_strip_names = settings.get("strip_cast", []).duplicate()
 	for nm in CAST_STRIP_NAMES:
 		if not nm in _cast_strip_names:
 			_cast_strip_names.append(nm)

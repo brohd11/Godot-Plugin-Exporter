@@ -13,9 +13,6 @@ var class_list_array = []
 var class_list = {}
 var class_path_lookup = {}
 
-#var class_rename_ignore = []
-#var class_renames = {}
-
 var data_valid:bool = false
 
 var export_root:String = ""
@@ -138,7 +135,8 @@ func _init(export_config_path):
 		for parse_key in parser_settings.keys():
 			if not parse_key.begins_with("parse_"):
 				continue
-			var parse_data = parser_settings.get(parse_key, {})
+			# Copied so every export gets settings of its own.
+			var parse_data:Dictionary = parser_settings.get(parse_key, {}).duplicate(true)
 			if overide_settings.has(parse_key):
 				overide_settings[parse_key].merge(parse_data)
 			else:
@@ -191,12 +189,15 @@ func _sort_settings_dict(dict:Dictionary):
 		sorted_dict[parse_key] = dict[parse_key]
 	
 	for parse_key in sorted_dict.keys():
-		var data = sorted_dict.get(parse_key)
-		
+		# Copied rather than written through: this runs on the shared parser_settings as well as
+		# on each export's own, and folding the untyped keys into the caller's dictionary is how
+		# one export's settings used to reach the next.
+		var data:Dictionary = (sorted_dict[parse_key] as Dictionary).duplicate()
+
 		for key in untyped_keys:
 			data[key] = dict[key]
 		sorted_dict[parse_key] = data
-	
+
 	return sorted_dict
 
 func _get_class_list():

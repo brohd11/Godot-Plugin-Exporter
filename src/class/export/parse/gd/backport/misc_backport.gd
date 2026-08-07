@@ -40,7 +40,8 @@ func _compile_misc_strings():
 # ie. if extension is foo, "parse_foo": {"my_setting": "value"}
 func set_parse_settings(settings):
 	backport_target = settings.get("backport_target", 100)
-	combined_string_replacements = settings.get("backport_string_renames", {})
+	# Copied: _compile_misc_strings() merges the built-ins into this, and it belongs to the caller.
+	combined_string_replacements = settings.get("backport_string_renames", {}).duplicate()
 	_compile_misc_strings()
 
 # logic to parse for files that are needed acts as a set, dependencies[my_dep_path] = {}

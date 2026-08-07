@@ -227,6 +227,42 @@ static func get_class_token_regex(cls:String) -> RegEx:
 		_class_token_regexes[cls] = regex
 	return regex
 
+## Rewrites a serialized file's references: every ext_resource path is remapped to where the
+## export puts it, and the file's own uid is regenerated if it is a copied dependency, so two
+## plugins vendoring the same scene do not collide. `header` is the leading tag holding that uid -
+## "[gd_scene" for a scene, "[gd_resource" for a resource.
+func _rewrite_ser_file(file_path:String, header:String) -> Variant:
+	var file_access = FileAccess.open(file_path, FileAccess.READ)
+	if not file_access:
+		printerr("%s - Issue reading file: %s" % [get_script().resource_path.get_file(), file_path])
+		return null
+
+	var file_dependencies_keys = export_obj.file_dependencies.keys()
+	var adjusted_file_lines = []
+	while not file_access.eof_reached():
+		var line = file_access.get_line()
+
+		if line.find(header) > -1:
+			var uid = line.get_slice(' uid="', 1)
+			uid = uid.get_slice('"', 0)
+			if UFile.uid_to_path(uid) in file_dependencies_keys:
+				var new_uid = ResourceUID.id_to_text(ResourceUID.create_id())
+				line = line.replace('uid="%s"' % uid, 'uid="%s"' % new_uid)
+		elif line.find('[ext_resource') > -1:
+			var type = line.get_slice(' type="', 1)
+			type = type.get_slice('"', 0)
+			var path = line.get_slice('path="', 1)
+			path = path.get_slice('"', 0)
+			var id = line.get_slice(' id="', 1)
+			id = id.get_slice('"', 0)
+
+			line = RES_LINE_TEMPLATE % [type, get_adjusted_path_or_old_renamed(path), id]
+
+		adjusted_file_lines.append(line)
+
+	return adjusted_file_lines
+
+
 func pre_export() -> void:
 	return
 
@@ -251,38 +287,6 @@ func _string_safe_regex_sub(line: String, processor: Callable) -> String:
 		_string_regex = URegex.get_strings()
 	line = URegex.string_safe_regex_sub(line, processor, _string_regex)
 	return line
-	
-	var code_part = line
-	var comment_part = ""
-	var comment_pos = line.find("#")
-	if comment_pos != -1:
-		code_part = line.substr(0, comment_pos)
-		comment_part = line.substr(comment_pos)
-	
-	# find all string matches and store values and positions
-	var string_matches = _string_regex.search_all(code_part)
-	var string_literals = []
-	for _match in string_matches:
-		string_literals.append(_match.get_string())
-	
-	# replace with placeholders by POSITION, iterating BACKWARDS
-	var sanitized_code = code_part
-	for i in range(string_matches.size() - 1, -1, -1):
-		var _match = string_matches[i]
-		var placeholder = "__STRING_PLACEHOLDER_%d__" % i
-		# Reconstruct the string using the match's start and end positions
-		sanitized_code = sanitized_code.left(_match.get_start()) + placeholder + sanitized_code.substr(_match.get_end())
-	
-	# call the provided callable on the sanitized code
-	var converted_code = processor.call(sanitized_code)
-	
-	# restore strings
-	var final_code = converted_code
-	for i in range(string_literals.size()):
-		var placeholder = "__STRING_PLACEHOLDER_%d__" % i
-		final_code = final_code.replace(placeholder, string_literals[i])
-	
-	return final_code + comment_part
 
 
 func file_extends_class(file_lines:Array, backport_target:=100) -> bool:

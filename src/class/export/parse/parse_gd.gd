@@ -169,9 +169,13 @@ func post_export_edit_file(file_path:String, file_lines:Variant=null):
 		if not name in classes_used:
 			continue
 		var remote_path = class_renames[name]
-		var adjusted_path = export_obj.adjusted_remote_paths.get(remote_path)
+		# Defaulted rather than left null: a class the export decided not to copy has no adjusted
+		# path, and building a preload out of null throws mid-loop - which silently abandons every
+		# rewrite this pass made, since the caller only takes the returned lines.
+		var adjusted_path = export_obj.adjusted_remote_paths.get(remote_path, "")
 		if adjusted_path == "":
-			printerr("Error renaming class: %s, could not get export path." % name)
+			printerr('Class "%s" is used in %s but was not copied into the export - cannot inject its preload.'
+				% [name, file_path])
 			continue
 		#if use_relative_paths:
 			#adjusted_path = export_obj.get_relative_path(adjusted_path)
@@ -385,24 +389,6 @@ func _recursive_get_globals(file_path:String) -> Array:
 		for cl in global_classes:
 			_classes[cl] = true
 	return _classes.keys()
-
-#func _parse_extended_class(file_path:String):
-	#var file_text = FileAccess.get_file_as_string(file_path)
-	#var string_map = ExportFileUtils.get_string_map(file_text)
-	#var extend_index = file_text.find("extends ")
-	#while extend_index != -1:
-		#if string_map.index_not_string_or_comment(extend_index): # index_in_string_or_comment is new
-			#break
-		#extend_index = file_text.find("extends ", extend_index + 1)
-	#
-	#var line = string_map.get_line_at_index(extend_index)
-	#var line_stripped = line.get_slice("#", 1).strip_edges()
-	#if line_stripped.count('"') == 2:
-		#var path = line_stripped.get_slice('"', 1)
-		#path = path.get_slice('"', 0)
-		#path = export_obj.ensure_absolute_path(path, file_path)
-		#return path
-
 
 func post_export_edit_line(line:String):
 	line = _update_file_export_flags(line)

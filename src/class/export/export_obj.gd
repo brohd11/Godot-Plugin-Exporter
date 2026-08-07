@@ -39,7 +39,8 @@ var file_parser:_FileParser
 
 ## final dict that will be iterated over in export
 var files_to_copy:Dictionary = {}
-var files_to_process_for_paths:Dictionary = {}
+## Seed set for the dependency crawl, used as a set - only its keys are ever read.
+var files_to_scan_for_deps:Dictionary = {}
 
 var replace_with_files:Dictionary = {}
 
@@ -47,7 +48,6 @@ var file_dependencies:Dictionary = {}
 
 var adjusted_remote_paths:Dictionary = {}
 var global_classes_used:Dictionary = {}
-var global_classes_used_paths:Dictionary = {}
 
 var class_rename_ignore:Array = []
 var class_renames:Dictionary = {}
@@ -144,8 +144,8 @@ func get_valid_files_for_transfer():
 			if custom_message:
 				valid_files_for_transfer[from][_KeysData.CUSTOM_TREE_MESSAGE] = custom_message
 			
-			files_to_process_for_paths[from] = {_KeysData.TO:export_path}
-			
+			files_to_scan_for_deps[from] = true
+
 			var adj_path = get_renamed_path(to_path)
 			adjusted_remote_paths[from] = adj_path
 			
@@ -155,19 +155,16 @@ func get_valid_files_for_transfer():
 
 func sort_valid_files():
 	for file:String in valid_files_for_transfer.keys():
-		var standard_export_path = file.replace(source, export_dir_path)
-		
+		files_to_copy[file] = valid_files_for_transfer.get(file)
+
 		if not file_parser.check_file_valid(file):
-			files_to_copy[file] = valid_files_for_transfer.get(file)
-			#files_to_copy[file] = {_KeysData.TO: standard_export_path}
 			continue
-		
+
 		var file_ext = file.get_extension()
 		if file_ext == "tres" or file_ext == "tscn":
-			files_to_process_for_paths[file] = {_KeysData.TO: standard_export_path}
-			files_to_copy[file] = valid_files_for_transfer.get(file)
+			files_to_scan_for_deps[file] = true
 			continue
-		
+
 		if file_ext == "gd":
 			var global_name = _UClassDetail.get_global_class_name(file)
 			if global_name != "" and not global_classes_used.has(global_name):
@@ -175,52 +172,19 @@ func sort_valid_files():
 					#_KeysData.DEPENDENT: file,
 					_KeysData.PATH: file
 					}
-				global_classes_used_paths[file] = global_name
 		
-		var file_needs_processing = _ExportFileUtils.is_remote_file(file)
-		if not file_needs_processing:
-			files_to_copy[file] = valid_files_for_transfer.get(file)
-			#files_to_process_for_paths[file] = valid_files_for_transfer.get(file) # TODO is this ok?
-		else: #^ is the same as above but excludes gd, I think want to exclude, but tscn and tres should be processed no matter
-			var file_access = FileAccess.open(file, FileAccess.READ)
-			var is_remote = false
-			while not file_access.eof_reached():
-				var line = file_access.get_line()
-				var extend_idx = line.find("extends ") # ""
-				var class_idx = line.find("class ") # ""
-				var comment_idx = line.find("#")
-				if comment_idx > -1 and comment_idx < extend_idx:
-					continue
-				
-				if extend_idx > -1 and line.count('"') == 2 and (class_idx == -1 or class_idx > extend_idx):
-					var remote_file_path = line.get_slice('"', 1)
-					remote_file_path = remote_file_path.get_slice('"', 0)
-					if not remote_file_path.is_absolute_path():
-						var absolute = ensure_absolute_path(remote_file_path, file)
-						print("Not absolute path: %s -> %s" % [remote_file_path, absolute])
-						remote_file_path = absolute
-					
-					if FileAccess.file_exists(remote_file_path):
-						var file_export_data = {
-							_KeysData.TO: standard_export_path,
-							_KeysData.REPLACE_WITH: remote_file_path
-							}
-						files_to_process_for_paths[file] = file_export_data # process file for dependencies
-						files_to_copy[file] = valid_files_for_transfer.get(file)
-						files_to_copy[file][_KeysData.REPLACE_WITH] = remote_file_path # when copying, replace with remote
-						replace_with_files[remote_file_path] = file # add to point files where this is dependency to this path
-						is_remote = true
-						break
-					else:
-						printerr("Extended file could not be found: %s" % remote_file_path)
-						break
-			
-			if not is_remote:
-				files_to_process_for_paths[file] = {_KeysData.TO: standard_export_path}
-				files_to_copy[file] = valid_files_for_transfer.get(file)
-				#files_to_copy[file] = {_KeysData.TO: standard_export_path}
-			
-			file_access.close()
+		# gd is excluded from the crawl unless it is "#! remote"; tscn and tres are seeded above
+		# no matter what
+		if not _ExportFileUtils.is_remote_file(file):
+			continue
+
+		files_to_scan_for_deps[file] = true
+		var remote_file_path = _ExportFileUtils.get_remote_extends_path(file, self)
+		if remote_file_path == "":
+			continue
+
+		files_to_copy[file][_KeysData.REPLACE_WITH] = remote_file_path # when copying, replace with remote
+		replace_with_files[remote_file_path] = file # add to point files where this is dependency to this path
 
 
 func get_global_classes_used_in_valid_files():
@@ -263,19 +227,20 @@ func get_global_classes_used_in_valid_files():
 				_KeysData.DEPENDENT: file,
 				_KeysData.PATH: remote_path
 				}
-			global_classes_used_paths[remote_path] = class_nm
 			if _UtilsRemote.UFile.is_file_in_directory(remote_path, source):
 				if not _ExportFileUtils.is_remote_file(remote_path):
 					continue
-			files_to_process_for_paths[remote_path] = {}
+			files_to_scan_for_deps[remote_path] = true
 
 
 func get_file_dependencies():
 	if ignore_dependencies:
 		return
-		
+
+	_seed_access_reduction_targets()
+
 	var scanned_files = {}
-	for file_path in files_to_process_for_paths.keys():
+	for file_path in files_to_scan_for_deps.keys():
 		file_parser.get_dependencies(file_path, file_dependencies, scanned_files)
 	
 	for remote_path:String in file_dependencies.keys():
@@ -303,15 +268,45 @@ func get_file_dependencies():
 			remote_dir_path = dependent.get_base_dir().path_join(remote_path.get_file())
 		elif dependency_dir != null and dependency_dir != "":
 			remote_dir_path = dependency_dir.path_join(remote_path.get_file())
-		
-		var adjusted_path = get_renamed_path(remote_dir_path)
-		var export_path = get_export_path(remote_dir_path)
-		adjusted_remote_paths[remote_path] = adjusted_path
-		
-		files_to_copy[remote_path] = {
-			_KeysData.TO: export_path,
-			_KeysData.DEPENDENT: dependent
-			}
+
+		_register_copy(remote_path, remote_dir_path, dependent)
+
+
+## A reduced access path is a real reference, so the file it resolves to has to travel even when
+## nothing else in the plugin preloads it.
+##
+## Only files the crawl visits contribute their access-path targets as dependencies, and an
+## ordinary in-plugin script is never a crawl root. Left unseeded, such a target is absent from
+## the export, build_access_bindings() then drops its binding as unexportable, that one mention is
+## never rewritten - and the head class, already pruned on the strength of the very same plan, is
+## gone. The export ends up naming a class it does not contain.
+func _seed_access_reduction_targets() -> void:
+	if not reduce_access_paths:
+		return
+	for file_path:String in access_reductions:
+		for expression:String in access_reductions[file_path]:
+			var path:String = access_reductions[file_path][expression].get(_KeysData.PATH, "")
+			if path == "" or files_to_scan_for_deps.has(path):
+				continue
+			if _UtilsRemote.UFile.is_file_in_directory(path, source):
+				continue # already travelling as part of the plugin itself
+			if not file_dependencies.has(path):
+				file_dependencies[path] = {_KeysData.DEPENDENT: file_path}
+			files_to_scan_for_deps[path] = true # so its own dependencies come too
+
+
+## Registers a file for copying. `local_dest` is where it lands inside the plugin: that is what
+## other files' preloads are rewritten to, and mapping it out of res:// gives the write path.
+##
+## `dependent` is left untyped because the two callers disagree - one passes a path string, the
+## other passes null for a file that is copied regardless of who asked for it - and the GUI reads
+## the difference back as the same "no dependent".
+func _register_copy(source_path:String, local_dest:String, dependent = null) -> void:
+	adjusted_remote_paths[source_path] = get_renamed_path(local_dest)
+	files_to_copy[source_path] = {
+		_KeysData.TO: get_export_path(local_dest),
+		_KeysData.DEPENDENT: dependent,
+		}
 
 
 ## Decides the const name every reduced expression binds to, once for the whole export.
@@ -373,46 +368,30 @@ func _free_binding_name(entry:Dictionary, by_name:Dictionary) -> String:
 
 func get_global_class_export_paths():
 	for name in global_classes_used.keys():
-		var to_rename = name in class_renames.keys()
-		#if to_rename: # originally limited to only those that would be renamed
+		# class_renames holds every global class not listed in class_rename_ignore
+		var renameable = class_renames.has(name)
 		var data = global_classes_used.get(name)
 		var remote_path = data.get(_KeysData.PATH)
 		var dependent = data.get(_KeysData.DEPENDENT)
 		var remote_dir_path = get_remote_file_local_path(remote_path)
-		
-		var local_to_plugin = _UtilsRemote.UFile.is_file_in_directory(remote_path, source)
-		
+
 		if _UtilsRemote.UFile.is_file_in_directory(remote_path, source):
 			remote_dir_path = remote_path # if in plugin, do not move to remote
 			dependent = null # if in plugin, no dependent, will be transferred regardless
-		elif not to_rename:
-			#print(remote_dir_path)
-			pass
-		elif dependent == remote_path:
+		elif renameable and dependent == remote_path:
 			dependent = null # if global class was found in self, no dependent
-		
-		if not to_rename and export_data.should_move_global(): # non renamed ones will be moved to "global", allowing src to be hidden
-			print("REM::", remote_dir_path, ":", remote_dir)
+
+		if not renameable and export_data.should_move_global(): # non renamed ones will be moved to "global", allowing src to be hidden
 			#remote_dir_path = source.path_join("global").path_join(remote_dir_path.trim_prefix(remote_dir))
-			
+
 			# this places the file in global directly, meaning name clashes are possible, above doesn't
 			# work with code completions for example
 			remote_dir_path = source.path_join("global").path_join(remote_dir_path.get_file())
 
-			
-		
-		var adjusted_path = remote_dir_path
-		adjusted_path = get_renamed_path(adjusted_path)
-		adjusted_remote_paths[remote_path] = adjusted_path
-		
-		if to_rename: # don't want to add to renames
+		if renameable: # fills in the path; get_class_renames() seeded every name with ""
 			class_renames[name] = remote_path
-		
-		var export_path = get_export_path(remote_dir_path)
-		files_to_copy[remote_path] = {
-			_KeysData.TO: export_path,
-			_KeysData.DEPENDENT: dependent,
-			}
+
+		_register_copy(remote_path, remote_dir_path, dependent)
 
 func check_all_files_have_valid_path():
 	for file_path in files_to_copy.keys():
@@ -585,7 +564,11 @@ func gather_licenses():
 		var local_path = source.path_join("licenses").path_join(dir_name).path_join(license_name)
 		if seen_license_paths.has(local_path):
 			printerr("Potential LICENSE clash: ", local_path)
-		var export_path = get_export_path(get_renamed_path(local_path))
+		seen_license_paths[local_path] = true
+		# Mapped out of res:// straight from the in-plugin path, the same way every other copy is.
+		# Renaming first would strip the source prefix get_export_path has to match, and the file
+		# would then be written to res://addons/<new name>/ - inside the live project.
+		var export_path = get_export_path(local_path)
 		files_to_copy[file] = {_KeysData.TO:export_path}
 	
 
@@ -602,7 +585,6 @@ func check_file_has_valid_path(source_path:String, export_path:String) -> void:
 
 
 func export_files():
-	var files_to_process_keys = files_to_process_for_paths.keys()
 	var include_uid = export_data.include_uid
 	var include_import = export_data.include_import
 	var file_dep_keys = file_dependencies.keys()
@@ -705,6 +687,8 @@ func get_rel_or_absolute_path(path:String) -> String:
 		return ensure_absolute_path(path, file_parser.current_file_path_parsing)
 
 
+## Aborts the export. ExportData._init checks export_valid once the stages have all run, so this
+## is how a stage that has to give up makes that stick - returning early only leaves the stage.
 func invalidate():
 	export_valid = false
 

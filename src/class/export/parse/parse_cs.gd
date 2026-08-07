@@ -23,12 +23,6 @@ func post_export_edit_line(line:String) -> String:
 	
 	return line
 
-#func _post_export_edit_file(file_access:FileAccess):
-	#var file_lines = []
-	#
-	#
-	#
-
 func _update_file_export_flags(line:String) -> String:
 	if line.find(PLUGIN_EXPORTED_STRING) > -1:
 		line = line.replace(PLUGIN_EXPORTED_STRING, PLUGIN_EXPORTED_REPLACE)
