@@ -32,6 +32,7 @@ these settings are passed to parsers. You can overide on a per export basis usin
 ##### parse_gd
  - replace_editor_interface - replaces 'EditorInterface' direct singleton access with 'Engine.get_singleton(&"EditorInterface")'
  - class_rename_ignore - Array of class_name to not strip and preload
+ - reduce_access_paths - bool, default false. Rewrites dotted access paths to direct preloads: `ALibRuntime.Utils.UFile` becomes `UFile` with `const UFile = preload("...")` added to the script. Stops at the deepest segment that names a script file, so an inner class or enum on the end is kept (`A.B.UProfile.TimeFunction` -> `UProfile.TimeFunction`). Classes left with no bare use anywhere are then dropped from the export, which is what keeps a namespace hub from dragging in every file it preloads.
  - backport_string_renames - dictionary, key is the method to replace, value is a dictionary with key "replace":"replace_as", "min_ver": backport_target as int
 
 ##### parse_cs

@@ -368,6 +368,8 @@ static func _get_global_classes_in_file(file_path:String, global_class_dict:Dict
 			#continue
 		#if string_map.string_mask[start_index] == 1:
 			#continue
+		if is_member_access(file_as_string, start_index):
+			continue
 		if is_class_definition(file_as_string, start_index):
 			found_classes["global_class_definition"] = word
 			continue
@@ -384,6 +386,15 @@ static func get_string_map(text:String):
 	var string_map = UString.get_string_map(text, UString.StringMap.Mode.STRING)
 	string_maps[text] = string_map
 	return string_map
+
+## True when the token is the tail of a dotted expression - the "UFile" of
+## "ALibRuntime.Utils.UFile". Only the head of a chain is a use of the class; a tail that happens
+## to share a name with a global class is a member of something else entirely, and treating it as
+## a use gets it a bogus injected preload and a \bName\b rename through the middle of the chain.
+static func is_member_access(text: String, current_index: int) -> bool:
+	if current_index < 1:
+		return false
+	return text[current_index - 1] == "."
 
 static func is_class_definition(text: String, current_index: int) -> bool:
 	if not is_instance_valid(_lookback_regex):

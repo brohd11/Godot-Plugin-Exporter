@@ -51,6 +51,14 @@ var global_classes_used_paths:Dictionary = {}
 var class_rename_ignore:Array = []
 var class_renames:Dictionary = {}
 
+## Rewrite dotted access paths into direct preloads on export, so a file using
+## "ALibRuntime.Utils.UFile" depends on u_file.gd instead of the namespace hub that would drag
+## every one of its siblings in. Opt-in per export.
+var reduce_access_paths:bool = false
+## {file_path: {expression: {name, path, tail}}} - what each file's dotted paths reduce to.
+## Filled during the dependency crawl, applied on export.
+var access_reductions:Dictionary = {}
+
 var unique_files:Array = []
 
 var shared_data:Dictionary = {}

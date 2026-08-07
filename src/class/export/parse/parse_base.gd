@@ -56,24 +56,36 @@ func scan_direct_edges(file_path:String) -> Array:
 # One scanner per Export, reused across files by reassigning roots.
 func _get_dep_scanner():
 	if _dep_scanner == null or _dep_scanner_export != export_obj:
-		_dep_scanner = build_dep_scanner()
+		var class_map = {}
+		if export_obj != null and export_obj.reduce_access_paths:
+			class_map = export_obj.export_data.class_list
+		_dep_scanner = build_dep_scanner(class_map)
 		_dep_scanner_export = export_obj
 	return _dep_scanner
 
-static func build_dep_scanner():
+## `class_map` non-empty turns on access-path resolution: the scan then reports where a dotted
+## path like "ALibRuntime.Utils.UFile" actually lands, which is what reduce_access_paths needs.
+## Left empty, the scan does no global-class work at all - parse_gd's own pass owns that.
+static func build_dep_scanner(class_map:Dictionary = {}):
 	var scanner = Dependencies.new()
 	# depth of 1, called per file, so only need direct dependencies for each
 	scanner.max_depth = 1
 	scanner.include_missing = false # a file that is not on disk must never reach files_to_copy
-	scanner.use_project_classes = false # global classes stay with parse_gd's own pass
-	scanner.resolve_access_paths = false
+	scanner.use_project_classes = false # the export's own class list is the authority
+	scanner.class_map = class_map
+	scanner.resolve_access_paths = not class_map.is_empty()
 	scanner.add_tag_handler(DependencyTags.TAG, DependencyTags.dependency_dir())
 	return scanner
 
 ## Folds scanned edges into the legacy {path: {"dependency_dir"?: dir}} shape.
 static func edges_to_dependencies(edges:Array, out:Dictionary) -> Dictionary:
 	for edge in edges:
-		if edge.to == "" or not DEP_KINDS.has(edge.kind):
+		if edge.to == "":
+			continue
+		# An access-path edge is a GLOBAL_CLASS/EXTENDS_CLASS kind, but unlike a bare class
+		# reference it names a file the export has to copy in its own right - the hub the head
+		# resolves to may not survive reduction. Bare ones stay parse_gd's business.
+		if not DEP_KINDS.has(edge.kind) and not edge.meta.has(DepEdge.META_RESOLVED_FROM):
 			continue
 		var entry = out.get(edge.to)
 		if entry == null:
@@ -84,6 +96,39 @@ static func edges_to_dependencies(edges:Array, out:Dictionary) -> Dictionary:
 		var dependency_dir = edge.meta.get(DependencyTags.DIR_KEY, "")
 		if dependency_dir != "":
 			entry[ExportFileKeys.dependency_dir] = dependency_dir
+	return out
+
+## What each dotted access path in a file reduces to: {expression: {name, path, tail}}.
+## `name` is the segment that landed on a real file and becomes the injected const; `tail` is
+## whatever the walk could not follow - an inner class, an enum, a plain const - and is kept on
+## the end of the rewritten expression.
+##
+## Two kinds of expression are deliberately left alone:
+##
+## - one whose head is already the deepest file it names. Reducing
+##   "FileSystemSingleton.FileData.FAVORITES_META" would rewrite it to itself, and the head is a
+##   genuine use of that class rather than a pass-through.
+## - one that walks through a file's own const preloads rather than a global class. A plugin's
+##   "UtilsRemote.URegex" is its own deliberate indirection, which "#! remote" already rewrites
+##   on export; only a global-class head can be the namespace hub this exists to get rid of.
+static func edges_to_reductions(edges:Array, out:Dictionary) -> Dictionary:
+	for edge in edges:
+		var expression:String = edge.meta.get(DepEdge.META_RESOLVED_FROM, "")
+		if expression == "" or edge.to == "" or out.has(expression):
+			continue
+		if not edge.meta.get(DepEdge.META_HEAD_FROM_CLASS_MAP, false):
+			continue
+		var consumed:int = edge.meta.get(DepEdge.META_CONSUMED, 0)
+		if consumed < 2:
+			continue
+		var parts = expression.split(".", false)
+		if consumed > parts.size():
+			continue
+		out[expression] = {
+			"name": parts[consumed - 1],
+			"path": edge.to,
+			"tail": Array(parts.slice(consumed)),
+		}
 	return out
 
 func pre_export() -> void:

@@ -34,7 +34,10 @@ func get_direct_dependencies(file_path:String) -> Dictionary:
 			}
 		direct_dependencies[path] = {}
 
-	return edges_to_dependencies(scan_direct_edges(file_path), direct_dependencies)
+	var edges = scan_direct_edges(file_path)
+	if export_obj.reduce_access_paths:
+		edges_to_reductions(edges, export_obj.access_reductions.get_or_add(file_path, {}))
+	return edges_to_dependencies(edges, direct_dependencies)
 
 
 func post_export_edit_file(file_path:String, file_lines:Variant=null):
