@@ -55,9 +55,14 @@ var class_renames:Dictionary = {}
 ## "ALibRuntime.Utils.UFile" depends on u_file.gd instead of the namespace hub that would drag
 ## every one of its siblings in. Opt-in per export.
 var reduce_access_paths:bool = false
-## {file_path: {expression: {name, path, tail}}} - what each file's dotted paths reduce to.
-## Filled during the dependency crawl, applied on export.
+## {file_path: {expression: {name, parent, path, tail}}} - what each file's dotted paths reduce
+## to. Filled during the dependency crawl, applied on export.
 var access_reductions:Dictionary = {}
+## {expression: const_name} for the whole export. Names are decided once here rather than per
+## file: a base script and everything deriving from it must bind an expression to the same name,
+## because GDScript rejects redeclaring an inherited constant and the injection can only skip
+## what an ancestor already declares if the two agree.
+var access_bindings:Dictionary = {}
 
 var unique_files:Array = []
 
@@ -301,6 +306,63 @@ func get_file_dependencies():
 			_ExportFileKeys.to: export_path,
 			_ExportFileKeys.dependent: dependent
 			}
+
+
+## Decides the const name every reduced expression binds to, once for the whole export.
+##
+## Two expressions landing on the same file share a name - they are the same preload. Two
+## landing on different files cannot, so the loser takes the segment above it ("Utils_UFile")
+## and then an index. A reduction whose target will not be in the export is dropped outright:
+## rewriting it would leave a preload of a file that was never copied.
+func build_access_bindings():
+	if not reduce_access_paths:
+		return
+
+	var expressions:Array = []
+	for file:String in access_reductions:
+		for expression:String in access_reductions[file]:
+			if not expression in expressions:
+				expressions.append(expression)
+	expressions.sort() # deterministic, so the same export twice binds the same names
+
+	var by_name:Dictionary = {} # name -> the path it is already bound to
+	for expression:String in expressions:
+		var entry:Dictionary = _find_reduction(expression)
+		if entry.is_empty() or not _will_be_exported(entry.path):
+			continue
+		var name:String = _free_binding_name(entry, by_name)
+		by_name[name] = entry.path
+		access_bindings[expression] = name
+
+
+func _find_reduction(expression:String) -> Dictionary:
+	for file:String in access_reductions:
+		var plan:Dictionary = access_reductions[file]
+		if plan.has(expression):
+			return plan[expression]
+	return {}
+
+
+# A file inside the plugin is copied wholesale; anything else has to have been pulled in as a
+# dependency for the preload to resolve after export.
+func _will_be_exported(path:String) -> bool:
+	if files_to_copy.has(path):
+		return true
+	return _UtilsRemote.UFile.is_file_in_directory(path, source)
+
+
+func _free_binding_name(entry:Dictionary, by_name:Dictionary) -> String:
+	var candidates:Array = [entry.name]
+	if entry.parent != "":
+		candidates.append("%s_%s" % [entry.parent, entry.name])
+	for i in range(2, 10):
+		candidates.append("%s_%d" % [entry.name, i])
+
+	for candidate:String in candidates:
+		var bound = by_name.get(candidate)
+		if bound == null or bound == entry.path:
+			return candidate
+	return "%s_%s" % [entry.name, _UtilsRemote.UFile.hash_string(entry.path).substr(0, 4)]
 
 
 func get_global_class_export_paths():

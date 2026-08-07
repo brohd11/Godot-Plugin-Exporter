@@ -50,7 +50,10 @@ func post_export_edit_file(file_path:String, file_lines:Variant=null):
 	global_classes_in_file.erase("global_class_definition")
 	
 	classes_used.append_array(global_classes_in_file.keys())
-	
+
+	var reductions = _file_reductions()
+	var declared_bindings = {}
+
 	var file_access = FileAccess.open(file_path, FileAccess.READ)
 	
 	var extended_class_string = ""
@@ -128,8 +131,16 @@ func post_export_edit_file(file_path:String, file_lines:Variant=null):
 						if not const_name in classes_preloaded:
 							classes_preloaded.append(const_name)
 		
+		var declaration = _reduce_const_declaration(line, comment_stripped, reductions)
+		if declaration.is_empty():
+			line = _apply_reductions(line, comment_stripped, reductions)
+		else:
+			line = declaration.line
+			if declaration.declares != "":
+				declared_bindings[declaration.declares] = true
+
 		line = _update_paths(line)
-		
+
 		adjusted_file_lines.append(line)
 	##
 	
@@ -160,6 +171,8 @@ func post_export_edit_file(file_path:String, file_lines:Variant=null):
 		rename_lines.append(line)
 		
 	
+	rename_lines.append_array(_reduction_preload_lines(reductions, declared_bindings))
+
 	if not rename_lines.is_empty():
 		adjusted_file_lines.append("")
 		adjusted_file_lines.append("")
@@ -167,9 +180,131 @@ func post_export_edit_file(file_path:String, file_lines:Variant=null):
 		adjusted_file_lines.append_array(rename_lines)
 		#adjusted_file_lines.append("### Plugin Exporter Global Classes")
 		adjusted_file_lines.append("")
-	
-	
+
+
 	return adjusted_file_lines
+
+
+## The reductions that apply to the file currently being written, as
+## {expression: {name, tail, path, inject}}.
+##
+## `inject` is false when an ancestor already declares the same binding: GDScript rejects
+## redeclaring an inherited constant, so the derived script rewrites its expressions but lets the
+## const come down the chain. Names agree because build_access_bindings() decides them once for
+## the whole export.
+func _file_reductions() -> Dictionary:
+	if not export_obj.reduce_access_paths:
+		return {}
+	var source_path:String = export_obj.file_parser.current_file_path_parsing
+	var plan:Dictionary = export_obj.access_reductions.get(source_path, {})
+	if plan.is_empty():
+		return {}
+
+	var inherited = _inherited_expressions(source_path)
+	var out = {}
+	for expression:String in plan:
+		var name = export_obj.access_bindings.get(expression)
+		if name == null: # dropped: its target is not in the export
+			continue
+		var entry:Dictionary = plan[expression]
+		out[expression] = {
+			"name": name,
+			"tail": entry.tail,
+			"path": entry.path,
+			"inject": not inherited.has(expression),
+		}
+	return out
+
+
+## Expressions any ancestor of `source_path` also reduces. The path list starts with the script
+## itself, which has to be skipped - otherwise every file reads its own bindings as inherited and
+## never declares them.
+func _inherited_expressions(source_path:String) -> Dictionary:
+	var out = {}
+	var script = load(source_path) as GDScript
+	if script == null:
+		return out
+	for path in UClassDetail.script_get_inherited_script_paths(script):
+		if path == source_path:
+			continue
+		for expression in export_obj.access_reductions.get(path, {}):
+			out[expression] = true
+	return out
+
+
+## `const UFile = ALibRuntime.Utils.UFile` is the shape this feature exists for, and the general
+## rewrite would turn it into `const UFile = UFile`. The declaration IS the binding, so it
+## becomes the preload itself. Returns {} when the line is not that shape, otherwise
+## {line, declares} where `declares` names a binding no longer needing separate injection.
+func _reduce_const_declaration(line:String, comment_stripped:String, reductions:Dictionary) -> Dictionary:
+	if reductions.is_empty() or not comment_stripped.strip_edges().begins_with("const "):
+		return {}
+	if not _check_text_valid(line, "const "):
+		return {}
+	var result = const_name_regex.search(line)
+	if result == null:
+		return {}
+
+	var value = comment_stripped.get_slice("=", 1).strip_edges()
+	var entry = reductions.get(value)
+	if entry == null:
+		return {}
+
+	var const_name = result.get_string(1)
+	var preload_str = 'preload("%s")' % get_adjusted_path_or_old_renamed(entry.path)
+	if not entry.tail.is_empty():
+		preload_str += "." + ".".join(entry.tail)
+
+	var indent = line.substr(0, line.length() - line.strip_edges(true, false).length())
+	var comment = line.substr(comment_stripped.length())
+	var declares := ""
+	# only a class-scope declaration can stand in for the injected const; one inside an inner
+	# class is scoped to it, so the outer binding may still be needed
+	if indent == "" and const_name == entry.name:
+		declares = const_name
+	return {
+		"line": "%sconst %s = %s%s" % [indent, const_name, preload_str, comment],
+		"declares": declares,
+	}
+
+
+## An `extends` line is left alone - it is rewritten to a quoted path further up, and a class
+## body constant cannot be used there anyway. Longest expression first, so "A.B.C" is consumed
+## before "A.B" can eat its prefix.
+func _apply_reductions(line:String, comment_stripped:String, reductions:Dictionary) -> String:
+	if reductions.is_empty() or line.strip_edges() == "":
+		return line
+	var stripped = comment_stripped.strip_edges()
+	if stripped.begins_with("extends ") or stripped.begins_with("class_name "):
+		return line
+
+	var expressions = reductions.keys()
+	expressions.sort_custom(func(a, b): return a.length() > b.length())
+	for expression:String in expressions:
+		if line.find(expression) == -1:
+			continue
+		var entry:Dictionary = reductions[expression]
+		var replacement = reduction_replacement(entry.name, entry.tail)
+		var regex = get_reduction_regex(expression)
+		line = _string_safe_regex_sub(line, func(text:String) -> String:
+			return regex.sub(text, replacement, true))
+	return line
+
+
+func _reduction_preload_lines(reductions:Dictionary, declared_bindings:Dictionary) -> Array:
+	var by_name = {}
+	for expression:String in reductions:
+		var entry:Dictionary = reductions[expression]
+		if entry.inject and not declared_bindings.has(entry.name):
+			by_name[entry.name] = entry.path
+
+	# sorted so re-exporting the same plugin produces the same file
+	var names = by_name.keys()
+	names.sort()
+	var lines = []
+	for name:String in names:
+		lines.append('const %s = preload("%s")' % [name, get_adjusted_path_or_old_renamed(by_name[name])])
+	return lines
 
 
 func _update_paths(line:String):

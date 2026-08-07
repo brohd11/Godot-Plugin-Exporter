@@ -23,6 +23,7 @@ const DEP_KINDS = [DepKind.PRELOAD, DepKind.EXTENDS_PATH, DepKind.EXT_RESOURCE, 
 const RES_LINE_TEMPLATE = '[ext_resource type="%s" path="%s" id="%s"]'
 
 static var preload_regex:RegEx
+static var _reduction_regexes:Dictionary = {}
 
 var _string_regex:RegEx
 
@@ -126,10 +127,32 @@ static func edges_to_reductions(edges:Array, out:Dictionary) -> Dictionary:
 			continue
 		out[expression] = {
 			"name": parts[consumed - 1],
+			# the segment above it, the first fallback when two reductions want the same name
+			"parent": parts[consumed - 2] if consumed >= 2 else "",
 			"path": edge.to,
 			"tail": Array(parts.slice(consumed)),
 		}
 	return out
+
+
+## Matches an expression as a whole dotted token. The lookbehind keeps it off a longer chain
+## that merely ends with it ("Other.ALibRuntime.Utils"), and the trailing boundary keeps
+## "A.B.UFile" from matching inside "A.B.UFileWatcher".
+static func get_reduction_regex(expression:String) -> RegEx:
+	var regex = _reduction_regexes.get(expression)
+	if regex == null:
+		regex = RegEx.new()
+		regex.compile("(?<![.\\w])%s\\b" % expression.replace(".", "\\."))
+		_reduction_regexes[expression] = regex
+	return regex
+
+
+## The text a reduced expression becomes: the bound name, plus whatever the walk could not
+## follow. "Hub.Utils.UProfile.TimeFunction" -> "UProfile.TimeFunction".
+static func reduction_replacement(name:String, tail:Array) -> String:
+	if tail.is_empty():
+		return name
+	return name + "." + ".".join(tail)
 
 func pre_export() -> void:
 	return
