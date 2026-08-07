@@ -4,20 +4,7 @@ func set_parse_settings(settings) -> void:
 	pass
 
 func get_direct_dependencies(file_path:String) -> Dictionary:
-	var file_access = FileAccess.open(file_path, FileAccess.READ)
-	if not file_access:
-		printerr("Could not open file: %s" % file_path)
-		return {}
-	var direct_dependencies = {}
-	while not file_access.eof_reached():
-		var line = file_access.get_line()
-		if line.find('[ext_resource') > -1:
-			var path = line.get_slice('path="', 1)
-			path = path.get_slice('"', 0)
-			var file_name = path.get_file()
-			direct_dependencies[path] = {}
-	
-	return direct_dependencies
+	return edges_to_dependencies(scan_direct_edges(file_path), {})
 
 
 func post_export_edit_file(file_path:String, file_lines:Variant=null) -> Variant:

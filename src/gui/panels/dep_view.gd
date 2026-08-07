@@ -1,9 +1,11 @@
 extends VBoxContainer
 
 const UtilsRemote = preload("res://addons/plugin_exporter/src/class/utils_remote.gd")
+const UtilsLocal = preload("res://addons/plugin_exporter/src/class/utils_local.gd")
 const UControl = UtilsRemote.UControl
 const Options = UtilsRemote.Options
 const DepGraphPanel = UtilsRemote.DepGraphPanel
+const DependencyTags = UtilsLocal.DependencyTags
 
 
 var dep_graph:DepGraphPanel
@@ -29,8 +31,10 @@ func set_current_file(path:String):
 func _create_graph():
 	dep_graph.v_gap = 50 * EditorInterface.get_editor_scale()
 	dep_graph.h_gap = 200 * EditorInterface.get_editor_scale()
+	# same tag handling as the export crawl, so a "#! dependency" file shows up here too
+	dep_graph.scan_max_depth = -1
+	dep_graph.scan_tag_handlers = {DependencyTags.TAG: DependencyTags.dependency_dir()}
 	dep_graph.set_files(current_files)
-	print(dep_graph.get_dep_graph().to_dict())
 
 func get_options() -> Options:
 	var options = Options.new()
@@ -40,4 +44,5 @@ func get_options() -> Options:
 func _change_view_mode():
 	var next_mode = wrapi(dep_graph.edge_mode + 1, 0, dep_graph.EdgeMode.size())
 	dep_graph.set_edge_mode(next_mode)
+	dep_graph.scan_max_depth = 2
 	_create_graph()

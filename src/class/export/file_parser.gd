@@ -5,10 +5,7 @@ const UtilsLocal = preload("res://addons/plugin_exporter/src/class/utils_local.g
 
 const ExportFileKeys = UtilsLocal.ExportFileUtils.ExportFileKeys
 
-const Dependencies = UtilsRemote.Dependencies
-
 const TEXT_FILE_TYPES = ["gd", "tscn", "cs", "tres"]
-const DEPSCAN_TYPES = ["gd", "tscn", "tres"]
 
 const PARSE_FOLDER_PATH = "./parse" #! ignore-remote
 
@@ -102,21 +99,9 @@ func get_dependencies(file_path:String, all_dependencies:Dictionary, scanned_fil
 		var file_deps = {}
 		var ext = current_file_path.get_extension()
 		if ext in TEXT_FILE_TYPES:
-			#if ext == "cs":
 			var parse_ins = default_parsers.get(ext)
 			file_deps = parse_ins.get_direct_dependencies(current_file_path)
-			#file_deps.erase(current_file_path)
-			#else:
-			#if ext != "cs":
-				#var dep_scan = Dependencies.open(current_file_path)
-				#dep_scan.resolve_access_paths = false
-				##dep_scan.add_tag_handler("dependency")
-				#var new_deps = dep_scan.get_graph().get_dependencies(current_file_path)
-				#if file_deps.size() != new_deps.size():
-					#print("&*&*& -- ", current_file_path)
-					#print("====")
-					#print(file_deps.keys(), " \n==\n", new_deps)
-		
+	
 		if ext in custom_text_types:
 			var parse_ins_array = custom_parse_data.get(ext)
 			for parse_ins in parse_ins_array:
@@ -127,10 +112,14 @@ func get_dependencies(file_path:String, all_dependencies:Dictionary, scanned_fil
 		
 		for path in file_deps.keys():
 			var data = file_deps.get(path)
-			all_dependencies[path] = {ExportFileKeys.dependent:current_file_path}
-			var dep_dir = data.get(ExportFileKeys.dependency_dir)
+			var existing = all_dependencies.get(path, {})
+			var entry = {ExportFileKeys.dependent:current_file_path}
+			# a "#! dependency <dir>" placement has to survive a later plain reference to the
+			# same file, whichever order the two are crawled in
+			var dep_dir = data.get(ExportFileKeys.dependency_dir, existing.get(ExportFileKeys.dependency_dir))
 			if dep_dir != null:
-				all_dependencies[path][ExportFileKeys.dependency_dir] = dep_dir
+				entry[ExportFileKeys.dependency_dir] = dep_dir
+			all_dependencies[path] = entry
 			if not scanned_files.has(path):
 				files_to_scan.push_back(path)
 

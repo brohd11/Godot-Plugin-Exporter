@@ -4,32 +4,28 @@ func set_parse_settings(settings):
 	pass
 
 func get_direct_dependencies(file_path:String) -> Dictionary:
+	_read_script_class(file_path)
+	return edges_to_dependencies(scan_direct_edges(file_path), {})
+
+# The scanner is run without a class map, so the [gd_resource] header is read here. It is
+# always the first line.
+func _read_script_class(file_path:String) -> void:
 	var file_access = FileAccess.open(file_path, FileAccess.READ)
 	if not file_access:
 		printerr("Could not open file: %s" % file_path)
-		return {}
-	var direct_dependencies = {}
-	while not file_access.eof_reached():
-		var line = file_access.get_line()
-		if line.find("[gd_resource") > -1:
-			if line.find(' script_class="') > -1:
-				var script_class = line.get_slice(' script_class="', 1)
-				script_class = script_class.get_slice('"', 0)
-				if not export_obj.global_classes_used.has(script_class):
-					export_obj.global_classes_used[script_class] = {
-						#ExportFileKeys.dependent: file_path,
-						ExportFileKeys.path: file_path
-					}
-				# erase from renames, keeps resource class global
-				export_obj.class_renames.erase(script_class)
-		
-		if line.find('[ext_resource') > -1:
-			var path = line.get_slice('path="', 1)
-			path = path.get_slice('"', 0)
-			var file_name = path.get_file()
-			direct_dependencies[path] = {}
-	
-	return direct_dependencies
+		return
+	var line = file_access.get_line()
+	if line.find("[gd_resource") == -1 or line.find(' script_class="') == -1:
+		return
+	var script_class = line.get_slice(' script_class="', 1)
+	script_class = script_class.get_slice('"', 0)
+	if not export_obj.global_classes_used.has(script_class):
+		export_obj.global_classes_used[script_class] = {
+			#ExportFileKeys.dependent: file_path,
+			ExportFileKeys.path: file_path
+		}
+	# erase from renames, keeps resource class global
+	export_obj.class_renames.erase(script_class)
 
 func post_export_edit_line(line:String) -> String:
 	return line

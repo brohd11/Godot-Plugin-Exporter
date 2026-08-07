@@ -23,14 +23,8 @@ func set_parse_settings(settings):
 	pass
 
 func get_direct_dependencies(file_path:String) -> Dictionary:
-	var file_access = FileAccess.open(file_path, FileAccess.READ)
-	if not file_access:
-		printerr("Could not open file: %s" % file_path)
-		return {}
-	
 	var direct_dependencies = {}
-	var global_class_data = get_global_classes_in_file(file_path)
-	var global_classes_in_files = global_class_data
+	var global_classes_in_files = get_global_classes_in_file(file_path)
 	for _class_name in global_classes_in_files:
 		var path = export_obj.export_data.class_list.get(_class_name)
 		if not export_obj.global_classes_used.has(_class_name):
@@ -39,55 +33,8 @@ func get_direct_dependencies(file_path:String) -> Dictionary:
 				ExportFileKeys.path: path
 			}
 		direct_dependencies[path] = {}
-	
-	file_access.seek(0)
-	
-	var remote_dir_overide = ""
-	var first_line = true
-	while not file_access.eof_reached():
-		var line = file_access.get_line()
-		var comment_stripped = _strip_comment(line)
-		if first_line:
-			first_line = false
-			if line.find("#! remote") > -1:
-				remote_dir_overide = line.get_slice("#! remote", 1).strip_edges()
-		
-		if comment_stripped.find("extends") > -1 and comment_stripped.count('"') >= 2:
-			if _check_text_valid(line, "extends"):
-				#var _class #^ i think can just be removed because is covered by below
-				#if line.find("class ") > -1:
-					#if _check_text_valid(line, "class "):
-						#_class = line.get_slice("class ", 1)
-						#_class = _class.get_slice(" ", 0)
-				
-				var extends_part = comment_stripped.get_slice("extends", 1).strip_edges()
-				if extends_part.count('"') == 2:
-					var extend_path = extends_part.trim_prefix('"')
-					extend_path = extend_path.get_slice('"', 0)
-					extend_path = export_obj.ensure_absolute_path(extend_path, file_path)
-					if FileAccess.file_exists(extend_path):
-						var file_name = extend_path.get_file()
-						direct_dependencies[extend_path] = {}
-			
-		elif line.find("preload(") > -1 and line.count('"') == 2: #TODO make these regexs or something more robust.
-			var preload_path = get_preload_path(line)
-			if preload_path != null:
-				preload_path = export_obj.ensure_absolute_path(preload_path, file_path)
-				direct_dependencies[preload_path] = {}
-				## make this '#! remote custom/dir' work? recursive deps will not be in this folder without refactor
-				#direct_dependencies[preload_path][ExportFileKeys.dependency_dir] = remote_dir_overide
-		elif line.find("#! dependency") > -1 and line.count('"') >= 2:
-			if _check_text_valid(line, "#! dependency"):
-				var slice = line.get_slice("#! dependency", 1)
-				var dep_path = line.get_slice('"', 1)
-				dep_path = dep_path.get_slice('"', 0)
-				dep_path = export_obj.ensure_absolute_path(dep_path, file_path)
-				if FileAccess.file_exists(dep_path):
-					var file_name = dep_path.get_file()
-					var dependency_dir = line.get_slice("#! dependency", 1).strip_edges()
-					direct_dependencies[dep_path] = {ExportFileKeys.dependency_dir: dependency_dir}
-	
-	return direct_dependencies
+
+	return edges_to_dependencies(scan_direct_edges(file_path), direct_dependencies)
 
 
 func post_export_edit_file(file_path:String, file_lines:Variant=null):

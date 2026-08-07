@@ -6,6 +6,7 @@ const ExportData = preload("res://addons/plugin_exporter/src/class/export/export
 const ExportObj = preload("res://addons/plugin_exporter/src/class/export/export_obj.gd")
 const FileParser = preload("res://addons/plugin_exporter/src/class/export/file_parser.gd")
 const ExportFileUtils = preload("res://addons/plugin_exporter/src/class/export/plugin_exporter_file_utils.gd")
+const DependencyTags = preload("res://addons/plugin_exporter/src/class/export/dependency_tags.gd")
 
 const ParseBase = preload("res://addons/plugin_exporter/src/class/export/parse/parse_base.gd")
 const ParseGD = preload("res://addons/plugin_exporter/src/class/export/parse/parse_gd.gd")

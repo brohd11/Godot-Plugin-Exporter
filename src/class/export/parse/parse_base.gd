@@ -10,12 +10,24 @@ const UClassDetail = UtilsRemote.UClassDetail
 const ExportFileUtils = UtilsLocal.ExportFileUtils
 const ExportFileKeys = ExportFileUtils.ExportFileKeys
 const CompatData = UtilsLocal.CompatData
+const DependencyTags = UtilsLocal.DependencyTags
+
+const Dependencies = UtilsRemote.Dependencies
+const DepEdge = Dependencies.DepEdge
+const DepKind = DepEdge.Kind
+
+## Edge kinds that mean "copy this file". LOAD is deliberately absent - a load() target
+## compiles without the file, so it is only pulled in when tagged "#! dependency".
+const DEP_KINDS = [DepKind.PRELOAD, DepKind.EXTENDS_PATH, DepKind.EXT_RESOURCE, DepKind.TAG]
 
 const RES_LINE_TEMPLATE = '[ext_resource type="%s" path="%s" id="%s"]'
 
 static var preload_regex:RegEx
 
 var _string_regex:RegEx
+
+var _dep_scanner
+var _dep_scanner_export
 
 var export_obj: UtilsLocal.ExportData.Export
 
@@ -29,6 +41,50 @@ func set_parse_settings(settings) -> void:
 func get_direct_dependencies(file_path:String) -> Dictionary:
 	var direct_dependencies = {}
 	return direct_dependencies
+
+## Direct references out of `file_path`, as DepEdges. Strings and comments are masked, uid and
+## relative paths resolved, "#!" tags dispatched to their handler - so parsers no longer count
+## quotes. Only one hop: file_parser.get_dependencies() drives the recursion.
+func scan_direct_edges(file_path:String) -> Array:
+	var scanner = _get_dep_scanner()
+	scanner.roots = [file_path]
+	var graph = scanner.get_graph()
+	for edge in graph.unresolved:
+		printerr('Unresolved reference "%s" in %s:%s' % [edge.raw, edge.from, edge.line_no])
+	return graph.get_out_edges(file_path)
+
+# One scanner per Export, reused across files by reassigning roots.
+func _get_dep_scanner():
+	if _dep_scanner == null or _dep_scanner_export != export_obj:
+		_dep_scanner = build_dep_scanner()
+		_dep_scanner_export = export_obj
+	return _dep_scanner
+
+static func build_dep_scanner():
+	var scanner = Dependencies.new()
+	# depth of 1, called per file, so only need direct dependencies for each
+	scanner.max_depth = 1
+	scanner.include_missing = false # a file that is not on disk must never reach files_to_copy
+	scanner.use_project_classes = false # global classes stay with parse_gd's own pass
+	scanner.resolve_access_paths = false
+	scanner.add_tag_handler(DependencyTags.TAG, DependencyTags.dependency_dir())
+	return scanner
+
+## Folds scanned edges into the legacy {path: {"dependency_dir"?: dir}} shape.
+static func edges_to_dependencies(edges:Array, out:Dictionary) -> Dictionary:
+	for edge in edges:
+		if edge.to == "" or not DEP_KINDS.has(edge.kind):
+			continue
+		var entry = out.get(edge.to)
+		if entry == null:
+			entry = {}
+			out[edge.to] = entry
+		# 'preload("x") #! dependency current' emits a PRELOAD and a TAG edge for the same
+		# file, so the directory is only ever written - never cleared by whichever lands last.
+		var dependency_dir = edge.meta.get(DependencyTags.DIR_KEY, "")
+		if dependency_dir != "":
+			entry[ExportFileKeys.dependency_dir] = dependency_dir
+	return out
 
 func pre_export() -> void:
 	return
