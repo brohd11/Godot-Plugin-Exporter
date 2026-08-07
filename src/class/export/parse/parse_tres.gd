@@ -21,8 +21,8 @@ func _read_script_class(file_path:String) -> void:
 	script_class = script_class.get_slice('"', 0)
 	if not export_obj.global_classes_used.has(script_class):
 		export_obj.global_classes_used[script_class] = {
-			#ExportFileKeys.dependent: file_path,
-			ExportFileKeys.path: file_path
+			#KeysData.DEPENDENT: file_path,
+			KeysData.PATH: file_path
 		}
 	# erase from renames, keeps resource class global
 	export_obj.class_renames.erase(script_class)

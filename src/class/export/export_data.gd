@@ -5,7 +5,7 @@ const _UtilsLocal = preload("res://addons/plugin_exporter/src/class/utils_local.
 
 const Export = _UtilsLocal.ExportObj
 const _ExportFileUtils = _UtilsLocal.ExportFileUtils
-const _ExportFileKeys = _ExportFileUtils.ExportFileKeys
+const KeysConfig = _ExportFileUtils.KeysConfig
 
 const _UEditor = _UtilsRemote.UEditor
 
@@ -43,8 +43,8 @@ func _init(export_config_path):
 	
 	_ExportFileUtils.string_maps = {}
 	
-	export_root = export_data.get(_ExportFileKeys.export_root)
-	plugin_folder = export_data.get(_ExportFileKeys.plugin_folder)
+	export_root = export_data.get(KeysConfig.EXPORT_ROOT)
+	plugin_folder = export_data.get(KeysConfig.PLUGIN_FOLDER)
 	full_export_path = _ExportFileUtils.get_full_export_path(export_root, plugin_folder, export_config_path)
 	if full_export_path == "":
 		return
@@ -67,14 +67,14 @@ func _init(export_config_path):
 		for i in range(strip_cast_names.size()):
 			strip_cast_names[i] = strip_cast_names[i].strip_edges()
 	
-	options = export_data.get(_ExportFileKeys.options)
-	overwrite = options.get(_ExportFileKeys.overwrite, false)
-	include_uid = options.get(_ExportFileKeys.include_uid, true)
-	include_import = options.get(_ExportFileKeys.include_import, true)
-	move_global_files = options.get(_ExportFileKeys.move_global_files, true)
-	ignore_src = options.get(_ExportFileKeys.ignore_src, false)
+	options = export_data.get(KeysConfig.OPTIONS)
+	overwrite = options.get(KeysConfig.Options.OVERWRITE, false)
+	include_uid = options.get(KeysConfig.Options.INCLUDE_UID, true)
+	include_import = options.get(KeysConfig.Options.INCLUDE_IMPORT, true)
+	move_global_files = options.get(KeysConfig.Options.MOVE_GLOBAL_FILES, true)
+	ignore_src = options.get(KeysConfig.Options.IGNORE_SRC, false)
 	
-	parser_settings = options.get(_ExportFileKeys.parser_settings, {})
+	parser_settings = options.get(KeysConfig.Options.PARSER_SETTINGS, {})
 	
 	if not strip_cast_names.is_empty():
 		parser_settings["parse_gd"]["strip_cast"] = strip_cast_names
@@ -83,11 +83,11 @@ func _init(export_config_path):
 	
 	_get_class_list()
 	
-	var exports_array = export_data.get(_ExportFileKeys.exports)
+	var exports_array = export_data.get(KeysConfig.EXPORTS)
 	for export in exports_array:
 		var export_obj:Export = Export.new()
 		export_obj.export_data = self
-		export_obj.source = export.get(_ExportFileKeys.source)
+		export_obj.source = export.get(KeysConfig.Export.SOURCE)
 		
 		if not export_obj.source.ends_with("/"):
 			export_obj.source = export_obj.source + "/"
@@ -95,7 +95,7 @@ func _init(export_config_path):
 		if not DirAccess.dir_exists_absolute(export_obj.source):
 			_UEditor.push_toast(export_obj.source + " does not exist.",2)
 			return
-		export_obj.export_folder = export.get(_ExportFileKeys.export_folder)
+		export_obj.export_folder = export.get(KeysConfig.Export.EXPORT_FOLDER)
 		if export_obj.export_folder == "":
 			export_obj.export_folder = export_obj.source.get_base_dir().get_file()
 		
@@ -113,26 +113,26 @@ func _init(export_config_path):
 		if not export_obj.export_folder.ends_with("/"):
 			export_obj.export_folder = export_obj.export_folder + "/"
 		
-		var exclude = export.get(_ExportFileKeys.exclude)
-		export_obj.exclude_directories = exclude.get(_ExportFileKeys.directories)
-		export_obj.exclude_file_extensions = exclude.get(_ExportFileKeys.file_extensions)
-		export_obj.exclude_files = exclude.get(_ExportFileKeys.files)
+		var exclude = export.get(KeysConfig.Export.EXCLUDE)
+		export_obj.exclude_directories = exclude.get(KeysConfig.Export.Exclude.DIRECTORIES)
+		export_obj.exclude_file_extensions = exclude.get(KeysConfig.Export.Exclude.FILE_EXTENSIONS)
+		export_obj.exclude_files = exclude.get(KeysConfig.Export.Exclude.FILES)
 		
 		var default_remote_dir = export_obj.source.path_join("src/remote")
-		export_obj.remote_dir = export.get(_ExportFileKeys.remote_dir, default_remote_dir)
+		export_obj.remote_dir = export.get(KeysConfig.Export.REMOTE_DIR, default_remote_dir)
 		if not export_obj.remote_dir.begins_with(export_obj.source):
 			export_obj.remote_dir = export_obj.source.path_join(export_obj.remote_dir)
 		
 		export_obj.source_files = _UtilsRemote.UFile.GetFiles.scan(export_obj.source)
 		export_obj.export_dir_path = full_export_path.path_join(export_obj.export_folder)
-		export_obj.other_transfers = export.get(_ExportFileKeys.other_transfers, [])
+		export_obj.other_transfers = export.get(KeysConfig.Export.OTHER_TRANSFERS, [])
 		if ignore_src and DirAccess.dir_exists_absolute(plugin_folder.path_join("src")): # TEST to hide the files of src, but leave globals available
 			export_obj.other_transfers.append({"to": "src/.gdignore"})
-		export_obj.ignore_dependencies = export.get(_ExportFileKeys.ignore_dependencies, false)
+		export_obj.ignore_dependencies = export.get(KeysConfig.Options.IGNORE_DEPENDENCIES, false)
 		
 		export_obj.file_parser = _UtilsLocal.FileParser.new()
 		export_obj.file_parser.set_export_obj(export_obj)
-		var overide_settings:Dictionary = export.get(_ExportFileKeys.parser_overide_settings, {})
+		var overide_settings:Dictionary = export.get(KeysConfig.Options.PARSER_OVERIDE_SETTINGS, {})
 		#overide_settings = _sort_settings_dict(overide_settings)
 		
 		for parse_key in parser_settings.keys():

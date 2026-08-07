@@ -4,7 +4,8 @@ const _UtilsRemote = preload("res://addons/plugin_exporter/src/class/utils_remot
 const _UEditor = _UtilsRemote.UEditor
 const _UtilsLocal = preload("res://addons/plugin_exporter/src/class/utils_local.gd")
 const _ExportFileUtils = _UtilsLocal.ExportFileUtils
-const _ExportFileKeys = _ExportFileUtils.ExportFileKeys
+const _KeysConfig = _ExportFileUtils.KeysConfig
+const _KeysData = _ExportFileUtils.KeysData
 const _ExportData = _UtilsLocal.ExportData
 const _FileParser = _UtilsLocal.FileParser
 const _UClassDetail = _UtilsRemote.UClassDetail
@@ -81,9 +82,9 @@ func get_backport_files(backport_target):
 		unique_files.append(file)
 		var export_path = get_remote_file_local_path(file)
 		other_transfers.append({
-			_ExportFileKeys.from: file,
-			_ExportFileKeys.to: export_path,
-			_ExportFileKeys.custom_tree_message:" <- (Backport Dependency)"
+			_KeysData.FROM: file,
+			_KeysData.TO: export_path,
+			_KeysData.CUSTOM_TREE_MESSAGE:" <- (Backport Dependency)"
 		})
 
 
@@ -103,7 +104,7 @@ func get_valid_files_for_transfer():
 			return
 		
 		if FileAccess.file_exists(l_path): # check that it is file vs dir
-			valid_files_for_transfer[l_path] = {_ExportFileKeys.to:export_path}
+			valid_files_for_transfer[l_path] = {_KeysData.TO:export_path}
 			if rename_plugin:
 				adjusted_remote_paths[l_path] = get_renamed_path(l_path)
 			
@@ -112,9 +113,9 @@ func get_valid_files_for_transfer():
 	other_transfers_data = _ExportFileUtils.get_other_transfer_data(self)
 	for to in other_transfers_data.keys():
 		var data = other_transfers_data.get(to)
-		var from_files = data.get(_ExportFileKeys.from_files)
-		var single_from = data.get(_ExportFileKeys.single)
-		var custom_message = data.get(_ExportFileKeys.custom_tree_message)
+		var from_files = data.get(_KeysData.FROM_FILES)
+		var single_from = data.get(_KeysData.SINGLE)
+		var custom_message = data.get(_KeysData.CUSTOM_TREE_MESSAGE)
 		for from in from_files:
 			if not FileAccess.file_exists(from):
 				if not from.begins_with("PE_VIRTUAL"):
@@ -125,8 +126,8 @@ func get_valid_files_for_transfer():
 				if not virtual_files.has(virtual_file_type):
 					virtual_files[virtual_file_type] = {}
 				virtual_files[virtual_file_type][to] = {
-					_ExportFileKeys.to: virtual_export_path,
-					_ExportFileKeys.custom_tree_message: custom_message
+					_KeysData.TO: virtual_export_path,
+					_KeysData.CUSTOM_TREE_MESSAGE: custom_message
 				}
 				continue
 			
@@ -139,11 +140,11 @@ func get_valid_files_for_transfer():
 				return
 			
 			var export_path = get_export_path(to_path)
-			valid_files_for_transfer[from] = {_ExportFileKeys.to:export_path}
+			valid_files_for_transfer[from] = {_KeysData.TO:export_path}
 			if custom_message:
-				valid_files_for_transfer[from][_ExportFileKeys.custom_tree_message] = custom_message
+				valid_files_for_transfer[from][_KeysData.CUSTOM_TREE_MESSAGE] = custom_message
 			
-			files_to_process_for_paths[from] = {_ExportFileKeys.to:export_path}
+			files_to_process_for_paths[from] = {_KeysData.TO:export_path}
 			
 			var adj_path = get_renamed_path(to_path)
 			adjusted_remote_paths[from] = adj_path
@@ -158,12 +159,12 @@ func sort_valid_files():
 		
 		if not file_parser.check_file_valid(file):
 			files_to_copy[file] = valid_files_for_transfer.get(file)
-			#files_to_copy[file] = {_ExportFileKeys.to: standard_export_path}
+			#files_to_copy[file] = {_KeysData.TO: standard_export_path}
 			continue
 		
 		var file_ext = file.get_extension()
 		if file_ext == "tres" or file_ext == "tscn":
-			files_to_process_for_paths[file] = {_ExportFileKeys.to: standard_export_path}
+			files_to_process_for_paths[file] = {_KeysData.TO: standard_export_path}
 			files_to_copy[file] = valid_files_for_transfer.get(file)
 			continue
 		
@@ -171,8 +172,8 @@ func sort_valid_files():
 			var global_name = _UClassDetail.get_global_class_name(file)
 			if global_name != "" and not global_classes_used.has(global_name):
 				global_classes_used[global_name] = {
-					#_ExportFileKeys.dependent: file,
-					_ExportFileKeys.path: file
+					#_KeysData.DEPENDENT: file,
+					_KeysData.PATH: file
 					}
 				global_classes_used_paths[file] = global_name
 		
@@ -201,12 +202,12 @@ func sort_valid_files():
 					
 					if FileAccess.file_exists(remote_file_path):
 						var file_export_data = {
-							_ExportFileKeys.to: standard_export_path,
-							_ExportFileKeys.replace_with: remote_file_path
+							_KeysData.TO: standard_export_path,
+							_KeysData.REPLACE_WITH: remote_file_path
 							}
 						files_to_process_for_paths[file] = file_export_data # process file for dependencies
 						files_to_copy[file] = valid_files_for_transfer.get(file)
-						files_to_copy[file][_ExportFileKeys.replace_with] = remote_file_path # when copying, replace with remote
+						files_to_copy[file][_KeysData.REPLACE_WITH] = remote_file_path # when copying, replace with remote
 						replace_with_files[remote_file_path] = file # add to point files where this is dependency to this path
 						is_remote = true
 						break
@@ -215,9 +216,9 @@ func sort_valid_files():
 						break
 			
 			if not is_remote:
-				files_to_process_for_paths[file] = {_ExportFileKeys.to: standard_export_path}
+				files_to_process_for_paths[file] = {_KeysData.TO: standard_export_path}
 				files_to_copy[file] = valid_files_for_transfer.get(file)
-				#files_to_copy[file] = {_ExportFileKeys.to: standard_export_path}
+				#files_to_copy[file] = {_KeysData.TO: standard_export_path}
 			
 			file_access.close()
 
@@ -249,13 +250,18 @@ func get_global_classes_used_in_valid_files():
 		if classes_used == null:
 			continue
 		
+		var gd_parser = file_parser.default_parsers.get("gd") if file_ext == "gd" else null
 		for class_nm in classes_used:
+			# only a pass-through here: reduction rewrites every mention of it away, so seeding
+			# the crawl at it would pull in its whole preload tree for nothing
+			if gd_parser != null and gd_parser.class_reduced_away(file, class_nm):
+				continue
 			var remote_path = export_data.class_list.get(class_nm)
 			if global_classes_used.has(class_nm):
 				continue
 			global_classes_used[class_nm] = {
-				_ExportFileKeys.dependent: file,
-				_ExportFileKeys.path: remote_path
+				_KeysData.DEPENDENT: file,
+				_KeysData.PATH: remote_path
 				}
 			global_classes_used_paths[remote_path] = class_nm
 			if _UtilsRemote.UFile.is_file_in_directory(remote_path, source):
@@ -279,14 +285,14 @@ func get_file_dependencies():
 			continue #^ and don't copy another to remote
 		
 		var data = file_dependencies.get(remote_path, {})
-		var dependent:String = data.get(_ExportFileKeys.dependent, "")
-		var dependency_dir = data.get(_ExportFileKeys.dependency_dir)
+		var dependent:String = data.get(_KeysData.DEPENDENT, "")
+		var dependency_dir = data.get(_KeysData.DEPENDENCY_DIR)
 		if _UtilsRemote.UFile.is_file_in_directory(remote_path, source):
 			continue
 		
 		if dependent != "":
 			var dep_data = files_to_copy.get(dependent, {})
-			var replace_dep_with = dep_data.get(_ExportFileKeys.replace_with)
+			var replace_dep_with = dep_data.get(_KeysData.REPLACE_WITH)
 			if replace_dep_with != null:
 				if replace_dep_with == remote_path:
 					continue # stop remote classes from creating extra copy in remote
@@ -303,8 +309,8 @@ func get_file_dependencies():
 		adjusted_remote_paths[remote_path] = adjusted_path
 		
 		files_to_copy[remote_path] = {
-			_ExportFileKeys.to: export_path,
-			_ExportFileKeys.dependent: dependent
+			_KeysData.TO: export_path,
+			_KeysData.DEPENDENT: dependent
 			}
 
 
@@ -370,8 +376,8 @@ func get_global_class_export_paths():
 		var to_rename = name in class_renames.keys()
 		#if to_rename: # originally limited to only those that would be renamed
 		var data = global_classes_used.get(name)
-		var remote_path = data.get(_ExportFileKeys.path)
-		var dependent = data.get(_ExportFileKeys.dependent)
+		var remote_path = data.get(_KeysData.PATH)
+		var dependent = data.get(_KeysData.DEPENDENT)
 		var remote_dir_path = get_remote_file_local_path(remote_path)
 		
 		var local_to_plugin = _UtilsRemote.UFile.is_file_in_directory(remote_path, source)
@@ -404,15 +410,15 @@ func get_global_class_export_paths():
 		
 		var export_path = get_export_path(remote_dir_path)
 		files_to_copy[remote_path] = {
-			_ExportFileKeys.to: export_path,
-			_ExportFileKeys.dependent: dependent,
+			_KeysData.TO: export_path,
+			_KeysData.DEPENDENT: dependent,
 			}
 
 func check_all_files_have_valid_path():
 	for file_path in files_to_copy.keys():
 		var file_data = files_to_copy.get(file_path)
-		var export_path = file_data.get(_ExportFileKeys.to)
-		var replace_with = file_data.get(_ExportFileKeys.replace_with)
+		var export_path = file_data.get(_KeysData.TO)
+		var replace_with = file_data.get(_KeysData.REPLACE_WITH)
 		var source_path = file_path
 		if replace_with != null:
 			source_path = replace_with
@@ -482,8 +488,8 @@ func update_plugin_cfg():
 	
 	_update_deps(plugin_cfg_path)
 	
-	var use_tag = export_data.options.get(_ExportFileKeys.use_tag_in_cfg, false)
-	var include_min = export_data.options.get(_ExportFileKeys.include_min_version, true)
+	var use_tag = export_data.options.get(_KeysConfig.Options.USE_TAG_IN_CFG, false)
+	var include_min = export_data.options.get(_KeysConfig.Options.INCLUDE_MIN_VERSION, true)
 	if not (use_tag or include_min):
 		return
 	
@@ -541,7 +547,7 @@ func update_plugin_cfg():
 	file_access.store_string("\n".join(lines))
 
 func _update_deps(plugin_cfg_path:String):
-	var exported_deps = export_data.options.get(_ExportFileKeys.exported_deps)
+	var exported_deps = export_data.options.get(_KeysConfig.Options.EXPORTED_DEPS)
 	if exported_deps == null:
 		return
 	var cfg = ConfigFile.new()
@@ -580,7 +586,7 @@ func gather_licenses():
 		if seen_license_paths.has(local_path):
 			printerr("Potential LICENSE clash: ", local_path)
 		var export_path = get_export_path(get_renamed_path(local_path))
-		files_to_copy[file] = {_ExportFileKeys.to:export_path}
+		files_to_copy[file] = {_KeysData.TO:export_path}
 	
 
 func check_file_has_valid_path(source_path:String, export_path:String) -> void:
@@ -603,7 +609,7 @@ func export_files():
 	var global_paths = []
 	for nm in global_classes_used.keys():
 		var data = global_classes_used.get(nm, {})
-		global_paths.append(data.get(_ExportFileKeys.path, ""))
+		global_paths.append(data.get(_KeysData.PATH, ""))
 	file_dep_keys.append_array(global_paths)
 	
 	for file_path in files_to_copy.keys():
@@ -611,8 +617,8 @@ func export_files():
 		file_parser.current_adjusted_file_path = adjusted_remote_paths.get(file_path, file_path)
 		
 		var file_data = files_to_copy.get(file_path)
-		var export_path = file_data.get(_ExportFileKeys.to)
-		var replace_with = file_data.get(_ExportFileKeys.replace_with)
+		var export_path = file_data.get(_KeysData.TO)
+		var replace_with = file_data.get(_KeysData.REPLACE_WITH)
 		
 		var file_uid = include_uid
 		var file_import = include_import
@@ -641,7 +647,7 @@ func export_files():
 		var virtual_file_type_data = virtual_files[virtual_file_type]
 		for local_file_path in virtual_file_type_data.keys():
 			var export_data_for_file = virtual_file_type_data.get(local_file_path)
-			var export_path = export_data_for_file.get(_ExportFileKeys.to)
+			var export_path = export_data_for_file.get(_KeysData.TO)
 			
 			_write_virtual_file(virtual_file_type, export_path)
 	
@@ -730,6 +736,6 @@ func _write_virtual_file(virtual_file_type:String, export_path:String):
 	if not DirAccess.dir_exists_absolute(export_path_dir):
 		DirAccess.make_dir_recursive_absolute(export_path_dir)
 	
-	if virtual_file_type == _ExportFileKeys.PE_VIRTUAL_GDIGNORE:
+	if virtual_file_type == _KeysData.VIRTUAL_GDIGNORE:
 		var fa = FileAccess.open(export_path, FileAccess.WRITE)
 		fa.close()

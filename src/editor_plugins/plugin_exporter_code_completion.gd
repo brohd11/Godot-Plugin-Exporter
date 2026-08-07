@@ -1,8 +1,10 @@
 extends EditorCodeCompletion
 
+const PREFIX = "#!"
+
 func _singleton_ready():
-	singleton.register_tag("#!", "remote", EditorCodeCompletionSingleton.TagLocation.START)
-	singleton.register_tag("#!", "ignore-remote", EditorCodeCompletionSingleton.TagLocation.END)
-	singleton.register_tag("#!", "dependency", EditorCodeCompletionSingleton.TagLocation.END)
-	singleton.register_tag("#!", "singleton-module", EditorCodeCompletionSingleton.TagLocation.END)
-	
+	singleton.register_tag(PREFIX, "remote", TagLocation.START)
+	singleton.register_tag(PREFIX, "ignore-remote", TagLocation.END)
+	singleton.register_tag(PREFIX, "dependency", TagLocation.END)
+	singleton.register_tag(PREFIX, "singleton-module", TagLocation.END)
+	singleton.register_tag(PREFIX, "strip-cast", TagLocation.START)

@@ -25,19 +25,21 @@ func set_parse_settings(settings):
 func get_direct_dependencies(file_path:String) -> Dictionary:
 	var direct_dependencies = {}
 	var global_classes_in_files = get_global_classes_in_file(file_path)
+	reductions_for(file_path)
 	for _class_name in global_classes_in_files:
+		# a class this file only walks through is about to disappear from it, and pulling it in
+		# would drag everything it preloads along with it
+		if class_reduced_away(file_path, _class_name):
+			continue
 		var path = export_obj.export_data.class_list.get(_class_name)
 		if not export_obj.global_classes_used.has(_class_name):
 			export_obj.global_classes_used[_class_name] = {
-				ExportFileKeys.dependent: file_path,
-				ExportFileKeys.path: path
+				KeysData.DEPENDENT: file_path,
+				KeysData.PATH: path
 			}
 		direct_dependencies[path] = {}
 
-	var edges = scan_direct_edges(file_path)
-	if export_obj.reduce_access_paths:
-		edges_to_reductions(edges, export_obj.access_reductions.get_or_add(file_path, {}))
-	return edges_to_dependencies(edges, direct_dependencies)
+	return edges_to_dependencies(scan_direct_edges(file_path), direct_dependencies)
 
 
 func post_export_edit_file(file_path:String, file_lines:Variant=null):
@@ -149,6 +151,14 @@ func post_export_edit_file(file_path:String, file_lines:Variant=null):
 		#print(classes_used)
 		#print(classes_preloaded)
 	
+	# `classes_used` was read off the file before any of the above rewrote it. With reduction on,
+	# a class the file only walked through is gone now, and injecting a preload of it would pull
+	# back exactly what the reduction removed. Recomputed only when the flag is on, so an export
+	# without it stays byte-for-byte what it always was.
+	if not reductions.is_empty():
+		classes_used = ExportFileUtils.get_global_classes_in_file_text(
+			"\n".join(adjusted_file_lines), export_obj.export_data.class_list)
+
 	var rename_lines = []
 	for name in export_obj.export_data.class_list_array:
 		if name in classes_preloaded:

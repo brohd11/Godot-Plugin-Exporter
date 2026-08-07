@@ -7,7 +7,7 @@ const UTree = UtilsRemote.UTree
 
 const PluginInit = UtilsLocal.PluginInit
 const ExportFileUtils = UtilsLocal.ExportFileUtils
-const ExportFileKeys = ExportFileUtils.ExportFileKeys
+const KeysData = ExportFileUtils.KeysData
 
 const FileSystem = UtilsRemote.FileSystem
 const PopupHelper = UtilsRemote.PopupHelper
@@ -292,10 +292,10 @@ func _parse_export_data():#, write=false):
 		#files_to_copy.sort() # figure this out later, to sort added files
 		for local_file_path in files_to_copy:
 			var export_file_data = export.files_to_copy.get(local_file_path)
-			var export_path = export_file_data.get(ExportFileKeys.to)
-			var replace_with = export_file_data.get(ExportFileKeys.replace_with)
-			var dependent = export_file_data.get(ExportFileKeys.dependent)
-			var custom_message = export_file_data.get(ExportFileKeys.custom_tree_message)
+			var export_path = export_file_data.get(KeysData.TO)
+			var replace_with = export_file_data.get(KeysData.REPLACE_WITH)
+			var dependent = export_file_data.get(KeysData.DEPENDENT)
+			var custom_message = export_file_data.get(KeysData.CUSTOM_TREE_MESSAGE)
 			#var remote_file_data = ExportFileUtils.get_remote_file(local_file_path, export)
 			# build tree
 			var file_data = file_data_dict.get(local_file_path)
@@ -328,8 +328,8 @@ func _parse_export_data():#, write=false):
 			var virtual_file_type_data = export.virtual_files[virtual_file_type]
 			for local_file_path in virtual_file_type_data.keys():
 				var export_file_data = virtual_file_type_data.get(local_file_path)
-				var export_path = export_file_data.get(ExportFileKeys.to)
-				var custom_message = export_file_data.get(ExportFileKeys.custom_tree_message)
+				var export_path = export_file_data.get(KeysData.TO)
+				var custom_message = export_file_data.get(KeysData.CUSTOM_TREE_MESSAGE)
 				var last_item = TreeHelper.new_file_path(export_path, full_export_path) as TreeItem
 				last_item.set_icon(0, file_icon)
 				last_item.set_icon_modulate(0, Color.WHITE)

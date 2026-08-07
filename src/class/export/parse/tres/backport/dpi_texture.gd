@@ -42,7 +42,7 @@ func pre_export() -> void:
 		var renamed_path = export_obj.get_renamed_path(svg_path)
 		export_obj.adjusted_remote_paths[file] = renamed_path
 		
-		file_data[ExportFileKeys.to] = export_path
+		file_data[KeysData.TO] = export_path
 		export_obj.check_file_has_valid_path(original_svg_path, export_path)
 		
 		dpi_texture_files[file] = file_data
@@ -60,7 +60,7 @@ func pre_export() -> void:
 		var dpi_tex = load(file)
 		
 		var source = dpi_tex.get_source()
-		var export_path = data.get(ExportFileKeys.to)
+		var export_path = data.get(KeysData.TO)
 		if not DirAccess.dir_exists_absolute(export_path.get_base_dir()):
 			DirAccess.make_dir_recursive_absolute(export_path.get_base_dir())
 		

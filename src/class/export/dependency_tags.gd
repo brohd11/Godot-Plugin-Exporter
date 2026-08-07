@@ -5,7 +5,7 @@
 ## Tag name without the "#!" prefix, the form add_tag_handler() takes.
 const TAG = "dependency"
 ## The key the handler hangs on the edges it emits; parse_base maps it onto the export dict's
-## own key. Naming it here rather than reaching for ExportFileKeys is what leaves this file
+## own key. Naming it here rather than reaching for KeysData is what leaves this file
 ## with no imports, so registering the handler cannot pull the export pipeline in behind it.
 const DIR_KEY = "dir"
 

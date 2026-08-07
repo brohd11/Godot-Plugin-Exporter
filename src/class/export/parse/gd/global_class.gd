@@ -39,13 +39,13 @@ func pre_export() -> void:
 # If not handled by default, file_lines will be null. You can process and return the files lines
 # or return the null value to default to the file's .
 func post_export_edit_file(file_path:String, file_lines:Variant=null) -> Variant:
+	file_lines = strip_type_cast.post_export_edit_file(file_path, file_lines)
 	return file_lines
 
 # second pass of post export. If extension is handled by default, line will be 
 # modified already. If changes were made in post_export_edit_file, these will be
 # present here, else, it will be the unmodified line from the file.
 func post_export_edit_line(line:String) -> String:
-	line = strip_type_cast.post_export_edit_line(line)
 	line = global_rename.post_export_edit_line(line)
 	line = remove_namespace.post_export_edit_line(line)
 	return line

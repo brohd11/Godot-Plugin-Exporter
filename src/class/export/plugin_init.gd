@@ -6,7 +6,7 @@ const UFile = UtilsRemote.UFile
 const ConfirmationDialogHandler = UtilsRemote.ConfirmationDialogHandler
 
 const ExportFileUtils = UtilsLocal.ExportFileUtils
-const ExportFileKeys = ExportFileUtils.ExportFileKeys
+const KeysConfig = ExportFileUtils.KeysConfig
 
 static func new_plugin(plugin_dir_name, create_export:=true):
 	var new_plugin_path = "res://addons/%s" % plugin_dir_name
@@ -76,23 +76,23 @@ static func plugin_init(plugin_name:=""):
 	
 	var export_dir_name = export_dir.trim_suffix("/").get_file()
 	var template_data = PluginExportJSON.get_body_data()
-	template_data[ExportFileKeys.export_root] = export_ignore_dir.path_join("exports")
+	template_data[KeysConfig.EXPORT_ROOT] = export_ignore_dir.path_join("exports")
 	var plugin_folder = export_dir_name.capitalize().replace(" ", "")
-	template_data[ExportFileKeys.plugin_folder] = "%s{{version=%s}}" % [plugin_folder, export_dir_name]
+	template_data[KeysConfig.PLUGIN_FOLDER] = "%s{{version=%s}}" % [plugin_folder, export_dir_name]
 	
 	var export = PluginExportJSON.get_export_obj_data()
-	export[ExportFileKeys.source] = export_dir
-	export[ExportFileKeys.remote_dir] = export_dir.path_join("src/remote")
+	export[KeysConfig.Export.SOURCE] = export_dir
+	export[KeysConfig.Export.REMOTE_DIR] = export_dir.path_join("src/remote")
 	var export_dir_name_dash = export_dir_name.replace("_", "-")
 	var export_folder = "%s{{version=%s}}/%s" % [export_dir_name_dash, export_dir_name, export_dir_name]
-	export[ExportFileKeys.export_folder] = export_folder
+	export[KeysConfig.Export.EXPORT_FOLDER] = export_folder
 	
-	var exclude = export.get(ExportFileKeys.exclude)
-	exclude[ExportFileKeys.directories] = [export_ignore_dir]
+	var exclude = export.get(KeysConfig.Export.EXCLUDE)
+	exclude[KeysConfig.Export.Exclude.DIRECTORIES] = [export_ignore_dir]
 	
-	template_data[ExportFileKeys.exports].append(export)
-	template_data[ExportFileKeys.pre_script] = export_pre_post
-	template_data[ExportFileKeys.post_script] = export_pre_post
+	template_data[KeysConfig.EXPORTS].append(export)
+	template_data[KeysConfig.PRE_SCRIPT] = export_pre_post
+	template_data[KeysConfig.POST_SCRIPT] = export_pre_post
 	
 	#UFile.write_to_json(template_data, export_config_path)
 	YAMLParser.dump_to_file(template_data, export_config_path)
@@ -159,20 +159,20 @@ func post_export():
 class PluginExportJSON:
 	static func get_body_data():
 		return {
-			ExportFileKeys.export_root: "",
-			ExportFileKeys.plugin_folder: "",
-			ExportFileKeys.pre_script: "",
-			ExportFileKeys.post_script: "",
-			ExportFileKeys.options: {
-				ExportFileKeys.overwrite: true,
-				ExportFileKeys.include_uid: true,
-				ExportFileKeys.include_import: true,
-				ExportFileKeys.ignore_src: true,
-				ExportFileKeys.use_tag_in_cfg: true,
-				ExportFileKeys.exported_deps: [],
-				ExportFileKeys.include_min_version: true,
-				ExportFileKeys.move_global_files: true,
-				ExportFileKeys.parser_settings:{
+			KeysConfig.EXPORT_ROOT: "",
+			KeysConfig.PLUGIN_FOLDER: "",
+			KeysConfig.PRE_SCRIPT: "",
+			KeysConfig.POST_SCRIPT: "",
+			KeysConfig.OPTIONS: {
+				KeysConfig.Options.OVERWRITE: true,
+				KeysConfig.Options.INCLUDE_UID: true,
+				KeysConfig.Options.INCLUDE_IMPORT: true,
+				KeysConfig.Options.IGNORE_SRC: true,
+				KeysConfig.Options.USE_TAG_IN_CFG: true,
+				KeysConfig.Options.EXPORTED_DEPS: [],
+				KeysConfig.Options.INCLUDE_MIN_VERSION: true,
+				KeysConfig.Options.MOVE_GLOBAL_FILES: true,
+				KeysConfig.Options.PARSER_SETTINGS:{
 					"use_relative_paths":false,
 					"backport_target": 100,
 					"parse_cs":{
@@ -192,15 +192,15 @@ class PluginExportJSON:
 	
 	static func get_export_obj_data():
 		return {
-			ExportFileKeys.source: "",
-			ExportFileKeys.export_folder: "",
-			ExportFileKeys.exclude: {
-				ExportFileKeys.directories: [],
-				ExportFileKeys.file_extensions: [],
-				ExportFileKeys.files: [],
+			KeysConfig.Export.SOURCE: "",
+			KeysConfig.Export.EXPORT_FOLDER: "",
+			KeysConfig.Export.EXCLUDE: {
+				KeysConfig.Export.Exclude.DIRECTORIES: [],
+				KeysConfig.Export.Exclude.FILE_EXTENSIONS: [],
+				KeysConfig.Export.Exclude.FILES: [],
 				},
-			ExportFileKeys.other_transfers:[],
-			ExportFileKeys.parser_overide_settings:{
+			KeysConfig.Export.OTHER_TRANSFERS:[],
+			KeysConfig.Options.PARSER_OVERIDE_SETTINGS:{
 				"parse_cs":{},
 				"parse_gd":{},
 				"parse_tscn":{},

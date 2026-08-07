@@ -3,7 +3,7 @@ extends RefCounted
 const UtilsRemote = preload("res://addons/plugin_exporter/src/class/utils_remote.gd")
 const UtilsLocal = preload("res://addons/plugin_exporter/src/class/utils_local.gd")
 
-const ExportFileKeys = UtilsLocal.ExportFileUtils.ExportFileKeys
+const KeysData = UtilsLocal.ExportFileUtils.KeysData
 
 const TEXT_FILE_TYPES = ["gd", "tscn", "cs", "tres"]
 
@@ -113,12 +113,12 @@ func get_dependencies(file_path:String, all_dependencies:Dictionary, scanned_fil
 		for path in file_deps.keys():
 			var data = file_deps.get(path)
 			var existing = all_dependencies.get(path, {})
-			var entry = {ExportFileKeys.dependent:current_file_path}
+			var entry = {KeysData.DEPENDENT:current_file_path}
 			# a "#! dependency <dir>" placement has to survive a later plain reference to the
 			# same file, whichever order the two are crawled in
-			var dep_dir = data.get(ExportFileKeys.dependency_dir, existing.get(ExportFileKeys.dependency_dir))
+			var dep_dir = data.get(KeysData.DEPENDENCY_DIR, existing.get(KeysData.DEPENDENCY_DIR))
 			if dep_dir != null:
-				entry[ExportFileKeys.dependency_dir] = dep_dir
+				entry[KeysData.DEPENDENCY_DIR] = dep_dir
 			all_dependencies[path] = entry
 			if not scanned_files.has(path):
 				files_to_scan.push_back(path)

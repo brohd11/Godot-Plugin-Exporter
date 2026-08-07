@@ -5,7 +5,7 @@ const UtilsLocal = preload("res://addons/plugin_exporter/src/class/utils_local.g
 
 const PluginInit = UtilsLocal.PluginInit
 const ExportFileUtils = UtilsLocal.ExportFileUtils
-const ExportFileKeys = ExportFileUtils.ExportFileKeys
+const KeysConfig = ExportFileUtils.KeysConfig
 const UFile = UtilsRemote.UFile
 
 const ExportData = UtilsLocal.ExportData
@@ -65,8 +65,9 @@ static func export_plugin(export_config_path:String, include_uid_overide=null, i
 	
 	var full_export_path = export_data.full_export_path
 	
-	var options = export_data.get(ExportFileKeys.options)
-	var overwrite = options.get(ExportFileKeys.overwrite, false)
+	#var options = export_data.get(KeysConfig.OPTIONS) # actuallt not a key, but worked via get
+	var options = export_data.options
+	var overwrite = options.get(KeysConfig.Options.OVERWRITE, false)
 	if overwrite:
 		var cleared = _clear_export_dir(full_export_path)
 		if not cleared:
@@ -296,7 +297,7 @@ static func open_export_dir(export_config_path):
 	var export_data = ExportFileUtils.get_export_data(export_config_path)
 	if export_data == null:
 		return
-	var export_root = export_data.get(ExportFileKeys.export_root, "")
+	var export_root = export_data.get(KeysConfig.EXPORT_ROOT, "")
 	if export_root != "":
 		var global_path = ProjectSettings.globalize_path(export_root)
 		if not DirAccess.dir_exists_absolute(global_path):

@@ -1,9 +1,9 @@
 extends "res://addons/plugin_exporter/src/class/export/parse/parse_base.gd"
 
-var _editor_console_regex := RegEx.new()
-var _editor_node_ref := RegEx.new()
-
 const CAST_STRIP_NAMES = ["PE_STRIP_CAST_SCRIPT"]
+
+const STRIP_CAST_TAG = "#! strip-cast"
+
 var _cast_strip_names = []
 
 var _cast_strip_callables = []
@@ -27,10 +27,11 @@ func set_parse_settings(settings):
 		if global_name != "" and not global_name in _cast_strip_names:
 			_cast_strip_names.append(global_name)
 	
-	_build_regexes()
+	for _class_name in _cast_strip_names:
+		_build_single_regex(_class_name, _cast_strip_callables)
 
 # logic to parse for files that are needed acts as a set, dependencies[my_dep_path] = {}
-func get_direct_dependencies(file_path:String) -> Dictionary:
+func get_direct_dependencies(_file_path:String) -> Dictionary:
 	var dependencies = {} 
 	return dependencies
 
@@ -42,24 +43,44 @@ func pre_export() -> void:
 # contain modifies lines, for example, if you want to make a second pass on a gd file.
 # If not handled by default, file_lines will be null. You can process and return the files lines
 # or return the null value to default to the file's .
-func post_export_edit_file(file_path:String, file_lines:Variant=null) -> Variant:
+func post_export_edit_file(_file_path:String, file_lines:Variant=null) -> Variant:
+	var local_strip_callables = []
+	for i:int in file_lines.size():
+		var line:String = file_lines[i]
+		if line.begins_with(STRIP_CAST_TAG):
+			var names_str = line.get_slice(STRIP_CAST_TAG, 1)
+			names_str = names_str.get_slice("#", 0)
+			if not names_str.contains(","):
+				_build_single_regex(names_str.strip_edges(), local_strip_callables)
+			else:
+				var names = names_str.split(",")
+				for n in names:
+					_build_single_regex(n.strip_edges(), local_strip_callables)
+			print("MADE CALLS::", local_strip_callables)
+			continue
+		
+		for callable in _cast_strip_callables:
+			line = _string_safe_regex_sub(line, callable)
+		for callable in local_strip_callables:
+			line = _string_safe_regex_sub(line, callable)
+		file_lines[i] = line
+	
 	return file_lines
 
 # second pass of post export. If extension is handled by default, line will be 
 # modified already. If changes were made in post_export_edit_file, these will be
 # present here, else, it will be the unmodified line from the file.
 func post_export_edit_line(line:String) -> String:
-	for callable in _cast_strip_callables:
-		line = _string_safe_regex_sub(line, callable)
 	return line
 
 
-func _build_regexes():
-	for _class_name in _cast_strip_names:
-		var strip_pattern = r"\s*(?:->|:)\s*%s(\.\w+)*\b\s*" % _class_name
-		var regex = RegEx.new()
-		regex.compile(strip_pattern)
-		var anon = func(line:String) -> String:
-			return regex.sub(line, "", true)
-		
-		_cast_strip_callables.append(anon)
+func _build_single_regex(strip_name:String, collection:Array):
+	#var strip_pattern = r"\s*(?:->|:)\s*%s(\.\w+)*\b\s*" % _class_name
+	# new pattern handles "as" too
+	var strip_pattern = r"(?:\s*(?:->|:)\s*|\s+as\s+)%s(\.\w+)*\b" % strip_name
+	var regex = RegEx.new()
+	regex.compile(strip_pattern)
+	var anon = func(line:String) -> String:
+		return regex.sub(line, "", true)
+	
+	collection.append(anon)

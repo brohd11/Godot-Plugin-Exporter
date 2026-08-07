@@ -8,7 +8,7 @@ const UString = UtilsRemote.UString
 const URegex = UtilsRemote.URegex
 const UClassDetail = UtilsRemote.UClassDetail
 const ExportFileUtils = UtilsLocal.ExportFileUtils
-const ExportFileKeys = ExportFileUtils.ExportFileKeys
+const KeysData = ExportFileUtils.KeysData
 const CompatData = UtilsLocal.CompatData
 const DependencyTags = UtilsLocal.DependencyTags
 
@@ -24,11 +24,13 @@ const RES_LINE_TEMPLATE = '[ext_resource type="%s" path="%s" id="%s"]'
 
 static var preload_regex:RegEx
 static var _reduction_regexes:Dictionary = {}
+static var _class_token_regexes:Dictionary = {}
 
 var _string_regex:RegEx
 
 var _dep_scanner
 var _dep_scanner_export
+var _edge_cache:Dictionary = {}
 
 var export_obj: UtilsLocal.ExportData.Export
 
@@ -47,12 +49,40 @@ func get_direct_dependencies(file_path:String) -> Dictionary:
 ## relative paths resolved, "#!" tags dispatched to their handler - so parsers no longer count
 ## quotes. Only one hop: file_parser.get_dependencies() drives the recursion.
 func scan_direct_edges(file_path:String) -> Array:
+	if _edge_cache.has(file_path):
+		return _edge_cache[file_path]
 	var scanner = _get_dep_scanner()
 	scanner.roots = [file_path]
 	var graph = scanner.get_graph()
 	for edge in graph.unresolved:
 		printerr('Unresolved reference "%s" in %s:%s' % [edge.raw, edge.from, edge.line_no])
-	return graph.get_out_edges(file_path)
+	var edges = graph.get_out_edges(file_path)
+	_edge_cache[file_path] = edges
+	return edges
+
+
+## The file's reduction plan, scanned once per export. Both the global-class pass and the
+## dependency crawl ask for this, and the crawl runs second.
+func reductions_for(file_path:String) -> Dictionary:
+	if not export_obj.reduce_access_paths:
+		return {}
+	if export_obj.access_reductions.has(file_path):
+		return export_obj.access_reductions[file_path]
+	var plan = edges_to_reductions(scan_direct_edges(file_path), {})
+	export_obj.access_reductions[file_path] = plan
+	return plan
+
+
+## True when `cls` is only ever a pass-through in `file_path` - every mention of it is the head
+## of a chain that reduction rewrites away, so the export needs neither the class nor its tree.
+func class_reduced_away(file_path:String, cls:String) -> bool:
+	if not export_obj.reduce_access_paths:
+		return false
+	var plan = reductions_for(file_path)
+	var expressions = expressions_headed_by(plan, cls)
+	if expressions.is_empty():
+		return false
+	return class_fully_reduced(FileAccess.get_file_as_string(file_path), cls, expressions)
 
 # One scanner per Export, reused across files by reassigning roots.
 func _get_dep_scanner():
@@ -62,6 +92,7 @@ func _get_dep_scanner():
 			class_map = export_obj.export_data.class_list
 		_dep_scanner = build_dep_scanner(class_map)
 		_dep_scanner_export = export_obj
+		_edge_cache.clear()
 	return _dep_scanner
 
 ## `class_map` non-empty turns on access-path resolution: the scan then reports where a dotted
@@ -96,7 +127,7 @@ static func edges_to_dependencies(edges:Array, out:Dictionary) -> Dictionary:
 		# file, so the directory is only ever written - never cleared by whichever lands last.
 		var dependency_dir = edge.meta.get(DependencyTags.DIR_KEY, "")
 		if dependency_dir != "":
-			entry[ExportFileKeys.dependency_dir] = dependency_dir
+			entry[KeysData.DEPENDENCY_DIR] = dependency_dir
 	return out
 
 ## What each dotted access path in a file reduces to: {expression: {name, path, tail}}.
@@ -153,6 +184,48 @@ static func reduction_replacement(name:String, tail:Array) -> String:
 	if tail.is_empty():
 		return name
 	return name + "." + ".".join(tail)
+
+
+## The planned expressions that `cls` heads.
+static func expressions_headed_by(plan:Dictionary, cls:String) -> Array:
+	var out:Array = []
+	for expression:String in plan:
+		if expression.get_slice(".", 0) == cls:
+			out.append(expression)
+	return out
+
+
+## True when every mention of `cls` in `text` is the head of an expression that reduction will
+## rewrite away - the class is pure pass-through here, so the file needs neither a preload of it
+## nor, in turn, the whole tree that file preloads.
+static func class_fully_reduced(text:String, cls:String, expressions:Array) -> bool:
+	if expressions.is_empty():
+		return false
+
+	var reduced_at = {}
+	for expression:String in expressions:
+		for m in get_reduction_regex(expression).search_all(text):
+			reduced_at[m.get_start()] = true
+
+	var map = ExportFileUtils.get_string_map(text)
+	for m in get_class_token_regex(cls).search_all(text):
+		var index = m.get_start()
+		if map.index_in_string_or_comment(index):
+			continue
+		if ExportFileUtils.is_member_access(text, index):
+			continue # a tail segment elsewhere, not a use of this class
+		if not reduced_at.has(index):
+			return false
+	return true
+
+
+static func get_class_token_regex(cls:String) -> RegEx:
+	var regex = _class_token_regexes.get(cls)
+	if regex == null:
+		regex = RegEx.new()
+		regex.compile("\\b%s\\b" % cls)
+		_class_token_regexes[cls] = regex
+	return regex
 
 func pre_export() -> void:
 	return

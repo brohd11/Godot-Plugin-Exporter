@@ -5,7 +5,7 @@ const PLUGIN_EXPORTED = false
 
 const PLUGIN_EXPORT_GUI = preload("res://addons/plugin_exporter/src/plugin_export_gui.tscn")
 const GUI = preload("res://addons/plugin_exporter/src/gui/gui.gd")
-const COMMENT_TAGS = ["#! remote", "#! ignore-remote", "#! dependency", "#! singleton-module"]
+const COMMENT_TAGS = ["#! remote", "#! ignore-remote", "#! dependency", "#! singleton-module", "#! strip-cast"]
 const SHOW_TOOL_MENU_ITEM = &"plugin/plugin_exporter/show_tool_menu_item"
 
 const UtilsRemote = preload("res://addons/plugin_exporter/src/class/utils_remote.gd")

@@ -89,7 +89,7 @@ static func get_file_export_path(file_path:String, export_config_path:String, de
 		return
 	else:
 		var export_file_data = export.valid_files_for_transfer.get(local_path)
-		var export_path = export_file_data.get(ExportFileKeys.to)
+		var export_path = export_file_data.get(KeysData.TO)
 		return export_path
 
 
@@ -235,17 +235,17 @@ static func get_other_transfer_data(export_obj:ExportData.Export):
 	
 	var other_transfer_data = {}
 	for other in other_transfers_array:
-		var custom_message = other.get(ExportFileKeys.custom_tree_message)
-		var to:String = other.get(ExportFileKeys.to)
+		var custom_message = other.get(KeysData.CUSTOM_TREE_MESSAGE)
+		var to:String = other.get(KeysData.TO)
 		#if not to.begins_with(export_dir_path):
 			#to = export_dir_path.path_join(to)
 		if not to.begins_with(export_source_path):
 			to = export_source_path.path_join(to)
 			
-		var from_files = other.get(ExportFileKeys.from)
+		var from_files = other.get(KeysData.FROM)
 		if from_files == null:
 			if to.get_file() == ".gdignore":
-				from_files = ExportFileKeys.PE_VIRTUAL_GDIGNORE
+				from_files = KeysData.VIRTUAL_GDIGNORE
 				custom_message = " (virtual file)"
 		var single_from = false
 		if from_files is String:
@@ -262,7 +262,7 @@ static func get_other_transfer_data(export_obj:ExportData.Export):
 					var path = from_files.path_join(f)
 					file_array.append(path)
 				from_files = file_array
-			elif from_files.begins_with(ExportFileKeys.PE_VIRTUAL):
+			elif from_files.begins_with(KeysData.VIRTUAL):
 				from_files = [from_files]
 				single_from = true
 			else:
@@ -281,15 +281,15 @@ static func get_other_transfer_data(export_obj:ExportData.Export):
 		#if to in other_transfer_data.keys():
 		if other_transfer_data.has(to):
 			var to_data = other_transfer_data[to]
-			var single = to_data.get(ExportFileKeys.single)
+			var single = to_data.get(KeysData.SINGLE)
 			if single:
 				printerr("Error with other transfers file, exporting multiple files to single file: %s" % to)
 				return {}
-			to_data[ExportFileKeys.from_files].append_array(from_files)
+			to_data[KeysData.FROM_FILES].append_array(from_files)
 		else:
-			other_transfer_data[to] = {ExportFileKeys.from_files:from_files, ExportFileKeys.single:single_from}
+			other_transfer_data[to] = {KeysData.FROM_FILES:from_files, KeysData.SINGLE:single_from}
 			if custom_message:
-				other_transfer_data[to][ExportFileKeys.custom_tree_message] = custom_message
+				other_transfer_data[to][KeysData.CUSTOM_TREE_MESSAGE] = custom_message
 	
 	return other_transfer_data
 
@@ -343,16 +343,26 @@ static func get_global_classes_in_file(file_path:String, global_class_dict:Dicti
 	class_data.erase("global_class_definition")
 	return class_data.keys()
 
+## The names a chunk of source uses, for callers holding text rather than a path - the export
+## rewrites a file in memory before it is written back, and what it used before the rewrite is
+## not what it uses after.
+static func get_global_classes_in_file_text(text:String, global_class_dict:Dictionary) -> Array:
+	var class_data = _get_global_classes_in_text(text, global_class_dict)
+	class_data.erase("global_class_definition")
+	return class_data.keys()
+
 static func _get_global_classes_in_file(file_path:String, global_class_dict:Dictionary):
-	if not is_instance_valid(_global_class_regex):
-		_global_class_regex = RegEx.new()
-		_global_class_regex.compile("\\b[a-zA-Z_]\\w*\\b")
-	
 	var file_access = FileAccess.open(file_path, FileAccess.READ)
 	if not file_access:
 		printerr("Could not open file: %s" % file_path)
 		return {}
-	var file_as_string = file_access.get_as_text()
+	return _get_global_classes_in_text(file_access.get_as_text(), global_class_dict)
+
+static func _get_global_classes_in_text(file_as_string:String, global_class_dict:Dictionary):
+	if not is_instance_valid(_global_class_regex):
+		_global_class_regex = RegEx.new()
+		_global_class_regex.compile("\\b[a-zA-Z_]\\w*\\b")
+
 	var string_map = get_string_map(file_as_string)
 	var found_classes = {}
 	
@@ -463,49 +473,58 @@ static func run_git_exec(dir:String, args:Array):
 static func run_git_describe(dir:String) -> Dictionary:
 	return run_git_exec(dir, ["describe", "--tags", "--always", "--dirty" ])
 
-class ExportFileKeys:
-	const export_root = "export_root"
-	const plugin_folder = "plugin_folder"
-	const pre_script = "pre_script"
-	const post_script = "post_script"
+
+class KeysData:
+	const TO = "to"
+	const FROM = "from"
+	const FROM_FILES = "from_files"
+	const SINGLE = "single"
 	
-	const exports = "exports"
-	const source = "source"
-	const remote_dir = "remote_dir"
-	const export_folder = "export_folder"
-	const exclude = "exclude"
-	const directories = "directories"
-	const file_extensions = "file_extensions"
-	const files = "files"
+	const PATH = "path"
+	const REPLACE_WITH = "replace_with"
+	const ADJUSTED_REMOTE_PATH = "adjusted_remote_path"
+	const DEPENDENT = "dependent"
+	const DEPENDENCY_DIR = "dependency_dir"
 	
-	const other_transfers = "other_transfers"
-	const from = "from"
-	const to = "to"
-	const from_files = "from_files"
-	const single = "single"
+	const CUSTOM_TREE_MESSAGE = "custom_tree_message"
 	
-	const path = "path"
-	const replace_with = "replace_with"
-	const adjusted_remote_path = "adjusted_remote_path"
-	const dependent = "dependent"
-	const dependency_dir = "dependency_dir"
+	const VIRTUAL = "PE_VIRTUAL"
+	const VIRTUAL_GDIGNORE = VIRTUAL + "_GDIGNORE"
+
+class KeysConfig:
 	
-	const custom_tree_message = "custom_tree_message"
+	const EXPORT_ROOT = "export_root"
+	const PLUGIN_FOLDER = "plugin_folder"
+	const PRE_SCRIPT = "pre_script"
+	const POST_SCRIPT = "post_script"
 	
-	const options = "options"
-	const include_import = "include_import"
-	const include_uid = "include_uid"
-	const use_tag_in_cfg = "use_tag_in_cfg"
-	const exported_deps = "exported_deps"
-	const include_min_version = "include_min_version"
-	const overwrite = "overwrite"
-	const ignore_dependencies = "ignore_dependencies"
-	const ignore_src = "ignore_src"
-	const move_global_files = "move_global_files"
+	const EXPORTS = "exports"
+	class Export:
+		const SOURCE = "source"
+		const REMOTE_DIR = "remote_dir"
+		const EXPORT_FOLDER = "export_folder"
+		const OTHER_TRANSFERS = "other_transfers"
+		const EXCLUDE = "exclude"
+		class Exclude:
+			const DIRECTORIES = "directories"
+			const FILE_EXTENSIONS = "file_extensions"
+			const FILES = "files"
 	
-	const parser_settings = "parser_settings"
-	const parser_overide_settings = "parser_overide_settings"
 	
-	# virtual file keys
-	const PE_VIRTUAL = "PE_VIRTUAL"
-	const PE_VIRTUAL_GDIGNORE = PE_VIRTUAL + "_GDIGNORE"
+	const OPTIONS = "options"
+	class Options:
+		const INCLUDE_IMPORT = "include_import"
+		const INCLUDE_UID = "include_uid"
+		const USE_TAG_IN_CFG = "use_tag_in_cfg"
+		const EXPORTED_DEPS = "exported_deps"
+		const INCLUDE_MIN_VERSION = "include_min_version"
+		const OVERWRITE = "overwrite"
+		const IGNORE_DEPENDENCIES = "ignore_dependencies"
+		const IGNORE_SRC = "ignore_src"
+		const MOVE_GLOBAL_FILES = "move_global_files"
+		
+		const PARSER_SETTINGS = "parser_settings"
+		const PARSER_OVERIDE_SETTINGS = "parser_overide_settings"
+		class ParserSettings:
+			const RESOLVE_ACCESS_PATH = "resolve_access_path"
+	

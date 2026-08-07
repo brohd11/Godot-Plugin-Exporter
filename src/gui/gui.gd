@@ -36,7 +36,8 @@ const Export = ExportData.Export
 
 const PluginInit = UtilsLocal.PluginInit
 const ExportFileUtils = UtilsLocal.ExportFileUtils
-const ExportFileKeys = ExportFileUtils.ExportFileKeys
+const KeysData = ExportFileUtils.KeysData
+const KeysConfig = ExportFileUtils.KeysConfig
 
 # DockManager
 const BUTTON_TEXT = "PE"
@@ -155,7 +156,8 @@ func _on_options_pressed():
 	options.add_option("Parse", _parse_export_data.bind(true), ["FileList"])
 	if _export_valid_file():
 		options.add_option("Export", _run_export, ["ResourcePreloader"])
-	options.add_option("Show ALl DEpps", _show_all_deps)
+		options.add_option("Open Dir", _open_folder, ["Folder"])
+	options.add_option("Show All Deps", _show_all_deps)
 	var valid_plugins = PluginExporter.get_addons_dirs(PluginExporter.TargetAddons.VALID)
 	for p in valid_plugins:
 		options.add_option("Load".path_join(p), _load_plugin.bind(p), ["Load", null])
@@ -223,6 +225,10 @@ func _run_export():
 	var export_path = file_path_line.text
 	PluginExporterStatic.export_by_gui(export_path)
 
+func _open_folder():
+	var export_path = file_path_line.text
+	PluginExporterStatic.open_export_dir(export_path)
+
 func _export_valid_file():
 	var export_path = file_path_line.text
 	if not FileAccess.file_exists(export_path):
@@ -285,8 +291,8 @@ func _build_tree():
 		
 		files_to_copy.sort_custom(
 			func(a: String, b: String) -> bool:
-				a = export.files_to_copy[a].get(ExportFileKeys.to)
-				b = export.files_to_copy[b].get(ExportFileKeys.to)
+				a = export.files_to_copy[a].get(KeysData.TO)
+				b = export.files_to_copy[b].get(KeysData.TO)
 				
 				var pa := a.split("/")
 				var pb := b.split("/")
@@ -304,11 +310,11 @@ func _build_tree():
 		#files_to_copy.sort() # figure this out later, to sort added files
 		for local_file_path in files_to_copy:
 			var export_file_data = export.files_to_copy.get(local_file_path)
-			var export_path = export_file_data.get(ExportFileKeys.to)
-			print(local_file_path , " -> ", export_path)
-			var replace_with = export_file_data.get(ExportFileKeys.replace_with)
-			var dependent = export_file_data.get(ExportFileKeys.dependent)
-			var custom_message = export_file_data.get(ExportFileKeys.custom_tree_message)
+			var export_path = export_file_data.get(KeysData.TO)
+			#print(local_file_path , " -> ", export_path)
+			var replace_with = export_file_data.get(KeysData.REPLACE_WITH)
+			var dependent = export_file_data.get(KeysData.DEPENDENT)
+			var custom_message = export_file_data.get(KeysData.CUSTOM_TREE_MESSAGE)
 			#var remote_file_data = ExportFileUtils.get_remote_file(local_file_path, export)
 			# build tree
 			
@@ -343,8 +349,8 @@ func _build_tree():
 			var virtual_file_type_data = export.virtual_files[virtual_file_type]
 			for local_file_path in virtual_file_type_data.keys():
 				var export_file_data = virtual_file_type_data.get(local_file_path)
-				var export_path = export_file_data.get(ExportFileKeys.to)
-				var custom_message = export_file_data.get(ExportFileKeys.custom_tree_message)
+				var export_path = export_file_data.get(KeysData.TO)
+				var custom_message = export_file_data.get(KeysData.CUSTOM_TREE_MESSAGE)
 				var last_item = tree_helper.new_file_path(export_path, full_export_path) as TreeItem
 				last_item.set_icon(0, file_icon)
 				last_item.set_icon_modulate(0, Color.WHITE)

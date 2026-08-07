@@ -1,18 +1,6 @@
-[gd_scene load_steps=14 format=3 uid="uid://qmcc7q6ktkg"]
+[gd_scene format=3 uid="uid://qmcc7q6ktkg"]
 
 [ext_resource type="Script" uid="uid://nvpn4xiueq2y" path="res://addons/plugin_exporter/src/plugin_export_gui.gd" id="1_o3a0h"]
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_7myy4"]
-content_margin_left = 4.0
-content_margin_top = 4.0
-content_margin_right = 4.0
-content_margin_bottom = 4.0
-bg_color = Color(0, 0, 0, 0.6)
-corner_radius_top_left = 3
-corner_radius_top_right = 3
-corner_radius_bottom_right = 3
-corner_radius_bottom_left = 3
-corner_detail = 5
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_7ebdv"]
 content_margin_left = 4.0
@@ -20,6 +8,18 @@ content_margin_top = 4.0
 content_margin_right = 4.0
 content_margin_bottom = 4.0
 bg_color = Color(0.1, 0.1, 0.1, 0.6)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+corner_detail = 5
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_7myy4"]
+content_margin_left = 4.0
+content_margin_top = 4.0
+content_margin_right = 4.0
+content_margin_bottom = 4.0
+bg_color = Color(0, 0, 0, 0.6)
 corner_radius_top_left = 3
 corner_radius_top_right = 3
 corner_radius_bottom_right = 3
@@ -86,7 +86,7 @@ data = {
 [sub_resource type="ImageTexture" id="ImageTexture_h40p1"]
 image = SubResource("Image_dthfj")
 
-[node name="PluginExporter" type="Control"]
+[node name="PluginExporter" type="Control" unique_id=1443744291]
 clip_contents = true
 layout_mode = 3
 anchors_preset = 15
@@ -98,7 +98,7 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 script = ExtResource("1_o3a0h")
 
-[node name="ThemeSetBase" type="ColorRect" parent="."]
+[node name="ThemeSetBase" type="ColorRect" parent="." unique_id=14670968]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -108,7 +108,7 @@ grow_vertical = 2
 mouse_filter = 2
 color = Color(0.24, 0.24, 0.24, 1)
 
-[node name="MarginContainer" type="MarginContainer" parent="."]
+[node name="MarginContainer" type="MarginContainer" parent="." unique_id=2116928530]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -120,22 +120,22 @@ theme_override_constants/margin_top = 0
 theme_override_constants/margin_right = 0
 theme_override_constants/margin_bottom = 0
 
-[node name="VBoxContainer" type="VBoxContainer" parent="MarginContainer"]
+[node name="VBoxContainer" type="VBoxContainer" parent="MarginContainer" unique_id=1637222547]
 layout_mode = 2
 
-[node name="Control" type="Control" parent="MarginContainer/VBoxContainer"]
+[node name="Control" type="Control" parent="MarginContainer/VBoxContainer" unique_id=1392169847]
 visible = false
 custom_minimum_size = Vector2(0, 1)
 layout_mode = 2
 
-[node name="HBoxContainer" type="HBoxContainer" parent="MarginContainer/VBoxContainer"]
+[node name="HBoxContainer" type="HBoxContainer" parent="MarginContainer/VBoxContainer" unique_id=483636436]
 layout_mode = 2
 
-[node name="LSpacer" type="Control" parent="MarginContainer/VBoxContainer/HBoxContainer"]
+[node name="LSpacer" type="Control" parent="MarginContainer/VBoxContainer/HBoxContainer" unique_id=144294536]
 custom_minimum_size = Vector2(1, 0)
 layout_mode = 2
 
-[node name="FilePathLine" type="LineEdit" parent="MarginContainer/VBoxContainer/HBoxContainer"]
+[node name="FilePathLine" type="LineEdit" parent="MarginContainer/VBoxContainer/HBoxContainer" unique_id=842410650]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
@@ -145,13 +145,13 @@ placeholder_text = "export file path"
 emoji_menu_enabled = false
 select_all_on_focus = true
 
-[node name="MenuButton" type="MenuButton" parent="MarginContainer/VBoxContainer/HBoxContainer"]
+[node name="MenuButton" type="MenuButton" parent="MarginContainer/VBoxContainer/HBoxContainer" unique_id=638327726]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(24, 24)
 layout_mode = 2
 size_flags_vertical = 4
-theme_override_styles/pressed = SubResource("StyleBoxFlat_7myy4")
 theme_override_styles/normal = SubResource("StyleBoxFlat_7ebdv")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_7myy4")
 flat = false
 item_count = 5
 popup/item_0/text = "Read"
@@ -170,31 +170,31 @@ popup/item_4/text = "Plugin Init"
 popup/item_4/icon = SubResource("ImageTexture_h40p1")
 popup/item_4/id = 4
 
-[node name="DockButton" type="Button" parent="MarginContainer/VBoxContainer/HBoxContainer"]
+[node name="DockButton" type="Button" parent="MarginContainer/VBoxContainer/HBoxContainer" unique_id=1464920233]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(24, 24)
 layout_mode = 2
 size_flags_vertical = 4
 focus_mode = 0
 
-[node name="Spacer2" type="Control" parent="MarginContainer/VBoxContainer/HBoxContainer"]
+[node name="Spacer2" type="Control" parent="MarginContainer/VBoxContainer/HBoxContainer" unique_id=1477704141]
 layout_mode = 2
 
-[node name="HBoxContainer2" type="HBoxContainer" parent="MarginContainer/VBoxContainer"]
+[node name="HBoxContainer2" type="HBoxContainer" parent="MarginContainer/VBoxContainer" unique_id=1985073592]
 layout_mode = 2
 
-[node name="Spacer" type="Control" parent="MarginContainer/VBoxContainer/HBoxContainer2"]
+[node name="Spacer" type="Control" parent="MarginContainer/VBoxContainer/HBoxContainer2" unique_id=1336065636]
 custom_minimum_size = Vector2(1, 0)
 layout_mode = 2
 
-[node name="SearchLine" type="LineEdit" parent="MarginContainer/VBoxContainer/HBoxContainer2"]
+[node name="SearchLine" type="LineEdit" parent="MarginContainer/VBoxContainer/HBoxContainer2" unique_id=367847799]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(100, 0)
 layout_mode = 2
 size_flags_horizontal = 3
 clear_button_enabled = true
 
-[node name="FileNameLabel" type="Label" parent="MarginContainer/VBoxContainer/HBoxContainer2"]
+[node name="FileNameLabel" type="Label" parent="MarginContainer/VBoxContainer/HBoxContainer2" unique_id=1044864000]
 unique_name_in_owner = true
 visible = false
 custom_minimum_size = Vector2(50, 0)
@@ -203,13 +203,13 @@ size_flags_horizontal = 3
 text = "plugin_export"
 horizontal_alignment = 1
 
-[node name="ThemeSetNone" type="ColorRect" parent="MarginContainer/VBoxContainer/HBoxContainer2"]
+[node name="ThemeSetNone" type="ColorRect" parent="MarginContainer/VBoxContainer/HBoxContainer2" unique_id=300767208]
 clip_contents = true
 custom_minimum_size = Vector2(225, 0)
 layout_mode = 2
 color = Color(0.132, 0.132, 0.132, 1)
 
-[node name="HBoxContainer" type="HBoxContainer" parent="MarginContainer/VBoxContainer/HBoxContainer2/ThemeSetNone"]
+[node name="HBoxContainer" type="HBoxContainer" parent="MarginContainer/VBoxContainer/HBoxContainer2/ThemeSetNone" unique_id=931983264]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -217,39 +217,39 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="Spacer" type="Control" parent="MarginContainer/VBoxContainer/HBoxContainer2/ThemeSetNone/HBoxContainer"]
+[node name="Spacer" type="Control" parent="MarginContainer/VBoxContainer/HBoxContainer2/ThemeSetNone/HBoxContainer" unique_id=1269329536]
 custom_minimum_size = Vector2(4, 0)
 layout_mode = 2
 
-[node name="Label" type="Label" parent="MarginContainer/VBoxContainer/HBoxContainer2/ThemeSetNone/HBoxContainer"]
+[node name="Label" type="Label" parent="MarginContainer/VBoxContainer/HBoxContainer2/ThemeSetNone/HBoxContainer" unique_id=73958742]
 layout_mode = 2
 text = "Include:"
 
-[node name="Label2" type="Label" parent="MarginContainer/VBoxContainer/HBoxContainer2/ThemeSetNone/HBoxContainer"]
+[node name="Label2" type="Label" parent="MarginContainer/VBoxContainer/HBoxContainer2/ThemeSetNone/HBoxContainer" unique_id=765219101]
 layout_mode = 2
 text = "UID"
 
-[node name="UIDCheck" type="CheckBox" parent="MarginContainer/VBoxContainer/HBoxContainer2/ThemeSetNone/HBoxContainer"]
+[node name="UIDCheck" type="CheckBox" parent="MarginContainer/VBoxContainer/HBoxContainer2/ThemeSetNone/HBoxContainer" unique_id=1809682305]
 unique_name_in_owner = true
 layout_mode = 2
 focus_mode = 0
 button_pressed = true
 
-[node name="Label3" type="Label" parent="MarginContainer/VBoxContainer/HBoxContainer2/ThemeSetNone/HBoxContainer"]
+[node name="Label3" type="Label" parent="MarginContainer/VBoxContainer/HBoxContainer2/ThemeSetNone/HBoxContainer" unique_id=1979886429]
 layout_mode = 2
 text = "Import"
 
-[node name="ImportCheck" type="CheckBox" parent="MarginContainer/VBoxContainer/HBoxContainer2/ThemeSetNone/HBoxContainer"]
+[node name="ImportCheck" type="CheckBox" parent="MarginContainer/VBoxContainer/HBoxContainer2/ThemeSetNone/HBoxContainer" unique_id=544910958]
 unique_name_in_owner = true
 layout_mode = 2
 focus_mode = 0
 button_pressed = true
 
-[node name="Spacer2" type="Control" parent="MarginContainer/VBoxContainer/HBoxContainer2"]
+[node name="Spacer2" type="Control" parent="MarginContainer/VBoxContainer/HBoxContainer2" unique_id=424405783]
 custom_minimum_size = Vector2(1, 0)
 layout_mode = 2
 
-[node name="ExportTree" type="Tree" parent="MarginContainer/VBoxContainer"]
+[node name="ExportTree" type="Tree" parent="MarginContainer/VBoxContainer" unique_id=182957366]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_vertical = 3
