@@ -22,6 +22,7 @@ const YAMLHighlighter = preload("res://addons/addon_lib/brohd/alib_runtime/misc/
 const Summary = preload("res://addons/plugin_exporter/src/gui/panels/summary.gd")
 const DependencyView = preload("res://addons/plugin_exporter/src/gui/panels/dep_view.gd")
 const ExportEditor = preload("res://addons/plugin_exporter/src/gui/panels/export_editor.gd")
+const DocViewer = preload("res://addons/plugin_exporter/src/components/doc_viewer/doc_viewer.gd")
 
 
 #const FileSystem = UtilsRemote.FileSystem
@@ -64,6 +65,7 @@ var tree_helper:FSTreeClasses.FSTreeHelper
 var summary_panel:Summary
 var dep_view:DependencyView
 var export_editor:ExportEditor
+var doc_viewer:DocViewer
 
 var current_export_data:ExportData
 
@@ -150,6 +152,11 @@ func _ready() -> void:
 	export_editor = ExportEditor.new()
 	tab_container.add_tab(export_editor, EditorIcons.get_icon_white("CodeEdit"))
 	UControl.expand(tab_container)
+
+	doc_viewer = DocViewer.new()
+	doc_viewer.docs_path = "res://addons/plugin_exporter/"
+	tab_container.add_tab(doc_viewer, EditorIcons.get_icon_white("Help"))
+	UControl.expand(doc_viewer)
 
 func _on_options_pressed():
 	var options = Options.new()

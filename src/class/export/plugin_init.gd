@@ -172,6 +172,7 @@ class PluginExportJSON:
 				KeysConfig.Options.EXPORTED_DEPS: [],
 				KeysConfig.Options.INCLUDE_MIN_VERSION: true,
 				KeysConfig.Options.MOVE_GLOBAL_FILES: true,
+				KeysConfig.Options.INCLUDE_DOCS: true,
 				KeysConfig.Options.PARSER_SETTINGS:{
 					"use_relative_paths":false,
 					"backport_target": 100,

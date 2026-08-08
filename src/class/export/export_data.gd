@@ -27,6 +27,7 @@ var include_uid:bool = true
 var include_import:bool = true
 var move_global_files:bool = true
 var ignore_src:bool = true
+var include_docs:bool = true
 
 var file_parser: _UtilsLocal.FileParser
 var parser_settings:Dictionary = {}
@@ -70,7 +71,11 @@ func _init(export_config_path):
 	include_import = options.get(KeysConfig.Options.INCLUDE_IMPORT, true)
 	move_global_files = options.get(KeysConfig.Options.MOVE_GLOBAL_FILES, true)
 	ignore_src = options.get(KeysConfig.Options.IGNORE_SRC, false)
-	
+	include_docs = options.get(KeysConfig.Options.INCLUDE_DOCS, true)
+
+	# The config always sits in the export_ignore dir, so the doc folder is found beside it.
+	var doc_source_dir = export_config_path.get_base_dir().path_join("doc")
+
 	parser_settings = options.get(KeysConfig.Options.PARSER_SETTINGS, {})
 	
 	if not strip_cast_names.is_empty():
@@ -165,7 +170,10 @@ func _init(export_config_path):
 		export_obj.get_global_class_export_paths()
 		
 		export_obj.gather_licenses()
-		
+
+		if include_docs and DirAccess.dir_exists_absolute(doc_source_dir):
+			export_obj.gather_docs(doc_source_dir)
+
 		export_obj.check_all_files_have_valid_path()
 		
 		export_obj.get_singleton_modules()

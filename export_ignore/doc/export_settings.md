@@ -20,6 +20,7 @@
  - include_import - bool
  - include_uid - bool
  - overwrite - bool, erases the contents of export_folder before export, if false, it will abort if any file already exists
+ - include_docs - bool, defaults true. Copies the doc folder beside this config (export_ignore/doc) into the exported plugin as `.doc`, preserving its structure. No dependency crawl, the files are copied verbatim without uid or import sidecars. Dot-prefixed so Godot never imports them and they stay out of a game export, while DocViewer can still read them.
  - parser_settings - Dictionary of settings for file parser. Applied to all exports unless overiden
 
 #### parser_settings

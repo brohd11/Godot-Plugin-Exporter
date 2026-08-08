@@ -120,3 +120,33 @@ Main backports:
  - various other methods recreated in a compatibility class
  - remove @abstract keyword
  - convert DPITexture resources to SVG
+
+
+### Shipping Docs
+
+With `include_docs` on (the default), the `doc` folder beside your `plugin_export.yml` is copied
+into the exported plugin as `.doc`, structure intact. Nothing in it is parsed or crawled for
+dependencies, it is copied verbatim, and no `.uid`/`.import` sidecars come along. The dot prefix
+keeps Godot from importing the folder, so it never reaches a game export.
+
+The `DocViewer` component renders those docs. You provide the entry point - a button, a menu item,
+whatever suits the plugin - and the addon directory to read from:
+
+``` gdscript
+const DocViewer = preload("res://addons/my_plugin/src/components/doc_viewer/doc_viewer.gd")
+
+func _on_help_pressed() -> void:
+	DocViewer.open("res://addons/my_plugin/")
+```
+
+`open()` puts the viewer in its own window that frees itself when closed. To embed it instead,
+instance it as a normal Control and set `docs_path`.
+
+It resolves the path itself: `<addon>/.doc` in a released plugin, `<addon>/export_ignore/doc` in
+this dev project, or the plugin's `README.md` when there is no doc folder at all. Docs are listed
+depth first, files before folders, on a contents page, with navigation between them.
+
+Markdown support covers headings, emphasis, lists, quotes, links, rules, images and fenced code.
+Code fences render as read-only `CodeEdit`s - gdscript is highlighted out of the box, and
+`highlighter_provider` takes a `(lang:String) -> SyntaxHighlighter` callable for anything else.
+Heading sizes are ratios of the editor's own font size, so the whole view follows the editor scale.

@@ -517,6 +517,7 @@ class KeysConfig:
 		const IGNORE_DEPENDENCIES = "ignore_dependencies"
 		const IGNORE_SRC = "ignore_src"
 		const MOVE_GLOBAL_FILES = "move_global_files"
+		const INCLUDE_DOCS = "include_docs"
 		
 		const PARSER_SETTINGS = "parser_settings"
 		# the per-parser keys inside these (class_rename_ignore, use_relative_paths,

@@ -1,5 +1,9 @@
 const PLUGIN_EXPORTED = false
 
+## Dot-prefixed so Godot never imports the docs and they stay out of a consumer's game export,
+## while editor code can still read them. DocViewer looks for this name.
+const DOC_DIR_NAME = ".doc"
+
 const _UtilsRemote = preload("res://addons/plugin_exporter/src/class/utils_remote.gd")
 const _UEditor = _UtilsRemote.UEditor
 const _UtilsLocal = preload("res://addons/plugin_exporter/src/class/utils_local.gd")
@@ -43,6 +47,8 @@ var files_to_copy:Dictionary = {}
 var files_to_scan_for_deps:Dictionary = {}
 
 var replace_with_files:Dictionary = {}
+## Set of doc files gathered by gather_docs, used as a set - only its keys are ever read.
+var doc_files:Dictionary = {}
 
 var file_dependencies:Dictionary = {}
 
@@ -572,6 +578,20 @@ func gather_licenses():
 		files_to_copy[file] = {_KeysData.TO:export_path}
 	
 
+## Copies the plugin's doc folder in wholesale, no dependency crawl - docs are data, not source.
+func gather_docs(doc_dir:String):
+	for file in _UFile.GetFiles.scan(doc_dir):
+		# Sidecars of the project's own import of a doc image, meaningless once it ships.
+		if file.get_extension() in ["import", "uid"]:
+			continue
+		var rel = file.trim_prefix(doc_dir).trim_prefix("/")
+		var local_path = source.path_join(DOC_DIR_NAME).path_join(rel)
+		# Mapped out of res:// from the in-plugin path for the same reason gather_licenses is,
+		# see the comment there.
+		files_to_copy[file] = {_KeysData.TO:get_export_path(local_path)}
+		doc_files[file] = true
+
+
 func check_file_has_valid_path(source_path:String, export_path:String) -> void:
 	var globalized_source = ProjectSettings.globalize_path(source_path)
 	var globalized_export = ProjectSettings.globalize_path(export_path)
@@ -604,6 +624,10 @@ func export_files():
 		
 		var file_uid = include_uid
 		var file_import = include_import
+		# A doc's .import points at this project's .godot cache and means nothing in a hidden dir.
+		if doc_files.has(file_path):
+			file_uid = false
+			file_import = false
 		if replace_with == null:
 			var is_dep = false
 			# dependencies need a new uid to avoid clashes
