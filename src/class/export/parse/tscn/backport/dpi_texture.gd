@@ -21,24 +21,16 @@ func _init() -> void:
 	var ext_resource_pattern = '(\\[ext_resource type="Texture2D"[^p]+path=")([^"]+)("[^]]+\\])'
 	_ext_resource_regex.compile(ext_resource_pattern)
 
-# in parser_settings, create dictionary for extension of file,
-# ie. if extension is foo, "parse_foo": {"my_setting": "value"}
 func set_parse_settings(settings):
 	pass
 
-# logic to parse for files that are needed acts as a set, dependencies[my_dep_path] = {}
 func get_direct_dependencies(file_path:String) -> Dictionary:
 	var dependencies = {} 
 	return dependencies
 
-# runs right before export of files. Use for extension specific files.
 func pre_export() -> void:
 	pass
 
-# first pass on post export, if the file ext is handle by default, file_lines will 
-# contain modifies lines, for example, if you want to make a second pass on a gd file.
-# If not handled by default, file_lines will be null. You can process and return the files lines
-# or return the null value to default to the file's .
 func post_export_edit_file(file_path:String, file_lines:Variant=null) -> Variant:
 	var content = "\n".join(file_lines)
 	var original_content = content
@@ -47,7 +39,6 @@ func post_export_edit_file(file_path:String, file_lines:Variant=null) -> Variant
 	var dpi_tex_paths = dpi_texture_data.keys()
 	
 	if not dpi_tex_paths.is_empty():
-		# get all [ext_resource]
 		var ext_resource_matches = _ext_resource_regex.search_all(content)
 		for _match in ext_resource_matches:
 			var original_path = _match.get_string(2)
@@ -77,7 +68,6 @@ func post_export_edit_file(file_path:String, file_lines:Variant=null) -> Variant
 			continue
 		
 		var svg_source = source_match.get_string(1).c_unescape()
-		#unique id
 		var hash_input = "%s_%s" % [file_path, sub_resource_id_string]
 		var hash = UFile.hash_string(hash_input).substr(0, 10)
 		var svg_file_name = "%s.svg" % hash
@@ -88,7 +78,6 @@ func post_export_edit_file(file_path:String, file_lines:Variant=null) -> Variant
 		
 		var svg_output_path = export_obj.get_export_path(svg_resource_path)
 		svg_output_path = export_obj.get_renamed_path(svg_output_path)
-		# save new
 		if not DirAccess.dir_exists_absolute(svg_output_path.get_base_dir()):
 			DirAccess.make_dir_recursive_absolute(svg_output_path.get_base_dir())
 		var svg_file = FileAccess.open(svg_output_path, FileAccess.WRITE)
@@ -99,8 +88,8 @@ func post_export_edit_file(file_path:String, file_lines:Variant=null) -> Variant
 			printerr("Failed to write SVG file: ", svg_output_path)
 			return file_lines
 		
-		var new_id_suffix = hash.substr(0, 5) # e.g., "a1b2c"
-		var new_id_full_string = "%d_%s" % [new_id_counter, new_id_suffix] # e.g., "100_a1b2c"
+		var new_id_suffix = hash.substr(0, 5)
+		var new_id_full_string = "%d_%s" % [new_id_counter, new_id_suffix]
 		new_id_counter += 1
 		
 		var new_ext_resource_def = '[ext_resource type="Texture2D" path="%s" id="%s"]' % [
@@ -110,7 +99,7 @@ func post_export_edit_file(file_path:String, file_lines:Variant=null) -> Variant
 		new_ext_resources.append(new_ext_resource_def)
 		
 		content = content.replace('SubResource("%s")' % sub_resource_id_string, 'ExtResource("%s")' % new_id_full_string)
-		content = content.replace(full_block_to_process, "") # remove old
+		content = content.replace(full_block_to_process, "")
 	
 	var header_match = _scene_header_regex.search(content)
 	if header_match:
@@ -120,16 +109,12 @@ func post_export_edit_file(file_path:String, file_lines:Variant=null) -> Variant
 		content = content.replace(header_line, new_header)
 	
 	
-	# write changes
 	if content != original_content:
 		content = content.replace("\n\n\n", "\n\n")
 		file_lines = content.split("\n")
 	
 	return file_lines
 
-# second pass of post export. If extension is handled by default, line will be 
-# modified already. If changes were made in post_export_edit_file, these will be
-# present here, else, it will be the unmodified line from the file.
 func post_export_edit_line(line:String) -> String:
 	return line
 

@@ -144,17 +144,14 @@ func post_export_edit_file(file_path:String, file_lines:Variant=null):
 		line = _update_paths(line)
 
 		adjusted_file_lines.append(line)
-	##
-	
+
 	#if not classes_used.is_empty(): #debug prints
 		#print(file_path)
 		#print(classes_used)
 		#print(classes_preloaded)
 	
-	# `classes_used` was read off the file before any of the above rewrote it. With reduction on,
-	# a class the file only walked through is gone now, and injecting a preload of it would pull
-	# back exactly what the reduction removed. Recomputed only when the flag is on, so an export
-	# without it stays byte-for-byte what it always was.
+	# `classes_used` is stale after the rewrites above: re-reading it keeps a reduced-away class
+	# from getting its preload injected back. Guarded so exports without reduction stay unchanged.
 	if not reductions.is_empty():
 		classes_used = ExportFileUtils.get_global_classes_in_file_text(
 			"\n".join(adjusted_file_lines), export_obj.export_data.class_list)
@@ -169,9 +166,8 @@ func post_export_edit_file(file_path:String, file_lines:Variant=null):
 		if not name in classes_used:
 			continue
 		var remote_path = class_renames[name]
-		# Defaulted rather than left null: a class the export decided not to copy has no adjusted
-		# path, and building a preload out of null throws mid-loop - which silently abandons every
-		# rewrite this pass made, since the caller only takes the returned lines.
+		# Defaulted rather than null: a preload built from null throws mid-loop, silently
+		# abandoning every rewrite this pass made, since the caller only takes the returned lines.
 		var adjusted_path = export_obj.adjusted_remote_paths.get(remote_path, "")
 		if adjusted_path == "":
 			printerr('Class "%s" is used in %s but was not copied into the export - cannot inject its preload.'
@@ -203,9 +199,8 @@ func post_export_edit_file(file_path:String, file_lines:Variant=null):
 ## {expression: {name, tail, path, inject}}.
 ##
 ## `inject` is false when an ancestor already declares the same binding: GDScript rejects
-## redeclaring an inherited constant, so the derived script rewrites its expressions but lets the
-## const come down the chain. Names agree because build_access_bindings() decides them once for
-## the whole export.
+## redeclaring an inherited constant, so the derived script lets the const come down the chain.
+## Names agree because build_access_bindings() decides them once for the whole export.
 func _file_reductions() -> Dictionary:
 	if not export_obj.reduce_access_paths:
 		return {}

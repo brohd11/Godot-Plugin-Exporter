@@ -113,7 +113,6 @@ func _execute(ctx:CompletionContext):
 		ctx.append_output("Export: %s  ->  %s" % [label, export_min])
 
 		if verbose_flag:
-			# Every occurrence, with location, highest version first.
 			all_findings.sort_custom(func(a, b):
 				var ca = VersionApi.version_code(a["version"])
 				var cb = VersionApi.version_code(b["version"])
@@ -125,7 +124,6 @@ func _execute(ctx:CompletionContext):
 					continue
 				ctx.append_output("  %s  %s  ([url=%s]%s[/url])" % [data["version"], data["feature"], data["location"], data["location"].get_file()])
 		else:
-			# Distinct reasons only, no location, highest version first.
 			var reasons := {}
 			for data in all_findings:
 				if VersionApi.version_code(data["version"]) <= min_code:

@@ -12,8 +12,6 @@ func _init() -> void:
 	pass
 
 
-# in parser_settings, create dictionary for extension of file,
-# ie. if extension is foo, "parse_foo": {"my_setting": "value"}
 func set_parse_settings(settings):
 	# Copied: what follows appends to this list, and the settings dictionary belongs to the caller.
 	_cast_strip_names = settings.get("strip_cast", []).duplicate()
@@ -30,19 +28,13 @@ func set_parse_settings(settings):
 	for _class_name in _cast_strip_names:
 		_build_single_regex(_class_name, _cast_strip_callables)
 
-# logic to parse for files that are needed acts as a set, dependencies[my_dep_path] = {}
 func get_direct_dependencies(_file_path:String) -> Dictionary:
 	var dependencies = {} 
 	return dependencies
 
-# runs right before export of files. Use for extension specific files.
 func pre_export() -> void:
 	pass
 
-# first pass on post export, if the file ext is handle by default, file_lines will 
-# contain modifies lines, for example, if you want to make a second pass on a gd file.
-# If not handled by default, file_lines will be null. You can process and return the files lines
-# or return the null value to default to the file's .
 func post_export_edit_file(_file_path:String, file_lines:Variant=null) -> Variant:
 	var local_strip_callables = []
 	for i:int in file_lines.size():
@@ -67,9 +59,6 @@ func post_export_edit_file(_file_path:String, file_lines:Variant=null) -> Varian
 	
 	return file_lines
 
-# second pass of post export. If extension is handled by default, line will be 
-# modified already. If changes were made in post_export_edit_file, these will be
-# present here, else, it will be the unmodified line from the file.
 func post_export_edit_line(line:String) -> String:
 	return line
 

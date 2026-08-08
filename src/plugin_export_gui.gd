@@ -189,7 +189,6 @@ func _on_set_file_button_pressed():
 	handled = ProjectSettings.localize_path(handled)
 	_set_file_line_text(handled)
 
-# Used in plugin_exporter.gd
 func load_export_file(file_path, read:=false):
 	if not FileAccess.file_exists(file_path):
 		print("Plugin Exporter: File doesn't exist - ", file_path)

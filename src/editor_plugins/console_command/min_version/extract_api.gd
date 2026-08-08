@@ -3,15 +3,10 @@ extends RefCounted
 
 ## Builds the shipped min-version index from Godot's extension_api dumps.
 ##
-## Reads every full `extension_api_*.json` in the (dev-only, unshipped)
-## SOURCE_DIR, diffs them in ascending version order, and writes ONE compact
-## `api_min_version.json` mapping each class / member / global to the earliest
-## Godot version it appears in, plus an `inherits` map for member lookups that
-## need to walk the class hierarchy.
-##
-## Re-run whenever the dumps change:
-##   const Extract = preload("res://addons/plugin_exporter/src/editor_plugins/console_command/min_version/extract_api.gd")
-##   Extract.build()
+## Diffs every full `extension_api_*.json` in the dev-only SOURCE_DIR in ascending
+## version order and writes one compact `api_min_version.json`: each class / member /
+## global mapped to its earliest Godot version, plus an `inherits` map for hierarchy walks.
+## Re-run when dumps change: `preload("res://addons/plugin_exporter/src/editor_plugins/console_command/min_version/extract_api.gd").build()`
 
 const UFile = preload("res://addons/addon_lib/brohd/alib_runtime/utils/u_file.gd")
 
@@ -92,7 +87,7 @@ static func build() -> String:
 	if f == null:
 		printerr("extract_api: could not open for write ", OUTPUT_PATH)
 		return ""
-	f.store_string(JSON.stringify(index))  # minified
+	f.store_string(JSON.stringify(index))
 	f.close()
 
 	var member_total := 0

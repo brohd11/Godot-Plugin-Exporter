@@ -4,7 +4,6 @@
 const APACHE_2_PATH = "res://addons/plugin_exporter/src/editor_plugins/console_command/license/apache.txt"
 const GPL_3_PATH = "res://addons/plugin_exporter/src/editor_plugins/console_command/license/gpl3.txt"
 
-# get_text returns the finished license text for a license id, or "" if unknown.
 static func get_text(license_id:String, name:String, year:String) -> String:
 	match license_id:
 		"mit":

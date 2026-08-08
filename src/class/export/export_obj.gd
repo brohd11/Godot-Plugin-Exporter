@@ -41,7 +41,6 @@ var use_relative_paths := false
 var parser_overide_settings:Dictionary = {}
 var file_parser:_FileParser
 
-## final dict that will be iterated over in export
 var files_to_copy:Dictionary = {}
 ## Seed set for the dependency crawl, used as a set - only its keys are ever read.
 var files_to_scan_for_deps:Dictionary = {}
@@ -109,7 +108,7 @@ func get_valid_files_for_transfer():
 			_UEditor.push_toast("File exists, aborting: " + export_path, 2 as _UEditor.ToastSeverity)
 			return
 		
-		if FileAccess.file_exists(l_path): # check that it is file vs dir
+		if FileAccess.file_exists(l_path):
 			valid_files_for_transfer[l_path] = {_KeysData.TO:export_path}
 			if rename_plugin:
 				adjusted_remote_paths[l_path] = get_renamed_path(l_path)
@@ -189,8 +188,8 @@ func sort_valid_files():
 		if remote_file_path == "":
 			continue
 
-		files_to_copy[file][_KeysData.REPLACE_WITH] = remote_file_path # when copying, replace with remote
-		replace_with_files[remote_file_path] = file # add to point files where this is dependency to this path
+		files_to_copy[file][_KeysData.REPLACE_WITH] = remote_file_path
+		replace_with_files[remote_file_path] = file
 
 
 func get_global_classes_used_in_valid_files():
@@ -250,10 +249,10 @@ func get_file_dependencies():
 		file_parser.get_dependencies(file_path, file_dependencies, scanned_files)
 	
 	for remote_path:String in file_dependencies.keys():
-		if replace_with_files.has(remote_path): #^ if it is in the replace files, then it is probably out of remote folder
-			var replace_path = replace_with_files.get(remote_path) #^ get the to be replaced file path
-			adjusted_remote_paths[remote_path] = get_renamed_path(replace_path) #^ set the adjusted path to the replace path
-			continue #^ and don't copy another to remote
+		if replace_with_files.has(remote_path):
+			var replace_path = replace_with_files.get(remote_path)
+			adjusted_remote_paths[remote_path] = get_renamed_path(replace_path)
+			continue
 		
 		var data = file_dependencies.get(remote_path, {})
 		var dependent:String = data.get(_KeysData.DEPENDENT, "")
@@ -279,13 +278,10 @@ func get_file_dependencies():
 
 
 ## A reduced access path is a real reference, so the file it resolves to has to travel even when
-## nothing else in the plugin preloads it.
-##
-## Only files the crawl visits contribute their access-path targets as dependencies, and an
-## ordinary in-plugin script is never a crawl root. Left unseeded, such a target is absent from
-## the export, build_access_bindings() then drops its binding as unexportable, that one mention is
-## never rewritten - and the head class, already pruned on the strength of the very same plan, is
-## gone. The export ends up naming a class it does not contain.
+## nothing else in the plugin preloads it. Only files the crawl visits contribute their
+## access-path targets, and an ordinary in-plugin script is never a crawl root: left unseeded,
+## the target is absent from the export, build_access_bindings() drops its binding, and the
+## export ends up naming a class it does not contain.
 func _seed_access_reduction_targets() -> void:
 	if not reduce_access_paths:
 		return
@@ -571,9 +567,8 @@ func gather_licenses():
 		if seen_license_paths.has(local_path):
 			printerr("Potential LICENSE clash: ", local_path)
 		seen_license_paths[local_path] = true
-		# Mapped out of res:// straight from the in-plugin path, the same way every other copy is.
-		# Renaming first would strip the source prefix get_export_path has to match, and the file
-		# would then be written to res://addons/<new name>/ - inside the live project.
+		# Mapped out of res:// from the in-plugin path like every other copy; renaming first would
+		# strip the source prefix get_export_path matches on, writing the file into the live project.
 		var export_path = get_export_path(local_path)
 		files_to_copy[file] = {_KeysData.TO:export_path}
 	

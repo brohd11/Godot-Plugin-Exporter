@@ -105,9 +105,6 @@ func set_parse_settings(settings):
 	backport_target = settings.get("backport_target", 100)
 
 
-# second pass of post export. If extension is handled by default, line will be 
-# modified already. If changes were made in post_export_edit_file, these will be
-# present here, else, it will be the unmodified line from the file.
 func post_export_edit_line(line:String) -> String:
 	if backport_target == 100:
 		return line
@@ -137,9 +134,6 @@ func post_export_edit_line(line:String) -> String:
 
 
 func fix_mixed_indent(line: String) -> String:
-	# The replacement string "$1$3" means:
-	# - $1: the tabs
-	# - $3: the code
 	# deliberately leave out the spaces
 	return _indent_regex.sub(line, "$1$3", true)
 
@@ -151,7 +145,7 @@ func _validate_ei_methods(line: String):
 	
 	for _match in matches:
 		var full_chain = _match.get_string(1).strip_edges()
-		var method_name = _match.get_string(2) # Group 2 is the method name
+		var method_name = _match.get_string(2)
 		if not VALID_4_0_EI_METHODS.has(method_name):
 			var file_path = current_file_path
 			print("Found non valid 4.0 method 'EditorInterface.%s()' in: %s." % [method_name, file_path])
@@ -231,9 +225,6 @@ func convert_all_is_not_syntax(line: String) -> String:
 func remove_for_loop_type_hint(line: String) -> String:
 	var _match = _for_loop_type_regex.search(line)
 	if _match:
-		# $1 = "    for "
-		# $2 = "i"
-		# $3 = " in range(10):"
 		return _for_loop_type_regex.sub(line, "$1$2$3", true)
 	else:
 		return line
@@ -257,9 +248,9 @@ func backport_raw_strings(script_content: String) -> String:
 
 
 func _create_escaped_literal(raw_content: String) -> String:
-	var escaped_content = raw_content.replace("\\", "\\\\") # escape all backslashes.
-	escaped_content = escaped_content.replace("\"", "\\\"") # escape all double-quotes
-	return '"' + escaped_content + '"' # make string literal
+	var escaped_content = raw_content.replace("\\", "\\\\")
+	escaped_content = escaped_content.replace("\"", "\\\"")
+	return '"' + escaped_content + '"'
 
 
 func check_window_line(line):
@@ -288,10 +279,9 @@ func replace_is_part_of_edited_scene(line: String) -> String:
 		
 		if captured_obj.is_empty():
 			subject_obj = "self"
-		else: # An object was captured. Use it.
+		else:
 			subject_obj = captured_obj
 		
-		# Build the new replacement string
 		replacement_text = "MiscBackport.is_part_of_edited_scene_compat(%s)" % subject_obj
 		
 		line = line.substr(0, _match.get_start(0)) \
@@ -315,21 +305,17 @@ func _replace_typed_dict(line:String) -> String:
 
 
 func run_raw_string_test():
-	# Example 1: A typical Windows file path
 	var raw_string_content1 = "C:\\Users\\MyUser\\Project"
 	var godot4_0_compatible_string1 = _create_escaped_literal(raw_string_content1)
 	print("Raw content: ", raw_string_content1)
 	print("4.0 version: ", godot4_0_compatible_string1)
-	# Expected output: "C:\\Users\\MyUser\\Project"
 
 	print("---")
 
-	# Example 2: A string containing quotes
 	var raw_string_content2 = 'The command is: "run.exe" -path "C:\\data"'
 	var godot4_0_compatible_string2 = _create_escaped_literal(raw_string_content2)
 	print("Raw content: ", raw_string_content2)
 	print("4.0 version: ", godot4_0_compatible_string2)
-	# Expected output: "The command is: \"run.exe\" -path \"C:\\data\""
 
 
 
@@ -338,19 +324,15 @@ func run_editor_interface_tests():
 	var line1 = "var ei = EditorInterface.get_editor_viewport()"
 	print("Input:  %s" % line1)
 	print("Output: %s\n" % replace_editor_interface(line1))
-	# Output: var ei = EditorInterfaceBackport.get_ins().ei.get_editor_viewport()
 	var line2 = "var x = 1 # We used to use EditorInterface here"
 	print("Input:  %s" % line2)
 	print("Output: %s\n" % replace_editor_interface(line2))
-	# Output: var x = 1 # We used to use EditorInterface here
 	var line3 = 'print("The old way was EditorInterface")'
 	print("Input:  %s" % line3)
 	print("Output: %s\n" % replace_editor_interface(line3))
-	# Output: print("The old way was EditorInterface")
 	var line4 = 'var custom_ei = MyCustomEditorInterface.new()'
 	print("Input:  %s" % line4)
 	print("Output: %s\n" % replace_editor_interface(line4))
-	# Output: var custom_ei = MyCustomEditorInterface.new()
 
 
 func run_is_not_tests():

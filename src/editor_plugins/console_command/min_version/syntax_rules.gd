@@ -1,19 +1,11 @@
 extends RefCounted
 
 ## Hardcoded min-version rules for GDScript *language* features that have no
-## presence in extension_api.json (annotations, operators, typed containers,
-## literal forms). Everything with an engine-API footprint is dated data-driven
-## via `version_api.gd` instead — this table stays deliberately small.
-##
+## presence in extension_api.json (those are dated data-driven via `version_api.gd`).
 ## Patterns match the string/comment-sanitized line.
-##
-## Limitations (not reliably detectable by regex):
-##   - Local constants used as type hints (4.2) — indistinguishable from normal
-##     typing.
-##   - Typed node exports `@export var x: NodeType` (4.2) — the `@export var x: T`
-##     syntax isn't new; only a Node-typed target is, which needs a type check.
-## `@export_storage` (4.3) is grouped with the 4.3 export additions but is
-## UNVERIFIED (no 4.3 binary to confirm against).
+## Limitations (not reliably detectable by regex): local constants used as type
+## hints (4.2); typed node exports `@export var x: NodeType` (4.2) — needs a type check.
+## `@export_storage` (4.3) is UNVERIFIED — no 4.3 binary to confirm against.
 
 const URegex = preload("res://addons/addon_lib/brohd/alib_runtime/utils/u_regex.gd")
 

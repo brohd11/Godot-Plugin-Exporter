@@ -1,8 +1,5 @@
-## Markdown to renderable blocks, plus inline markdown to BBCode.
-##
-## Pure and static - no engine state, no plugin coupling - so the whole thing is testable headless
-## and portable as is. Block segmentation only splits out what a RichTextLabel cannot draw itself:
-## fenced code, standalone images and rules. Everything else stays prose and becomes BBCode.
+## Markdown to renderable blocks, plus inline markdown to BBCode. Pure and static - no engine
+## state, no plugin coupling - so the whole thing is testable headless and portable as is.
 ##
 ## Inline conversion emits finished spans as separate segments instead of substituting them back
 ## into the text, so nothing a document contains can be mistaken for the parser's own markers. The

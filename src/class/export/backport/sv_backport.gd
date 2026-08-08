@@ -19,7 +19,6 @@ static func get_ins():
 		
 	return instance
 
-# INSTANCE METHODS (called on the singleton instance)
 func get_var(script_path: String, var_name: String, default_value):
 	if not data_store.has(script_path):
 		data_store[script_path] = {}

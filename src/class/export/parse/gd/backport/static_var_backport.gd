@@ -32,13 +32,10 @@ func _init() -> void:
 	#test_new_getter()
 
 
-# in parser_settings, create dictionary for extension of file,
-# ie. if extension is foo, "parse_foo": {"my_setting": "value"}
 func set_parse_settings(settings):
 	backport_target = settings.get("backport_target", 100)
 
 
-# logic to parse for files that are needed acts as a set, dependencies[my_dep_path] = {}
 func get_direct_dependencies(file_path:String) -> Dictionary:
 	var dependencies = {} 
 	return dependencies
@@ -103,7 +100,6 @@ func pre_export():
 					
 					preload_alias_map[path] = const_name
 	
-	## BUILD REGEXES
 	for class_nm in global_static_vars_map.keys():
 		var s_var_nms = global_static_vars_map.get(class_nm)
 		for var_nm in s_var_nms:
@@ -115,7 +111,7 @@ func pre_export():
 		if s_var_nms.is_empty():
 			continue
 		var const_name = preload_alias_map.get(path)
-		if const_name == null: ## I believe this means it is never referenced anywhere else, not an issue.
+		if const_name == null: # never preloaded anywhere, so nothing external can reach the var
 			#print("Could not find path in static var preload alias map: %s" % path) 
 			continue
 		for var_nm in s_var_nms:
@@ -130,10 +126,6 @@ func pre_export():
 	## compile regexs?
 
 
-# first pass on post export, if the file ext is handled by default, file_lines will 
-# contain modifies lines, for example, if you want to make a second pass on a gd file.
-# If not handled by default, file_lines will be null. You can process and return the files lines
-# or return the null value to default to the file's .
 func post_export_edit_file(file_path:String, file_lines:Variant=null) -> Variant:
 	if backport_target > STATIC_VAR_MIN_VER:
 		return file_lines
@@ -192,33 +184,28 @@ func post_export_edit_file(file_path:String, file_lines:Variant=null) -> Variant
 			while true:
 				var _match = regex.search(processed_line)
 				if not _match:
-					break # No more matches for this variable on this line
+					break
 
-				# Extract all the pieces from the match
-				var full_match_text = _match.get_string(0) # The entire "my_var += 10" part
+				var full_match_text = _match.get_string(0)
 				var var_name = _match.get_string(1)
 				var operator = _match.get_string(2).strip_edges()
 				var value = _match.get_string(3).strip_edges()
 
 				var replacement_text = ""
 				if operator == "=":
-					# Case 1: Simple assignment (my_var = 10)
-					# Becomes: set_my_var(10)
 					replacement_text = "set_{var}({val})".format({
-						"var": var_name, 
+						"var": var_name,
 						"val": value
 					})
 				else:
-					# Case 2: Compound assignment (my_var += 10)
-					# Becomes: set_my_var(get_my_var() + 10)
-					var compound_op = operator.substr(0, operator.length() - 1) # Extract just the "+"
+					# "x += 1" has to read through the getter before it can write back
+					var compound_op = operator.substr(0, operator.length() - 1)
 					replacement_text = "set_{var}(get_{var}() {op} {val})".format({
 						"var": var_name,
 						"op": compound_op,
 						"val": value
 					})
-				
-				# Replace only the part that matched and then loop again on the modified line
+
 				processed_line = processed_line.replace(full_match_text, replacement_text)
 		
 		for regex in internal_getter_regex_array:
@@ -252,9 +239,6 @@ func post_export_edit_file(file_path:String, file_lines:Variant=null) -> Variant
 	
 	return file_lines
 
-# second pass of post export. If extension is handled by default, line will be 
-# modified already. If changes were made in post_export_edit_file, these will be
-# present here, else, it will be the unmodified line from the file.
 func post_export_edit_line(line:String) -> String:
 	return line
 
@@ -280,12 +264,9 @@ func _build_external_setter_rule(_class_name: String, var_name: String) -> Dicti
 	var escp_vr = URegex.escape_regex_meta_characters(var_name)
 	var pattern = "\\b((" + prefix_pattern + escp_cl + ")\\.(" + escp_vr + ")(?!\\w))\\s*([+\\-*/%]?=)(?!=)\\s*(.*)"
 	regex.compile(pattern)
-	
-	# Replacement: (ObjectChain).set_(var_name)((ObjectChain).get_(var_name)() + (value))
-	# We will handle this complex replacement in the application logic.
-	# For simple assignment, the replacement would be "$2.set_$3($4)"
-	var replacement_template = "{object_chain}.set_{var_name}({value})"
-	
+
+	# No "replacement" key - a compound assignment needs the object chain twice, which a
+	# sub() template cannot express; process_line_for_external builds it by hand instead.
 	return {
 		"type": "setter_external",
 		"regex": regex
@@ -298,27 +279,22 @@ func _build_external_getter_rule(_class_name: String, var_name: String) -> Dicti
 	var prefix_pattern = "(?:[a-zA-Z_][a-zA-Z0-9_]*\\.)*?"
 	var escp_cl = URegex.escape_regex_meta_characters(_class_name)
 	var escp_vr = URegex.escape_regex_meta_characters(var_name)
-	# Pattern: \b((prefix)ClassName)\.(var_name)\b
-	# Captures: 1=ObjectChain, 2=var_name
+	# Captures: 1=whole match, 2=object chain, 3=var name
 	var pattern = "\\b((" + prefix_pattern + escp_cl + ")\\.(" + escp_vr + ")(?!\\w))"
 	regex.compile(pattern)
-	
-	# Replacement: (ObjectChain).get_(var_name)()
-	var replacement_template = "{object_chain}.get_{var_name}()"
+
 	return {
 		"type": "getter_external",
 		"regex": regex,
-		# This replacement string is designed to work with the 3 capture groups above
-		"replacement": "$2.get_$3()" 
+		"replacement": "$2.get_$3()"
 	}
 
 
-# --- Usage in your line-by-line processing ---
-
+## Setters run before getters: the getter pattern also matches the left side of an assignment,
+## so running it first would rewrite "A.x = 1" into "A.get_x() = 1" before the setter ever sees it.
 func process_line_for_external(line: String, rules: Array) -> String:
 	var processed_line = line
-	
-	# --- 1. PROCESS EXTERNAL SETTERS FIRST ---
+
 	var setter_rules = rules.filter(func(r): return r.type == "setter_external")
 	for rule in setter_rules:
 		while true:
@@ -345,27 +321,23 @@ func process_line_for_external(line: String, rules: Array) -> String:
 			
 			processed_line = processed_line.replace(full_match_text, replacement_text)
 	
-	# --- 2. PROCESS EXTERNAL GETTERS SECOND ---
 	var getter_rules = rules.filter(func(r): return r.type == "getter_external")
 	for rule in getter_rules:
-		# Loop to handle multiple getters on the same line (e.g., print(A.x, A.x))
+		# Re-search rather than sub() so multiple getters on one line all get rewritten
 		while true:
 			var _match = rule.regex.search(processed_line)
 			if not _match:
-				break # No more matches for this variable found
-			
-			# Extract the necessary parts from the match
-			var full_match_text = _match.get_string(1) # The full "Plugin.instance"
-			var object_chain = _match.get_string(2)    # The "Plugin" part
-			var var_name = _match.get_string(3)        # The "instance" part
+				break
+
+			var full_match_text = _match.get_string(1)
+			var object_chain = _match.get_string(2)
+			var var_name = _match.get_string(3)
 			#print(var_name)
-			# Build the replacement string manually, just like in the test
 			var replacement_text = "{obj}.get_{var}()".format({
 				"obj": object_chain,
 				"var": var_name
 			})
-			
-			# Replace the found text and let the loop continue to find the next one
+
 			processed_line = processed_line.replace(full_match_text, replacement_text)
 		
 	return processed_line
@@ -386,7 +358,6 @@ static func _get_static_setter_lines(data):
 
 
 func test_new_getter():
-# Simulate building the rule for "Plugin.instance"
 	var getter_rule = _build_external_getter_rule("Plugin", "instance")
 	var regex = getter_rule.regex
 
@@ -398,9 +369,9 @@ func test_new_getter():
 	var match1 = regex.search(line1)
 	if match1:
 		print("  Match found!")
-		print("  Full match ($1): ", match1.get_string(1)) # Plugin.instance
-		print("  Object Chain ($2): ", match1.get_string(2)) # Plugin
-		print("  Var Name ($3): ", match1.get_string(3))   # instance
+		print("  Full match ($1): ", match1.get_string(1))
+		print("  Object Chain ($2): ", match1.get_string(2))
+		print("  Var Name ($3): ", match1.get_string(3))
 		var replacement = "{obj}.get_{var}()".format({"obj": match1.get_string(2), "var": match1.get_string(3)})
 		print("  Replaced Line: ", line1.replace(match1.get_string(1), replacement))
 	else:

@@ -76,8 +76,6 @@ func member_min_version(class_nm: String, member: String) -> String:
 	return ""
 
 
-# --- version math helpers ---
-
 ## Ordering key for a "major.minor" version string (major*1000+minor), so 4.7 <
 ## 4.8 < 4.10 < 5.0 with no version table. -1 when unparseable.
 static func version_code(v: String) -> int:

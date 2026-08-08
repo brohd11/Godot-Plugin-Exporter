@@ -1,6 +1,5 @@
 const LicenseText = preload("res://addons/plugin_exporter/src/editor_plugins/console_command/license/license_text.gd")
 
-# Writes a LICENSE file into res://addons/<plugin_name>/. Returns true on success.
 # Never overwrites an existing LICENSE (prints an error and returns false instead).
 static func generate(plugin_name:String, name:String, year:String, license_id:String, ctx) -> bool:
 	var plugin_dir = "res://addons/".path_join(plugin_name)

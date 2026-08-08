@@ -38,9 +38,11 @@ func _init() -> void:
 	preload_regex = UtilsRemote.URegex.get_preload_path()
 	
 
+## Settings arrive keyed by extension: "parse_<ext>": {"my_setting": value}.
 func set_parse_settings(settings) -> void:
 	pass
 
+## The returned dict acts as a set - dependencies[my_dep_path] = {}; the value is unused.
 func get_direct_dependencies(file_path:String) -> Dictionary:
 	var direct_dependencies = {}
 	return direct_dependencies
@@ -114,9 +116,8 @@ static func edges_to_dependencies(edges:Array, out:Dictionary) -> Dictionary:
 	for edge in edges:
 		if edge.to == "":
 			continue
-		# An access-path edge is a GLOBAL_CLASS/EXTENDS_CLASS kind, but unlike a bare class
-		# reference it names a file the export has to copy in its own right - the hub the head
-		# resolves to may not survive reduction. Bare ones stay parse_gd's business.
+		# An access-path edge (META_RESOLVED_FROM) names a file the export must copy in its own
+		# right - the hub it resolves to may not survive reduction. Bare ones stay parse_gd's business.
 		if not DEP_KINDS.has(edge.kind) and not edge.meta.has(DepEdge.META_RESOLVED_FROM):
 			continue
 		var entry = out.get(edge.to)
@@ -131,18 +132,9 @@ static func edges_to_dependencies(edges:Array, out:Dictionary) -> Dictionary:
 	return out
 
 ## What each dotted access path in a file reduces to: {expression: {name, path, tail}}.
-## `name` is the segment that landed on a real file and becomes the injected const; `tail` is
-## whatever the walk could not follow - an inner class, an enum, a plain const - and is kept on
-## the end of the rewritten expression.
-##
-## Two kinds of expression are deliberately left alone:
-##
-## - one whose head is already the deepest file it names. Reducing
-##   "FileSystemSingleton.FileData.FAVORITES_META" would rewrite it to itself, and the head is a
-##   genuine use of that class rather than a pass-through.
-## - one that walks through a file's own const preloads rather than a global class. A plugin's
-##   "UtilsRemote.URegex" is its own deliberate indirection, which "#! remote" already rewrites
-##   on export; only a global-class head can be the namespace hub this exists to get rid of.
+## Two kinds of expression are deliberately left alone: one whose head is already the deepest
+## file it names (a genuine use of that class, not a pass-through), and one that walks a file's
+## own const preloads rather than a global class - "#! remote" already rewrites those on export.
 static func edges_to_reductions(edges:Array, out:Dictionary) -> Dictionary:
 	for edge in edges:
 		var expression:String = edge.meta.get(DepEdge.META_RESOLVED_FROM, "")
@@ -263,12 +255,16 @@ func _rewrite_ser_file(file_path:String, header:String) -> Variant:
 	return adjusted_file_lines
 
 
+## Hook for extension-specific files; runs right before the export writes files.
 func pre_export() -> void:
 	return
 
+## Second post-export pass; sees whatever post_export_edit_file returned.
 func post_export_edit_line(line:String) -> String:
 	return line
 
+## First post-export pass. `file_lines` is null for extensions the base does not handle;
+## process and return the lines, or return null to fall back to the file on disk.
 func post_export_edit_file(file_path:String, file_lines:Variant=null) -> Variant:
 	return file_lines
 

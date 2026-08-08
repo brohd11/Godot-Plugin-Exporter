@@ -147,7 +147,7 @@ func _init(export_config_path):
 			else:
 				overide_settings[parse_key] = parse_data
 		
-		 # move this after, distributes overided settings into dict, settings in body of settings dict ovewrite ext parse settings
+		# Runs after the merge so untyped settings in the settings-dict body override per-ext ones.
 		overide_settings = _sort_settings_dict(overide_settings)
 		
 		var parse_gd_settings = overide_settings.get("parse_gd", {})
@@ -197,9 +197,8 @@ func _sort_settings_dict(dict:Dictionary):
 		sorted_dict[parse_key] = dict[parse_key]
 	
 	for parse_key in sorted_dict.keys():
-		# Copied rather than written through: this runs on the shared parser_settings as well as
-		# on each export's own, and folding the untyped keys into the caller's dictionary is how
-		# one export's settings used to reach the next.
+		# Copied rather than written through: folding the untyped keys into the caller's dict
+		# is how one export's settings used to leak into the next.
 		var data:Dictionary = (sorted_dict[parse_key] as Dictionary).duplicate()
 
 		for key in untyped_keys:

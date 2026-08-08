@@ -225,7 +225,6 @@ func _set_script_editor_references():
 	_set_script_editor_code_popup()
 
 func _set_script_editor_popup():
-	## SCRIPT EDITOR CODE
 	if is_instance_valid(script_editor_code_popup):
 		if script_editor_code_popup.about_to_popup.is_connected(_on_script_editor_code_popup_about_to_popup):
 			script_editor_code_popup.about_to_popup.disconnect(_on_script_editor_code_popup_about_to_popup)
@@ -235,7 +234,6 @@ func _set_script_editor_popup():
 	popups[SLOT_SCRIPT_EDITOR_CODE] = script_editor_code_popup
 	script_editor_code_popup.about_to_popup.connect(_on_script_editor_code_popup_about_to_popup)
 func _set_script_editor_code_popup():
-	## SCRIPT EDITOR FILE LIST
 	if is_instance_valid(script_editor_popup):
 		if script_editor_popup.about_to_popup.is_connected(_on_script_editor_popup_about_to_popup):
 			script_editor_popup.about_to_popup.disconnect(_on_script_editor_popup_about_to_popup)
