@@ -9,9 +9,9 @@ extends VBoxContainer
 const Parser = preload("res://addons/plugin_exporter/src/components/doc_viewer/markdown_parser.gd")
 
 const _FALLBACK_FONT_SIZE = 16
-## Images are held to a fraction of the viewport so a screenshot cannot fill the whole page.
+## Images are held to a fraction of the viewport height so a screenshot cannot fill the page.
+## Width needs no ratio - an image is never allowed past the width of the view itself.
 const _MAX_IMAGE_HEIGHT_RATIO = 0.6
-const _MAX_IMAGE_WIDTH_RATIO = 0.9
 
 signal link_activated(meta:String)
 
@@ -34,6 +34,8 @@ func _init() -> void:
 func _notification(what:int) -> void:
 	if what == NOTIFICATION_THEME_CHANGED and is_node_ready() and _source != "":
 		_render()
+	elif what == NOTIFICATION_RESIZED:
+		_fit_images()
 
 
 func set_markdown(text:String) -> void:
@@ -119,8 +121,11 @@ func _new_code(text:String, lang:String) -> Control:
 
 	var copy_button = Button.new()
 	code_edit.add_child(copy_button)
-	#copy_button.text = "Copy"
-	copy_button.icon = EditorInterface.get_editor_theme().get_icon(&"ActionCopy", &"EditorIcons")
+	# Editor icon where there is an editor theme to take one from, a label everywhere else.
+	if Engine.is_editor_hint():
+		copy_button.icon = EditorInterface.get_editor_theme().get_icon(&"ActionCopy", &"EditorIcons")
+	else:
+		copy_button.text = "Copy"
 	copy_button.theme_type_variation = &"FlatButton"
 	copy_button.flat = true
 	copy_button.focus_mode = Control.FOCUS_NONE
@@ -161,32 +166,50 @@ func _new_image(src:String, alt:String) -> Control:
 	rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	rect.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	rect.tooltip_text = alt
-	rect.custom_minimum_size = _image_size(texture)
+	# Natural size for now; the first real layout fits it to the width actually available.
+	rect.custom_minimum_size = Vector2(texture.get_size())
 	return rect
 
 
-## Doc images live in a dot-prefixed folder Godot never imports, so ResourceLoader cannot see
-## them - they have to be read off disk as raw image data.
+## Imported images go through the loader - reading one off disk instead works but warns that it
+## will not survive an export. Docs shipped in a dot-prefixed folder are never imported, and raw
+## file data is the only way to reach those.
 func _load_texture(path:String) -> Texture2D:
 	if not FileAccess.file_exists(path):
 		return null
-	var image = Image.new()
-	if image.load(path) != OK:
+	if ResourceLoader.exists(path):
+		var resource = ResourceLoader.load(path)
+		if resource is Texture2D:
+			return resource
+	var image = Image.load_from_file(path)
+	if image == null or image.is_empty():
 		return null
 	return ImageTexture.create_from_image(image)
 
 
-func _image_size(texture:Texture2D) -> Vector2:
-	var size = Vector2(texture.get_size())
-	if size.x <= 0 or size.y <= 0:
-		return Vector2.ZERO
-	var bounds = get_viewport_rect().size
-	var scale := 1.0
-	if bounds.y > 0:
-		scale = minf(scale, bounds.y * _MAX_IMAGE_HEIGHT_RATIO / size.y)
-	if bounds.x > 0:
-		scale = minf(scale, bounds.x * _MAX_IMAGE_WIDTH_RATIO / size.x)
-	return size * minf(scale, 1.0)
+## Images are sized on layout, not on build - at build time the view has no width yet, and a
+## window that has not been popped up reports a placeholder size that shrinks every image to it.
+func _fit_images() -> void:
+	for child in get_children():
+		if child is TextureRect:
+			_fit_image(child)
+
+
+func _fit_image(rect:TextureRect) -> void:
+	if rect.texture == null:
+		return
+	var natural = Vector2(rect.texture.get_size())
+	if natural.x <= 0 or natural.y <= 0:
+		return
+
+	var factor := 1.0
+	if size.x > 0:
+		factor = minf(factor, size.x / natural.x)
+	var max_height = get_viewport_rect().size.y * _MAX_IMAGE_HEIGHT_RATIO
+	if max_height > 0:
+		factor = minf(factor, max_height / natural.y)
+	# custom_minimum_size ignores an unchanged value, so this cannot feed itself another resize.
+	rect.custom_minimum_size = natural * minf(factor, 1.0)
 
 
 func _on_meta_clicked(meta:Variant) -> void:

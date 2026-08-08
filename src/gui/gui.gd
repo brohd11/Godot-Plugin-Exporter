@@ -154,7 +154,7 @@ func _ready() -> void:
 	UControl.expand(tab_container)
 
 	doc_viewer = DocViewer.new()
-	doc_viewer.docs_path = "res://addons/plugin_exporter/"
+	#doc_viewer.docs_path = "res://addons/plugin_exporter/"
 	tab_container.add_tab(doc_viewer, EditorIcons.get_icon_white("Help"))
 	UControl.expand(doc_viewer)
 
@@ -217,6 +217,8 @@ func _load_plugin(plugin_name:String):
 func _set_file_path(file_path:String):
 	file_path_line.text = file_path
 	export_editor.load_file(file_path)
+	_set_doc_path(file_path)
+	
 	dep_view.dep_graph.clear_graph()
 	file_tree.clear()
 	tree_helper.clear_items()
@@ -381,6 +383,14 @@ func _collapse_tree():
 		return
 	root_item.set_collapsed_recursive(true)
 	root_item.collapsed = false
+
+
+func _set_doc_path(export_file_path:String):
+	var docs_path = export_file_path.get_base_dir().path_join("doc")
+	if DirAccess.dir_exists_absolute(docs_path):
+		doc_viewer.set_docs_path(docs_path)
+	else:
+		doc_viewer.set_docs_path(export_file_path.get_base_dir().get_base_dir())
 
 class ExportTree extends FSTreeClasses.MinTree:
 	

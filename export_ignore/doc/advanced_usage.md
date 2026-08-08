@@ -142,9 +142,21 @@ func _on_help_pressed() -> void:
 `open()` puts the viewer in its own window that frees itself when closed. To embed it instead,
 instance it as a normal Control and set `docs_path`.
 
-It resolves the path itself: `<addon>/.doc` in a released plugin, `<addon>/export_ignore/doc` in
+It resolves a directory itself: `<addon>/.doc` in a released plugin, `<addon>/export_ignore/doc` in
 this dev project, or the plugin's `README.md` when there is no doc folder at all. Docs are listed
 depth first, files before folders, on a contents page, with navigation between them.
+
+Give it a **file** instead and that file is the whole viewer - nothing is scanned or guessed at,
+and the contents page and navigation stay out of the way:
+
+``` gdscript
+DocViewer.open("res://addons/my_plugin/README.md")   # window on one file
+viewer.display("res://addons/my_plugin/README.md")   # same, on an embedded instance
+```
+
+Links follow through: a doc in the contents opens as a page, a `.md` outside it opens too (the
+Contents button goes back), a `res://` file is revealed in the FileSystem dock, and anything else
+is handed to the OS.
 
 Markdown support covers headings, emphasis, lists, quotes, links, rules, images and fenced code.
 Code fences render as read-only `CodeEdit`s - gdscript is highlighted out of the box, and

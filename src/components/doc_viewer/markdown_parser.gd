@@ -3,6 +3,10 @@
 ## Pure and static - no engine state, no plugin coupling - so the whole thing is testable headless
 ## and portable as is. Block segmentation only splits out what a RichTextLabel cannot draw itself:
 ## fenced code, standalone images and rules. Everything else stays prose and becomes BBCode.
+##
+## Inline conversion emits finished spans as separate segments instead of substituting them back
+## into the text, so nothing a document contains can be mistaken for the parser's own markers. The
+## cost is that emphasis opening before a link and closing after it stays literal.
 
 const TYPE_TEXT = "text"
 const TYPE_CODE = "code"
@@ -14,15 +18,12 @@ const KEY_TEXT = "text"
 const KEY_LANG = "lang"
 const KEY_SRC = "src"
 const KEY_ALT = "alt"
+## Inline segment holding finished BBCode rather than text still to be converted.
+const KEY_DONE = "done"
 
 ## Heading size as a ratio of the host's base font size. Ratios rather than pixels so headings
 ## track the editor's font size and scale, which is where fixed-size markdown previews fall apart.
 const HEADING_RATIOS:Array[float] = [1.7, 1.45, 1.25, 1.15, 1.05, 1.0]
-
-## Control chars stand in for already-converted spans while the rest of the line is processed.
-## Markdown source will not contain them, so they can never collide with real text.
-static var _STASH_OPEN := String.chr(1)
-static var _STASH_CLOSE := String.chr(2)
 
 static var _re_cache:Dictionary = {}
 
@@ -211,71 +212,76 @@ static func _indent_level(indent:String) -> int:
 
 
 static func _inline(text:String) -> String:
-	var stash:Array[String] = []
-	text = _stash_code_spans(text, stash)
-	text = _stash_links(text, stash)
-	# Everything that survives is literal, so its brackets must not read as BBCode.
-	text = text.replace("[", "[lb]")
-	text = _emphasis(text)
-	return _unstash(text, stash)
-
-
-static func _stash_push(stash:Array[String], value:String) -> String:
-	stash.append(value)
-	return _STASH_OPEN + str(stash.size() - 1) + _STASH_CLOSE
-
-
-static func _unstash(text:String, stash:Array[String]) -> String:
-	for i in range(stash.size()):
-		text = text.replace(_STASH_OPEN + str(i) + _STASH_CLOSE, stash[i])
-	return text
-
-
-## Backtick spans are stashed whole - nothing inside a code span is markdown.
-static func _stash_code_spans(text:String, stash:Array[String]) -> String:
 	var out := ""
-	var i := 0
-	var length := text.length()
-	while i < length:
-		if text[i] != "`":
-			out += text[i]
-			i += 1
-			continue
-		var run := 0
-		while i + run < length and text[i + run] == "`":
-			run += 1
-		var ticks = "`".repeat(run)
-		var close = text.find(ticks, i + run)
-		if close == -1:
-			out += ticks
-			i += run
-			continue
-		var body = text.substr(i + run, close - (i + run))
-		out += _stash_push(stash, "[code]" + body.replace("[", "[lb]") + "[/code]")
-		i = close + run
+	for segment in _split_inline(text):
+		if segment[KEY_DONE]:
+			out += segment[KEY_TEXT]
+		else:
+			# Whatever is left is literal, so its brackets must not read as BBCode.
+			out += _emphasis(segment[KEY_TEXT].replace("[", "[lb]"))
 	return out
 
 
-## Only the url tags are stashed, so link text still picks up emphasis.
-static func _stash_links(text:String, stash:Array[String]) -> String:
-	var out := ""
-	var pos := 0
-	var re = _re(r'(!?)\[([^\]]*)\]\(\s*([^)\s]+)(?:\s+"[^"]*")?\s*\)')
-	while true:
-		var match_result = re.search(text, pos)
-		if not match_result:
-			break
-		out += text.substr(pos, match_result.get_start() - pos)
-		var label = match_result.get_string(2)
-		if match_result.get_string(1) == "!":
-			# An inline image cannot be drawn in a text run, so its alt text stands in for it.
-			out += label
-		else:
-			out += _stash_push(stash, "[url=%s]" % match_result.get_string(3))
-			out += label
-			out += _stash_push(stash, "[/url]")
-		pos = match_result.get_end()
-	return out + text.substr(pos)
+## Splits a line into finished BBCode segments and the literal text between them. Emitted tags
+## never re-enter the text, so no part of a document can collide with the conversion itself.
+static func _split_inline(text:String) -> Array:
+	var segments:Array = []
+	var literal := ""
+	var link_re = _re(r'(!?)\[([^\]]*)\]\(\s*([^)\s]+)(?:\s+"[^"]*")?\s*\)')
+	var i := 0
+	var length := text.length()
+
+	while i < length:
+		var c := text[i]
+
+		if c == "`":
+			var run := 0
+			while i + run < length and text[i + run] == "`":
+				run += 1
+			var ticks = "`".repeat(run)
+			var close = text.find(ticks, i + run)
+			if close != -1:
+				var body = text.substr(i + run, close - (i + run))
+				literal = _push_literal(segments, literal)
+				_push_done(segments, "[code]" + body.replace("[", "[lb]") + "[/code]")
+				i = close + run
+				continue
+			literal += ticks
+			i += run
+			continue
+
+		if c == "[" or (c == "!" and i + 1 < length and text[i + 1] == "["):
+			var match_result = link_re.search(text, i)
+			if match_result and match_result.get_start() == i:
+				literal = _push_literal(segments, literal)
+				var label = match_result.get_string(2)
+				if match_result.get_string(1) == "!":
+					# An inline image cannot be drawn in a text run, so its alt text stands in.
+					literal += label
+				else:
+					_push_done(segments, "[url=%s]" % match_result.get_string(3))
+					# The label stays literal, so emphasis inside it still converts.
+					literal = _push_literal(segments, label)
+					_push_done(segments, "[/url]")
+				i = match_result.get_end()
+				continue
+
+		literal += c
+		i += 1
+
+	_push_literal(segments, literal)
+	return segments
+
+
+static func _push_done(segments:Array, text:String) -> void:
+	segments.append({KEY_TEXT:text, KEY_DONE:true})
+
+
+## Appends [param literal] as a segment when it holds anything, and returns the empty accumulator.
+static func _push_literal(segments:Array, literal:String) -> String:
+	if literal != "":
+		segments.append({KEY_TEXT:literal, KEY_DONE:false})
+	return ""
 
 
 static func _emphasis(text:String) -> String:
