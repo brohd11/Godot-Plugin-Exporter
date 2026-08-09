@@ -28,6 +28,7 @@ var include_import:bool = true
 var move_global_files:bool = true
 var ignore_src:bool = true
 var include_docs:bool = true
+var include_project_license:bool = false
 
 var file_parser: _UtilsLocal.FileParser
 var parser_settings:Dictionary = {}
@@ -72,6 +73,7 @@ func _init(export_config_path):
 	move_global_files = options.get(KeysConfig.Options.MOVE_GLOBAL_FILES, true)
 	ignore_src = options.get(KeysConfig.Options.IGNORE_SRC, false)
 	include_docs = options.get(KeysConfig.Options.INCLUDE_DOCS, true)
+	include_project_license = options.get(KeysConfig.Options.INCLUDE_PROJECT_LICENSE, false)
 
 	# The config always sits in the export_ignore dir, so the doc folder is found beside it.
 	var doc_source_dir = export_config_path.get_base_dir().path_join("doc")

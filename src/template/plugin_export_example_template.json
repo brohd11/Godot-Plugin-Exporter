@@ -48,6 +48,7 @@
 		"include_uid": true,
 		"include_import": true,
 		"include_docs": true,
+		"include_project_license": false,
 		"parser_settings":{
 			"parse_cs":{
 				"namespace_rename":{

@@ -4,6 +4,9 @@ const PLUGIN_EXPORTED = false
 ## while editor code can still read them. DocViewer looks for this name.
 const DOC_DIR_NAME = ".doc"
 
+## Base dir of a project-root LICENSE, as get_base_dir() reports it.
+const PROJECT_LICENSE_DIR = "res://"
+
 const _UtilsRemote = preload("res://addons/plugin_exporter/src/class/utils_remote.gd")
 const _UEditor = _UtilsRemote.UEditor
 const _UtilsLocal = preload("res://addons/plugin_exporter/src/class/utils_local.gd")
@@ -541,29 +544,53 @@ func _update_deps(plugin_cfg_path:String):
 	cfg.set_value("plugin", "deps", exported_deps)
 	cfg.save(plugin_cfg_path)
 
+## Set of licenses that own at least one of file_paths, each file going to the closest license dir
+## above it. Domains are walked deepest-first so the first containing one is the nearest ancestor -
+## matching in scan order let a shallower license claim files a nested one owned.
+static func resolve_license_owners(license_map:Dictionary, file_paths:Array) -> Dictionary:
+	var domains = license_map.keys()
+	domains.sort_custom(func(a, b):
+		return a.trim_suffix("/").count("/") > b.trim_suffix("/").count("/"))
+
+	var used = {}
+	for file in file_paths:
+		for d in domains:
+			if _UFile.is_file_in_directory(file, d):
+				used[license_map[d]] = true
+				break
+	return used
+
+
 func gather_licenses():
 	var license_map = {}
 	var all_files = _UFile.GetFiles.scan("res://")
 	for file in all_files:
 		if file.get_file().get_basename().to_lower() == "license":
 			license_map[file.get_base_dir()] = file
-	
-	var used_licenses = {}
-	var domains = license_map.keys()
-	for file in files_to_copy.keys():
-		for d in domains:
-			if _UFile.is_file_in_directory(file, d):
-				used_licenses[license_map[d]] = true
-				domains.erase(d)
-				break
-	
+
+	# res:// contains everything, so as the shallowest domain it sweeps up every file no other
+	# license covers. Held out of the matching and only added back on request.
+	var project_license = license_map.get(PROJECT_LICENSE_DIR, "")
+	license_map.erase(PROJECT_LICENSE_DIR)
+
+	var used_licenses = resolve_license_owners(license_map, files_to_copy.keys())
+
+	# A plugin shipping its own LICENSE already covers itself - the root one would just duplicate it.
+	if export_data.include_project_license and project_license != "" \
+			and not license_map.has(source.trim_suffix("/")):
+		used_licenses[project_license] = true
+
 	var seen_license_paths = {}
 	for file in used_licenses.keys():
 		if files_to_copy.has(file):
 			continue # keeps already found licenses where they would be ie. plugin root
 		var license_name = file.get_file()
-		var dir_name = file.get_base_dir().trim_prefix("res://").trim_prefix("addons/").replace("/", "_")
-		var local_path = source.path_join("licenses").path_join(dir_name).path_join(license_name)
+		var local_path
+		if file == project_license:
+			local_path = source.path_join(license_name) # inherited as the plugin's own
+		else:
+			var dir_name = file.get_base_dir().trim_prefix("res://").trim_prefix("addons/").replace("/", "_")
+			local_path = source.path_join("licenses").path_join(dir_name).path_join(license_name)
 		if seen_license_paths.has(local_path):
 			printerr("Potential LICENSE clash: ", local_path)
 		seen_license_paths[local_path] = true
@@ -571,7 +598,7 @@ func gather_licenses():
 		# strip the source prefix get_export_path matches on, writing the file into the live project.
 		var export_path = get_export_path(local_path)
 		files_to_copy[file] = {_KeysData.TO:export_path}
-	
+
 
 ## Copies the plugin's doc folder in wholesale, no dependency crawl - docs are data, not source.
 func gather_docs(doc_dir:String):

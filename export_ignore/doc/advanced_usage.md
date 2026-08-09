@@ -53,7 +53,7 @@ func _ready():
 	UtilsRemote.MyOtherClass.static_func(my_instance)
 ```
 
-On export, these files will be copied into your plugin, and have their paths adjusted. If you want to organize your scripts into a hierarchy, you can use my (pseudo-namespace)[https://github.com/brohd11/Godot-Pseudo-Namespace] plugin. This works well with this workflow.
+On export, these files will be copied into your plugin, and have their paths adjusted. If you want to organize your scripts into a hierarchy, you can use my [pseudo-namespace](https://github.com/brohd11/Godot-Pseudo-Namespace) plugin. This works well with this workflow.
 
 ### Tags
 
@@ -62,7 +62,7 @@ There are a couple of tags you can use to change how files are processed.
  - "#! dependency" - This will add the path to the list to copy and process. This is mostly for non preloadable or loadable files, config, JSON, etc.
  - "#! singleton-module" - This is for a singleton class I use to share libraries between plugins. Only useful if extending one of the Singleton classes.
 
-The reason I mention the singleton-module tag is because you could add your own tags and parse them with your own custom parser. You can add any parsers to folder "plugin_exporter/src/class/export/parse/<extension>" replace with your file extension and the parser will be called on those files. You can add parameters in the "plugin_export.json" file under "parser_settings", more info (here)[./export_settings.md].
+The reason I mention the singleton-module tag is because you could add your own tags and parse them with your own custom parser. You can add any parsers to folder `plugin_exporter/src/class/export/parse/<extension>` replace with your file extension and the parser will be called on those files. You can add parameters in the `plugin_export.json` file under `parser_settings`, more info [here](./export_settings.md).
 
 ### Full Plugin Copy
 

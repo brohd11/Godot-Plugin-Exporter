@@ -154,8 +154,8 @@ func _ready() -> void:
 	UControl.expand(tab_container)
 
 	doc_viewer = DocViewer.new()
-	#doc_viewer.docs_path = "res://addons/plugin_exporter/"
 	tab_container.add_tab(doc_viewer, EditorIcons.get_icon_white("Help"))
+	doc_viewer.clear()
 	UControl.expand(doc_viewer)
 
 func _on_options_pressed():
@@ -386,11 +386,14 @@ func _collapse_tree():
 
 
 func _set_doc_path(export_file_path:String):
+	var plugin_dir = export_file_path.get_base_dir().get_base_dir()
 	var docs_path = export_file_path.get_base_dir().path_join("doc")
 	if DirAccess.dir_exists_absolute(docs_path):
 		doc_viewer.set_docs_path(docs_path)
+	elif FileAccess.file_exists(plugin_dir.path_join("README.md")) or FileAccess.file_exists(plugin_dir.path_join("readme.md")):
+		doc_viewer.display(plugin_dir)
 	else:
-		doc_viewer.set_docs_path(export_file_path.get_base_dir().get_base_dir())
+		doc_viewer.clear()
 
 class ExportTree extends FSTreeClasses.MinTree:
 	

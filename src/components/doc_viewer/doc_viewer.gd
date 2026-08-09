@@ -164,6 +164,16 @@ func set_highlighter_provider(value:Callable) -> void:
 func display(path:String) -> void:
 	docs_path = path
 
+func clear(): # maybe modify show_contents to reduce this duplication
+	_current = _PAGE_CONTENTS
+	_external_path = ""
+	_view.hide()
+	_view.clear()
+	_toc.show()
+	_toc.text = EMPTY_MESSAGE
+	_title_label.text = CONTENTS_TITLE
+	_update_nav()
+	pass
 
 ## Rescans the doc folder and returns to whichever page makes sense for what was found.
 func reload() -> void:

@@ -37,6 +37,8 @@ func _enter_tree() -> void:
 	instance = self
 	dm_instance_manager = DockManager.InstanceManager.new(self)
 	
+	FileSystemSingleton.register_node(self)
+	
 	SyntaxPlusSingleton.register_node(self)
 	SyntaxPlusSingleton.call_on_ready(_add_syntax_comment_tags)
 	
@@ -70,6 +72,8 @@ func _exit_tree() -> void:
 		var tag_name = tag.get_slice(" ", 1)
 		SyntaxPlusSingleton.unregister_comment_tag(prefix, tag_name)
 	SyntaxPlusSingleton.unregister_node(self)
+	
+	FileSystemSingleton.unregister_node(self)
 	
 	if is_instance_valid(dm_instance_manager):
 		dm_instance_manager.clean_up()
