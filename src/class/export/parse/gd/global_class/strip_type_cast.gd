@@ -1,6 +1,9 @@
 extends "res://addons/plugin_exporter/src/class/export/parse/parse_base.gd"
 
-const CAST_STRIP_NAMES = ["PE_STRIP_CAST_SCRIPT"]
+const CAST_STRIP_NAMES = [
+	"PE_STRIP_CAST_SCRIPT",
+	"ScriptListManager"
+]
 
 const STRIP_CAST_TAG = "#! strip-cast"
 
@@ -48,7 +51,7 @@ func post_export_edit_file(_file_path:String, file_lines:Variant=null) -> Varian
 				var names = names_str.split(",")
 				for n in names:
 					_build_single_regex(n.strip_edges(), local_strip_callables)
-			print("MADE CALLS::", local_strip_callables)
+			#print("MADE CALLS::", local_strip_callables)
 			continue
 		
 		for callable in _cast_strip_callables:

@@ -6,12 +6,10 @@ const UtilsRemote = preload("res://addons/plugin_exporter/src/class/utils_remote
 const TabBarContainer = ALibEditor.UIHelpers.Tab.TabBarContainer
 const EditorIcons = ALibEditor.Singleton.EditorIcons
 
-const Options = ALibRuntime.Popups.Options
-const Conf = ALibRuntime.Dialog.Handlers.Confirmation
-
+const Options = UtilsRemote.Options
 const SplitWrapper = ALibRuntime.UICustom.SplitWrapper
 
-const UControl = ALibRuntime.Utils.UControl
+const UControl = UtilsRemote.UControl
 const UFile = UtilsRemote.UFile
 
 const FSTreeClasses = preload("res://addons/addon_lib/brohd/alib_editor/file_system/components/tree/fs_tree_classes.gd")

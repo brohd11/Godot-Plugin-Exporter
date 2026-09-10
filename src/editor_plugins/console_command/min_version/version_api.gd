@@ -7,7 +7,7 @@ extends RefCounted
 ## this class / member / global?". An empty string means "not in any dump" —
 ## treated by callers as user-defined / unknown and skipped.
 
-const UFile = preload("res://addons/addon_lib/brohd/alib_runtime/utils/u_file.gd")
+const UFile = preload("uid://bl33psa06nv1e") #! resolve ALibRuntime.Utils.UFile.Methods
 
 ## Lowest version the index covers; findings at/below it don't raise the floor.
 ## Derived from the index's baked "versions" list (fallback if the index lacks it).

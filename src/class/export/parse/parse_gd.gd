@@ -133,6 +133,10 @@ func post_export_edit_file(file_path:String, file_lines:Variant=null):
 						if not const_name in classes_preloaded:
 							classes_preloaded.append(const_name)
 		
+		var existing_binding = _matching_preload_binding(line, comment_stripped, reductions)
+		if existing_binding != "":
+			declared_bindings[existing_binding] = true
+
 		var declaration = _reduce_const_declaration(line, comment_stripped, reductions)
 		if declaration.is_empty():
 			line = _apply_reductions(line, comment_stripped, reductions)
@@ -277,6 +281,28 @@ func _reduce_const_declaration(line:String, comment_stripped:String, reductions:
 	}
 
 
+func _matching_preload_binding(line:String, comment_stripped:String,
+		reductions:Dictionary) -> String:
+	if reductions.is_empty() or not comment_stripped.strip_edges().begins_with("const "):
+		return ""
+	if line.length() != line.strip_edges(true, false).length():
+		return "" # inner-class constants cannot supply an outer binding
+
+	var const_match = const_name_regex.search(line)
+	var path_match = preload_regex.search(comment_stripped)
+	if const_match == null or path_match == null:
+		return ""
+
+	var const_name = const_match.get_string(1)
+	var declared_path = export_obj.ensure_absolute_path(
+		path_match.get_string(2), export_obj.file_parser.current_file_path_parsing)
+	for expression:String in reductions:
+		var entry:Dictionary = reductions[expression]
+		if entry.name == const_name and entry.path.simplify_path() == declared_path:
+			return const_name
+	return ""
+
+
 ## An `extends` line is left alone - it is rewritten to a quoted path further up, and a class
 ## body constant cannot be used there anyway. Longest expression first, so "A.B.C" is consumed
 ## before "A.B" can eat its prefix.
@@ -343,8 +369,9 @@ func _update_paths(line:String):
 				continue
 		
 		
-		if old_path.is_relative_path():
-			old_path = export_obj.ensure_absolute_path(old_path, current_parse_file)
+		var was_relative = old_path.is_relative_path()
+		old_path = export_obj.ensure_absolute_path(old_path, current_parse_file)
+		if was_relative:
 			if not FileAccess.file_exists(old_path):
 				continue
 		

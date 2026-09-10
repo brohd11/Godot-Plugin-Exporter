@@ -109,7 +109,7 @@ static func export_plugin(export_config_path:String, include_uid_overide=null, i
 	var exported_dirs = DirAccess.get_directories_at(full_export_path)
 	for dir in exported_dirs:
 		var dir_path = full_export_path.path_join(dir)
-		var search = UFile.GetFiles.open(dir_path)
+		var search = UtilsRemote.GetFiles.open(dir_path)
 		search.show_hidden = true
 		search.enter_gdignore = true
 		var search_files = search.get_files() # need to double check before switch

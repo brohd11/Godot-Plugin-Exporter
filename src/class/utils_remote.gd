@@ -1,7 +1,8 @@
 #! remote
 
 const UConfig = preload("res://addons/addon_lib/brohd/alib_runtime/utils/u_config.gd")
-const UFile = preload("res://addons/addon_lib/brohd/alib_runtime/utils/u_file.gd")
+const UFile = preload("uid://bl33psa06nv1e") #! resolve ALibRuntime.Utils.UFile.Methods
+const GetFiles = preload("uid://b3p6nfmpcltt0") #! resolve ALibRuntime.Utils.UFile.GetFiles
 const UString = preload("res://addons/addon_lib/brohd/alib_runtime/utils/u_string.gd")
 const UTree = preload("res://addons/addon_lib/brohd/alib_runtime/utils/u_tree.gd")
 const URegex = preload("res://addons/addon_lib/brohd/alib_runtime/utils/u_regex.gd")

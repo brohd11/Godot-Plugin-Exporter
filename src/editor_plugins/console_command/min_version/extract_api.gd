@@ -8,7 +8,7 @@ extends RefCounted
 ## global mapped to its earliest Godot version, plus an `inherits` map for hierarchy walks.
 ## Re-run when dumps change: `preload("res://addons/plugin_exporter/src/editor_plugins/console_command/min_version/extract_api.gd").build()`
 
-const UFile = preload("res://addons/addon_lib/brohd/alib_runtime/utils/u_file.gd")
+const UFile = preload("uid://bl33psa06nv1e") #! resolve ALibRuntime.Utils.UFile.Methods
 
 const SOURCE_DIR := "res://addons/plugin_exporter/export_ignore/extension_api/"
 const OUTPUT_PATH := "res://addons/plugin_exporter/src/editor_plugins/console_command/min_version/extension_api/api_min_version.json"

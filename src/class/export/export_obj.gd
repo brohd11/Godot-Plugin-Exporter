@@ -17,6 +17,7 @@ const _ExportData = _UtilsLocal.ExportData
 const _FileParser = _UtilsLocal.FileParser
 const _UClassDetail = _UtilsRemote.UClassDetail
 const _UFile = _UtilsRemote.UFile
+const _GetFiles = _UtilsRemote.GetFiles
 
 var export_data: _ExportData
 var source:String
@@ -563,7 +564,7 @@ static func resolve_license_owners(license_map:Dictionary, file_paths:Array) -> 
 
 func gather_licenses():
 	var license_map = {}
-	var all_files = _UFile.GetFiles.scan("res://")
+	var all_files = _GetFiles.scan("res://")
 	for file in all_files:
 		if file.get_file().get_basename().to_lower() == "license":
 			license_map[file.get_base_dir()] = file
@@ -602,7 +603,7 @@ func gather_licenses():
 
 ## Copies the plugin's doc folder in wholesale, no dependency crawl - docs are data, not source.
 func gather_docs(doc_dir:String):
-	for file in _UFile.GetFiles.scan(doc_dir):
+	for file in _GetFiles.scan(doc_dir):
 		# Sidecars of the project's own import of a doc image, meaningless once it ships.
 		if file.get_extension() in ["import", "uid"]:
 			continue
@@ -716,12 +717,16 @@ func get_relative_path(file_path:String) -> String:
 	return new_path
 
 func ensure_absolute_path(file_path:String, current_file_path:String):
+	var absolute_path:String
 	if file_path.begins_with("uid:"):
-		return _UtilsRemote.UFile.uid_to_path(file_path)
-	var abs = _UtilsRemote.UFile.path_from_relative(file_path, current_file_path)
+		absolute_path = _UtilsRemote.UFile.uid_to_path(file_path)
+	else:
+		absolute_path = _UtilsRemote.UFile.path_from_relative(file_path, current_file_path)
+	if absolute_path == "":
+		return ""
 	#if not file_path.is_absolute_path() and not PLUGIN_EXPORTED:
-		#print("Rel to Abs: %s -> %s" % [file_path, abs])
-	return abs
+		#print("Rel to Abs: %s -> %s" % [file_path, absolute_path])
+	return absolute_path.simplify_path()
 
 func get_rel_or_absolute_path(path:String) -> String:
 	if use_relative_paths:
