@@ -134,27 +134,70 @@ plugin_exporter export --release --local my_plugin
 ```
 
 1. **Resolve.** The plugin's `version=` must have a matching tag (`1.2.0` or `v1.2.0`) on its
-   `origin` remote. Its `deps`/`require` are read *at that tag*, then each dep's cfg at its tag, and
-   so on. When two plugins ask for different tags of one repo, the highest wins (Go's minimal
+   `origin` remote. Its `build_require` and `compile_require` (below) are read from
+   `export_ignore/plugin_export.*` *at that tag*, then each dep's the same way at its tag, and so
+   on. When two plugins ask for different tags of one repo, the highest wins (Go's minimal
    version selection). Every requirement needs an `@tag`; an untagged one fails the export and
    prints the chain that asked for it.
 2. **Fetch.** Repos are mirrored under the OS cache dir (`plugin_exporter/repos`). A tag already
    mirrored is never re-fetched. `--refresh` checks every cached tag against its remote and fails
    if one was moved.
-3. **Workspace.** Each repo is extracted at its tag into its install path: `path=` in its cfg, or
-   wherever this project has a checkout with the same remote. A released `plugin_exporter` (the
+3. **Workspace.** Each dependency's addon folder, at its tag, is copied into its install path (see
+   "Where a dependency installs" below). A released `plugin_exporter` (the
    toolchain, below) runs the export headless there. Workspaces are reused while the resolved tags
    and the toolchain stay the same.
-4. **Verify.** Every exported variant is installed into an empty project, along with any
-   `exported_deps`, and every script and resource is loaded. Any parse, compile or load error moves
-   the output to `<plugin_folder>-unverified`.
+4. **Verify.** Every exported variant is installed into an empty project, along with its
+   `compile_require` deps (and whatever those need), and every script and resource is loaded. Any
+   parse, compile or load error moves the output to `<plugin_folder>-unverified`.
+
+**Build requirements.** A release export takes its dependencies from the main body of the export
+config, declared once for every export entry. `require`/`deps` in `plugin.cfg` are install-time
+only (gdaddon's), and the exporter ignores them, so an optional dependency such as a GDExtension
+with a GDScript fallback never has to be built against.
+
+```yaml
+build_require:
+  - brohd11/godot-addon-lib@v2.1.2
+  - brohd11/godot-yaml-parser@v2.1.0
+compile_require:
+  - brohd11/godot-tree-sitter-gd@v1.0.5
+```
+
+- `build_require`: placed in the workspace; the export bundles whatever it uses.
+- `compile_require`: also installed beside the exported plugin when it is verified, for extensions
+  or plugins yours is meant to run with. A repo in both lists counts as `compile_require`.
+- Each key takes a list of specs or a single spec.
+- A package without an `export_ignore/plugin_export.*` declares nothing. A library that needs
+  something can carry a config with only these keys.
+- Release zips never include `export_ignore/`, so a dependency fetched as a release declares
+  nothing. That's intended: an exported package already carries what it uses.
+
+**Dependency kinds.** A plain `owner/repo@v1.0.0` means the release, picked the way gdaddon picks
+it: the release's single uploaded asset, or the tag's source when nothing was uploaded (or the tag
+has no release). Several uploads fail as ambiguous. `owner/repo/source@v1.0.0` always takes the
+tag's source. A host can lead the spec (`gitlab.com/owner/repo`); only a first segment containing a
+dot is read as a host. Releases are looked up through the GitHub API, which allows 60 requests an
+hour without a token; set `GITHUB_TOKEN` to raise that. Assets are cached per tag.
+
+**Where a dependency installs.** A package can be laid out three ways, and the same rules as gdaddon
+place it:
+- a cfg at the package root: the package is the addon, and its cfg must say where it goes with
+  `path="addons/..."` (or `dir=`); without it the export fails
+- a whole Godot project: the shallowest `addons/` folder is the anchor, so
+  `addons/addon_lib/yaml_parser` installs at `res://addons/addon_lib/yaml_parser`
+- anything else, such as a release zip: the cfg folder's path under the package root (after a single
+  wrapper folder is stripped) is its path under `addons/`
+
+When a package holds several addon folders, only the one whose cfg `url=` names the repo is used.
+A `path=`/`dir=` in the chosen cfg always wins over the derived location.
 
 To find out what to require, run `plugin_exporter require my_plugin`. It runs the export crawl
 without writing anything and lists the packages the export pulls in (no tags). A package is the
 nearest folder with a `plugin.cfg` or `version.cfg`, so every file of one release counts once. Its
 identity is the git `origin` when the folder is a checkout, or the cfg `url=` for a package installed
-from a release zip. Packages are grouped by the package whose cfg should require them, and each is
-marked `declared` or `MISSING`.
+from a release zip. Packages are grouped by the package whose export config should list them, and
+each is marked `declared (build)`, `declared (compile)` or `MISSING`. A package with no export
+config is flagged, since it declares nothing.
 
 `--local` is for trying a release before pushing anything. Every repo with a checkout in this
 project is fetched from that checkout instead of its remote; repos without one (a checkout counts
@@ -173,7 +216,8 @@ refused when any export script has changed since that export was made. If the to
 scripts don't compile, the release export fails before verification.
 
 The export carries `.export_lock.json` (repo, tag, commit, path per dependency, and the toolchain) in place of
-`.export_git_details`. `exported_deps` in the released cfg get the resolved tags.
+`.export_git_details`. Entries marked `verify` are the ones the compile check installed. The
+released `plugin.cfg` is not modified.
 
 ### Shipping Docs
 

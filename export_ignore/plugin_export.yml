@@ -1,4 +1,7 @@
 export_root: "res://addons/plugin_exporter/export_ignore/exports/"
+build_require:
+  - brohd11/godot-addon-lib@v2.1.3
+  - brohd11/godot-yaml-parser@v2.1.0
 exports:
   -
     exclude:

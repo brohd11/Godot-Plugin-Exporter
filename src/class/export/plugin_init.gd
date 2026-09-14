@@ -163,6 +163,8 @@ class PluginExportJSON:
 			KeysConfig.PLUGIN_FOLDER: "",
 			KeysConfig.PRE_SCRIPT: "",
 			KeysConfig.POST_SCRIPT: "",
+			KeysConfig.BUILD_REQUIRE: [],
+			KeysConfig.COMPILE_REQUIRE: [],
 			KeysConfig.OPTIONS: {
 				KeysConfig.Options.OVERWRITE: true,
 				KeysConfig.Options.INCLUDE_UID: true,

@@ -4,6 +4,8 @@ extends RefCounted
 ## in `--headless --editor` rather than `--script`, because both the export pipeline and exported
 ## plugins reach for EditorInterface; results come back as one sentinel line on stdout.
 
+const PackageLayout = preload("res://addons/plugin_exporter/src/class/release/package_layout.gd")
+
 const RESULT_PREFIX = "PE_RELEASE_RESULT "
 const EXPORT_AUTORUN_DIR = "pe_release_autorun"
 
@@ -181,6 +183,8 @@ static func unzip(zip_path:String, dest_dir:String) -> String:
 	if reader.open(zip_path) != OK:
 		return "could not open archive " + zip_path
 	for entry in reader.get_files():
+		if PackageLayout.is_junk(entry):
+			continue
 		if entry.simplify_path().begins_with(".."):
 			reader.close()
 			return "archive entry escapes its directory: " + entry

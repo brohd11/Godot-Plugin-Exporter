@@ -14,6 +14,8 @@ const ReleaseWorkspace = preload("res://addons/plugin_exporter/src/class/release
 const ReleaseRunner = preload("res://addons/plugin_exporter/src/class/release/release_runner.gd")
 const CompileCheck = preload("res://addons/plugin_exporter/src/class/release/compile_check.gd")
 const Toolchain = preload("res://addons/plugin_exporter/src/class/release/toolchain.gd")
+const ReleaseCache = preload("res://addons/plugin_exporter/src/class/release/release_cache.gd")
+const PackageFetcher = preload("res://addons/plugin_exporter/src/class/release/package_fetcher.gd")
 
 const LOCK_FILE = ".export_lock.json"
 const GIT_DETAILS_FILE = ".export_git_details"
@@ -49,6 +51,7 @@ static func _export_release(plugin_name:String, refresh:bool, local:bool) -> boo
 
 	print("Release export: resolving %s %s" % [plugin_name, version])
 	var cache = RepoCache.new("", refresh)
+	var fetcher = PackageFetcher.new(cache, ReleaseCache.new(cache.root, refresh))
 	var dev_repos = DepResolver.scan_dev_repos()
 	var overrides = {}
 	if local:
@@ -56,7 +59,7 @@ static func _export_release(plugin_name:String, refresh:bool, local:bool) -> boo
 			var local_url = "file://" + ProjectSettings.globalize_path(dev_repos[id])
 			overrides[id] = local_url
 			cache.local_urls[local_url] = true
-	var resolver = DepResolver.new(cache, dev_repos, overrides)
+	var resolver = DepResolver.new(fetcher, dev_repos, overrides)
 	var lock = resolver.resolve(url, version, dev_dir)
 	if lock.is_empty():
 		for e in resolver.errors:
@@ -70,8 +73,6 @@ static func _export_release(plugin_name:String, refresh:bool, local:bool) -> boo
 	if not config is Dictionary:
 		return false
 	var options = config.get("options", {})
-	if options.get("exported_deps") != null and not _mark_runtime(lock, options.get("exported_deps")):
-		return false
 	_print_lock(lock)
 
 	# Recorded in the lock before the workspace is keyed on it, so a new toolchain gets a new one.
@@ -87,7 +88,7 @@ static func _export_release(plugin_name:String, refresh:bool, local:bool) -> boo
 		lock.toolchain = {"version": info.version, "source": info.source, "id": info.id}
 		print("  toolchain %s %s (%s)" % [Toolchain.NAME, info.version, info.source])
 
-	var workspace = ReleaseWorkspace.new(cache)
+	var workspace = ReleaseWorkspace.new(fetcher)
 	var debug_section = ReleaseRunner.project_section(FileAccess.get_file_as_string("res://project.godot"), "debug")
 	var export_root = ProjectSettings.globalize_path(config.get("export_root", ""))
 	var ws = workspace.build(lock, plugin_name, toolchain, export_root, debug_section)
@@ -119,10 +120,11 @@ static func _export_release(plugin_name:String, refresh:bool, local:bool) -> boo
 	_rezip(full_export_path)
 
 	print("Release export: verifying")
-	var runtime_installs = {}
+	# compile_require deps (and what they need) sit beside the export, as they would when installed.
+	var verify_installs = {}
 	for entry in lock.deps:
-		if entry.get("runtime", false):
-			runtime_installs[entry.path] = ws.path_join(entry.path.trim_prefix("res://"))
+		if entry.get("verify", false):
+			verify_installs[entry.path] = ws.path_join(entry.path.trim_prefix("res://"))
 	var failures:Array[String] = []
 	for dir in run.result.export_dirs:
 		var plugin_dir = String(dir).trim_suffix("/")
@@ -130,7 +132,7 @@ static func _export_release(plugin_name:String, refresh:bool, local:bool) -> boo
 		for b in CompileCheck.broken_references(plugin_dir):
 			failures.append("%s: missing reference %s" % [label, b])
 		var work_dir = cache.root.path_join("verify").path_join(label.replace("/", "_"))
-		var errs = CompileCheck.compile_errors(plugin_dir, work_dir, runtime_installs)
+		var errs = CompileCheck.compile_errors(plugin_dir, work_dir, verify_installs)
 		for e in errs:
 			failures.append("%s: %s" % [label, e])
 		if errs.is_empty():
@@ -143,24 +145,6 @@ static func _export_release(plugin_name:String, refresh:bool, local:bool) -> boo
 			printerr("  " + f)
 		_mark_unverified(full_export_path)
 		return _fail("output does not compile on its own; moved to *%s" % UNVERIFIED_SUFFIX)
-	return true
-
-
-## Tags each lock dep with whether it ships as a runtime requirement (kept in the released cfg)
-## rather than being bundled. An exported_deps entry nothing requires is a config mistake.
-static func _mark_runtime(lock:Dictionary, exported_deps) -> bool:
-	var by_id = {}
-	for entry in lock.deps:
-		entry.runtime = false
-		by_id[entry.repo_id] = entry
-	var items = exported_deps if exported_deps is Array else [exported_deps]
-	for item in items:
-		var dep = DepResolver.parse_dep(str(item))
-		if dep == null:
-			return _fail("exported_deps: can't parse '%s'" % item)
-		if not by_id.has(dep.repo_id):
-			return _fail("exported_deps lists %s, but nothing in the resolved graph requires it" % dep.repo_id)
-		by_id[dep.repo_id].runtime = true
 	return true
 
 
@@ -178,39 +162,14 @@ static func _local_toolchain_dir() -> String:
 	return full.path_join(folder).trim_suffix("/")
 
 
-## Swaps the dev-tree git snapshot for the lock, and pins runtime deps to the resolved tags.
+## Swaps the dev-tree git snapshot for the lock. The released plugin.cfg is left alone: its
+## require/deps are install-time, gdaddon's, and the build graph never came from them.
 static func _finalize_export_dir(dir:String, lock:Dictionary) -> void:
 	DirAccess.remove_absolute(dir.path_join(GIT_DETAILS_FILE))
 	var file = FileAccess.open(dir.path_join(LOCK_FILE), FileAccess.WRITE)
 	if file:
 		file.store_string(JSON.stringify(lock, "\t"))
 		file.close()
-
-	var cfg_path = dir.path_join("plugin.cfg")
-	if not FileAccess.file_exists(cfg_path):
-		cfg_path = dir.path_join("version.cfg")
-	var cfg = ConfigFile.new()
-	if cfg.load(cfg_path) != OK:
-		return
-	var tags = {}
-	for entry in lock.deps:
-		tags[entry.repo_id] = entry.tag
-	for key in ["require", "deps"]:
-		if not cfg.has_section_key("plugin", key):
-			continue
-		var items = cfg.get_value("plugin", key)
-		if not items is Array:
-			continue
-		var pinned = []
-		for item in items:
-			var dep = DepResolver.parse_dep(str(item))
-			if dep != null and tags.has(dep.repo_id):
-				var at = str(item).rfind("@")
-				pinned.append("%s@%s" % [str(item).substr(0, at) if at >= 0 else str(item), tags[dep.repo_id]])
-			else:
-				pinned.append(item)
-		cfg.set_value("plugin", key, pinned)
-	cfg.save(cfg_path)
 
 
 ## Same packaging as PluginExporterStatic.export_plugin, redone because finalizing changed files.
@@ -242,14 +201,21 @@ static func _cfg_version(dir:String) -> String:
 
 static func _print_lock(lock:Dictionary) -> void:
 	for entry in [lock.target] + lock.deps:
-		var kind = "target" if entry == lock.target else ("runtime" if entry.get("runtime", false) else "bundled")
-		print("  %-8s %-6s %s %s (%s) -> %s" % [kind, entry.get("source", ""), entry.repo_id, entry.tag, entry.sha.substr(0, 7), entry.path])
+		var role = "target" if entry == lock.target else ("compile" if entry.get("verify", false) else "bundled")
+		var fetched = entry.get("kind", "source")
+		if entry.get("asset", "") != "":
+			fetched += " " + entry.asset
+		print("  %-8s %-6s %s %s [%s] (%s) -> %s" % [role, entry.get("source", ""), entry.repo_id, entry.tag,
+			fetched, entry.sha.substr(0, 7), entry.path])
 
 
 ## A local build is fine to try, but one others can't reproduce shouldn't pass silently - nor should
 ## a repo that quietly came from its remote when you expected your checkout.
 static func _warn_unpushed(lock:Dictionary, dev_repos:Dictionary) -> void:
 	for entry in [lock.target] + lock.deps:
+		if entry.get("kind") == "release":
+			print_rich("[color=e0b000]Release export: %s %s is a release asset (%s), fetched from GitHub[/color]" % [entry.repo_id, entry.tag, entry.asset])
+			continue
 		if entry.get("source") != "local":
 			print_rich("[color=e0b000]Release export: %s %s has no local checkout with a matching origin; fetched from its remote[/color]" % [entry.repo_id, entry.tag])
 			continue

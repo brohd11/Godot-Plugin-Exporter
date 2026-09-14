@@ -1,8 +1,8 @@
 @tool
 extends RefCounted
-## The throwaway project a release export runs in: every lock entry extracted at its tag into its
-## install path, the standalone exporter as toolchain, and a minimal project.godot. Keyed by lock
-## hash and reused, so an unchanged lock keeps its .godot import cache between exports.
+## The throwaway project a release export runs in: every lock entry's addon folder copied out of
+## its staged package into its install path, the standalone exporter as toolchain, and a minimal
+## project.godot. Keyed by lock hash and reused, so an unchanged lock keeps its .godot import cache.
 
 const DepResolver = preload("res://addons/plugin_exporter/src/class/release/dep_resolver.gd")
 const ReleaseRunner = preload("res://addons/plugin_exporter/src/class/release/release_runner.gd")
@@ -11,16 +11,16 @@ const READY_MARKER = ".pe_release_ready"
 const TOOLCHAIN_PATH = "res://addons/plugin_exporter"
 const CONFIG_NAMES = ["plugin_export.yml", "plugin_export.yaml", "plugin_export.json"]
 
-var cache # RepoCache
+var fetcher # PackageFetcher
 var errors:Array[String] = []
 
 
-func _init(repo_cache) -> void:
-	cache = repo_cache
+func _init(package_fetcher) -> void:
+	fetcher = package_fetcher
 
 
 func workspace_dir(target_name:String, lock:Dictionary) -> String:
-	return cache.root.path_join("workspaces").path_join("%s-%s" % [target_name, DepResolver.lock_hash(lock)])
+	return fetcher.root.path_join("workspaces").path_join("%s-%s" % [target_name, DepResolver.lock_hash(lock)])
 
 
 ## Builds (or reuses) the workspace and points its export at export_root_abs. `toolchain_dir` may be
@@ -49,13 +49,24 @@ func build(lock:Dictionary, target_name:String, toolchain_dir:String, export_roo
 
 
 func _populate(ws:String, lock:Dictionary, toolchain_dir:String) -> bool:
+	var installed = {} # res:// path -> repo_id
 	for entry in [lock.target] + lock.deps:
 		if entry != lock.target and entry.path == TOOLCHAIN_PATH:
 			errors.append("%s installs at %s, where the toolchain has to live" % [entry.repo_id, TOOLCHAIN_PATH])
 			return false
-		var dest = ws.path_join(entry.path.trim_prefix("res://"))
-		if not cache.extract(entry.url, entry.tag, dest):
-			errors.append("%s@%s: %s" % [entry.repo_id, entry.tag, cache.last_error])
+		if installed.has(entry.path):
+			errors.append("%s and %s both install at %s" % [installed[entry.path], entry.repo_id, entry.path])
+			return false
+		installed[entry.path] = entry.repo_id
+
+		var staged = fetcher.stage(entry)
+		if staged == "":
+			errors.append("%s@%s: %s" % [entry.repo_id, entry.tag, fetcher.last_error])
+			return false
+		var package = entry.get("package", "")
+		var src = staged.path_join(package) if package != "" else staged
+		if not ReleaseRunner.copy_dir(src, ws.path_join(entry.path.trim_prefix("res://"))):
+			errors.append("%s@%s: could not copy %s into the workspace" % [entry.repo_id, entry.tag, src])
 			return false
 
 	if lock.target.path != TOOLCHAIN_PATH:

@@ -1,10 +1,11 @@
 @tool
 extends RefCounted
-## What a plugin's `require` entries need to say: runs the normal export crawl (nothing is written)
-## and maps every dependency file to the package it belongs to - the nearest dir with a plugin.cfg
-## or version.cfg - so 50 files of one release come back as one package. Packages are grouped by the
-## package whose files pull them in, since that one's cfg is where the entry belongs.
-## The crawl keeps one dependent per file, so a package needed from two places may list under one.
+## What a plugin's build requirements need to say: runs the normal export crawl (nothing is
+## written) and maps every dependency file to the package it belongs to - the nearest dir with a
+## plugin.cfg or version.cfg - so 50 files of one release come back as one package. Packages are
+## grouped by the package whose files pull them in, since that one's export_ignore/plugin_export.*
+## is where the `build_require` entry belongs. The crawl keeps one dependent per file, so a package
+## needed from two places may list under only one.
 
 const UtilsLocal = preload("res://addons/plugin_exporter/src/class/utils_local.gd")
 const ExportFileUtils = UtilsLocal.ExportFileUtils
@@ -14,8 +15,9 @@ const DepResolver = preload("res://addons/plugin_exporter/src/class/release/dep_
 const CFG_NAMES = ["plugin.cfg", "version.cfg"]
 
 
-## {target, groups: {from_package: [{dir, id, via, files, declared}]}, loose: {dir: files},
-## unused: {from_package: [id]}, errors}. A from_package of "" is a dependent outside any package.
+## {target, groups: {from_package: {config, rows: [{dir, id, via, files, declared}]}},
+## loose: {dir: files}, unused: {from_package: [id]}, errors}. `declared` is "build", "compile" or
+## "". A from_package of "" is a dependent outside any package.
 static func build(plugin_name:String) -> Dictionary:
 	var report = {"target": "", "groups": {}, "loose": {}, "unused": {}, "errors": []}
 	plugin_name = plugin_name.trim_prefix("/").trim_suffix("/")
@@ -51,7 +53,7 @@ static func build(plugin_name:String) -> Dictionary:
 
 	var identities = {}
 	for from in needed:
-		var declared = _declared_ids(from)
+		var declared = _declared(from)
 		var needed_ids = {}
 		var rows = []
 		for package in needed[from]:
@@ -59,11 +61,12 @@ static func build(plugin_name:String) -> Dictionary:
 				identities[package] = package_identity(package)
 			var identity = identities[package]
 			needed_ids[identity.id] = true
-			rows.append({"dir": package, "id": identity.id, "via": identity.via,
-				"files": needed[from][package], "declared": declared.has(identity.id)})
+			var state = "compile" if declared.compile.has(identity.id) else ("build" if declared.build.has(identity.id) else "")
+			rows.append({"dir": package, "id": identity.id, "via": identity.via, "files": needed[from][package], "declared": state})
 		rows.sort_custom(func(a, b): return a.id < b.id if a.id != b.id else a.dir < b.dir)
-		report.groups[from] = rows
-		var unused = declared.keys().filter(func(i): return not needed_ids.has(i))
+		report.groups[from] = {"config": declared.config, "rows": rows}
+		# compile_require entries are expected not to be crawled, so only build entries can be unused
+		var unused = declared.build.keys().filter(func(i): return not needed_ids.has(i))
 		if not unused.is_empty():
 			report.unused[from] = unused
 	return report
@@ -90,14 +93,20 @@ static func format(report:Dictionary) -> String:
 	froms.push_front(report.target)
 
 	for from in froms:
-		var rows:Array = report.groups.get(from, [])
+		var group = report.groups.get(from, {})
+		var rows:Array = group.get("rows", [])
 		if rows.is_empty():
 			continue
-		lines.append(from if from != "" else "(dependents outside any package)")
+		var header = from if from != "" else "(dependents outside any package)"
+		if from != "" and not group.config:
+			header += "  (no export_ignore/plugin_export config - it declares nothing)"
+		lines.append(header)
 		for r in rows:
 			var name = r.id.trim_prefix("github.com/") if r.id != "" else "(no git origin or url=)"
-			var state = "n/a" if from == "" or r.id == "" else ("declared" if r.declared else "MISSING")
-			lines.append("    %-40s %-8s %3d file%s  %s%s" % [name, state, r.files, " " if r.files == 1 else "s",
+			var state = "n/a"
+			if from != "" and r.id != "":
+				state = "declared (%s)" % r.declared if r.declared != "" else "MISSING"
+			lines.append("    %-40s %-18s %3d file%s  %s%s" % [name, state, r.files, " " if r.files == 1 else "s",
 				r.dir, "  [url=]" if r.via == "url=" else ""])
 
 	if not report.loose.is_empty():
@@ -108,7 +117,7 @@ static func format(report:Dictionary) -> String:
 			lines.append("    %s  %d file%s" % [dir, report.loose[dir], "" if report.loose[dir] == 1 else "s"])
 
 	if not report.unused.is_empty():
-		lines.append("Declared but not needed by the crawl:")
+		lines.append("In build_require but not needed by the crawl:")
 		for from in report.unused:
 			for id in report.unused[from]:
 				lines.append("    %s: %s" % [from, id.trim_prefix("github.com/")])
@@ -138,11 +147,22 @@ static func _package_dir(path:String, cache:Dictionary) -> String:
 	return found
 
 
-static func _declared_ids(dir:String) -> Dictionary:
-	var ids = {}
-	for dep in DepResolver.deps_in_cfg_text(_cfg_text(dir)):
-		ids[dep.repo_id] = true
-	return ids
+## {config, build, compile}: whether the package has an export config, and the repo ids it lists
+## under each key.
+static func _declared(dir:String) -> Dictionary:
+	var out = {"config": false, "build": {}, "compile": {}}
+	if dir == "":
+		return out
+	for nm in DepResolver.CONFIG_NAMES:
+		var path = dir.path_join("export_ignore").path_join(nm)
+		if not FileAccess.file_exists(path):
+			continue
+		out.config = true
+		var parsed = DepResolver.requires_in_export_config(FileAccess.get_file_as_string(path), nm.get_extension())
+		for req in parsed.requires:
+			out["compile" if req.compile else "build"][req.dep.repo_id] = true
+		break
+	return out
 
 
 static func _cfg_value(dir:String, key:String) -> String:

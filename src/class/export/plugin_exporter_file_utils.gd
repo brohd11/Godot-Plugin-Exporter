@@ -493,6 +493,9 @@ class KeysConfig:
 	const PRE_SCRIPT = "pre_script"
 	const POST_SCRIPT = "post_script"
 	
+	const BUILD_REQUIRE = "build_require"
+	const COMPILE_REQUIRE = "compile_require"
+	
 	const EXPORTS = "exports"
 	class Export:
 		const SOURCE = "source"

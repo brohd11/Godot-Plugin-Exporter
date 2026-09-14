@@ -64,6 +64,34 @@ func read_file(url:String, tag:String, path:String):
 	return res.output if res.exit == 0 else null
 
 
+## Every file path in the tree at `tag`, so the addon can be located without extracting anything.
+func list_files(url:String, tag:String) -> Array:
+	var mirror = _ensure_mirror(url)
+	if mirror == "":
+		return []
+	var res = _git(["--git-dir=" + mirror, "ls-tree", "-r", "--name-only", tag])
+	return Array(res.output.split("\n", false)) if res.exit == 0 else []
+
+
+## The tree at `tag` extracted once under <cache>/staging, keyed by commit and reused by later
+## workspaces. The marker sits beside the tree so it never ends up inside an addon.
+func stage(url:String, tag:String) -> String:
+	var sha = tag_sha(url, tag)
+	if sha == "":
+		return ""
+	var key = "%s-%s" % [mirror_path(url).get_file().trim_suffix(".git"), url.sha1_text().substr(0, 8)]
+	var dir = root.path_join("staging").path_join(key).path_join(sha)
+	var marker = dir + ".staged"
+	if FileAccess.file_exists(marker):
+		return dir
+	if DirAccess.dir_exists_absolute(dir):
+		ReleaseRunner.remove_dir(dir)
+	if not extract(url, tag, dir):
+		return ""
+	FileAccess.open(marker, FileAccess.WRITE).close()
+	return dir
+
+
 ## Writes the tree at `tag` into dest_dir. Goes through a zip so the mirror is never given a
 ## work tree or index, which keeps concurrent exports off each other's toes.
 func extract(url:String, tag:String, dest_dir:String) -> bool:
