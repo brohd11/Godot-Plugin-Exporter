@@ -54,12 +54,12 @@ func _process_flag(flag:String):
 		min_flag = _get_flag_value(flag)
 		_min_provided = true
 
-func _get_completions(ctx:CompletionContext):
+func _get_completions(ctx:Completion):
 	if _completion_last_is_flag(ctx):
 		return _get_completion_std_w_context(ctx, false)
 	return PECommandUtils.plugin_name_completion(self, ctx, PECommandUtils.TargetAddons.VALID)
 
-func _execute(ctx:CompletionContext):
+func _execute(ctx:Context):
 	if min_flag == "":
 		var min_var = ctx.get_variable("$PLUGIN_EXPORTER_MIN_VERSION")
 		min_flag = UString.unquote(min_var)

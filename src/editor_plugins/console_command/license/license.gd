@@ -26,7 +26,7 @@ static func get_command_name() -> String:
 	return "license"
 
 static func get_self_command_data() -> Dictionary:
-	return Options.get_single_option_dict(get_command_name(), {
+	return _command_data({
 		&"help": _HELP,
 		&"positional_count": 3,
 	})
@@ -46,12 +46,12 @@ func _process_flag(flag:String):
 			_flag_conflict = true
 		_license_id = LICENSES[flag]
 
-func _get_completions(ctx:CompletionContext):
+func _get_completions(ctx:Completion):
 	if _completion_last_is_flag(ctx):
 		return _get_completion_std_w_context(ctx, false)
 	return PECommandUtils.plugin_name_completion(self, ctx, PECommandUtils.TargetAddons.ALL)
 
-func _execute(ctx:CompletionContext):
+func _execute(ctx:Context):
 	if _flag_conflict:
 		ctx.append_error("Choose only one license type flag (%s)." % ", ".join(LICENSES.keys()))
 		return ExitCode.FAIL

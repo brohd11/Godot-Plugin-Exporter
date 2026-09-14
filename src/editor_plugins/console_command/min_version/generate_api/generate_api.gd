@@ -21,7 +21,7 @@ static func get_self_command_data() -> Dictionary:
 		&"help": _HELP,
 	})
 
-func _execute(ctx:CompletionContext):
+func _execute(ctx:Context):
 	var out_path = ExtractApi.build()
 	if out_path == "":
 		ctx.append_error("Failed to build API index — no extension_api dumps found (see output log).")

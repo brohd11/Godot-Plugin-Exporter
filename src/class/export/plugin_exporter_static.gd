@@ -31,10 +31,11 @@ static func export_by_name(plugin_dir_name):
 	var export_config_path = UtilsLocal.ExportFileUtils.get_export_config_path(plugin_dir_name)
 	if not FileAccess.file_exists(export_config_path):
 		printerr("Plugin Export config not found at: %s" % plugin_dir_name)
-		return
+		return false
 	var success = export_plugin(export_config_path)
-	
+
 	_print_result(success, export_config_path)
+	return success
 
 
 static func _print_result(success:bool, export_config_path:String):

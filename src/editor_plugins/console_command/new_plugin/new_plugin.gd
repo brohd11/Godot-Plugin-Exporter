@@ -10,14 +10,15 @@ static func get_command_name() -> String:
 	return "new_plugin"
 
 static func get_self_command_data() -> Dictionary:
-	return Options.get_single_option_dict(get_command_name(), {
+	return _command_data({
 		&"help": _HELP,
 		&"positional_count": 1
 	})
 
-func _get_completions(ctx:CompletionContext):
+func _get_completions(ctx:Completion):
 	return {}
 
-func _execute(ctx:CompletionContext):
+func _execute(ctx:Context):
 	var plugin_name = positional_args[0]
 	PluginExporter.new_plugin(plugin_name)
+	return ExitCode.OK

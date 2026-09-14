@@ -15,7 +15,7 @@ enum TargetAddons {
 }
 
 static func export(plugin_name:String):
-	PluginExporterStatic.export_by_name(plugin_name)
+	return PluginExporterStatic.export_by_name(plugin_name)
 
 static func new_plugin(plugin_name:String):
 	PluginExporterStatic.new_plugin(plugin_name)
