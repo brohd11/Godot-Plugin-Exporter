@@ -1,5 +1,5 @@
 
-const CommandBase = EditorConsoleSingleton.CommandBase
+const CommandBase = GDSh.CommandBase
 const Completion = CommandBase.Completion
 
 const PluginExporter = preload("res://addons/plugin_exporter/src/class/plugin_exporter.gd")

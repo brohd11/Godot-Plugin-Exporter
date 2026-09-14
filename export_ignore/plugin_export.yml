@@ -1,0 +1,53 @@
+export_root: "res://addons/plugin_exporter/export_ignore/exports/"
+exports:
+  -
+    exclude:
+      directories:
+        - "res://addons/plugin_exporter/export_ignore"
+      file_extensions: []
+      files: []
+    remote_dir: "res://addons/plugin_exporter/src/class/remote/"
+    export_folder: "plugin-exporter{{version=plugin_exporter}}/plugin_exporter"
+    other_transfers:
+      -
+        to: modular_browser/.gdignore
+    source: "res://addons/plugin_exporter/"
+    parser_overide_settings:
+      parse_cs: {}
+      parse_gd: {}
+      parse_tscn: {}
+      parse_tres: {}
+  -
+    exclude:
+      directories:
+        - "res://addons/plugin_exporter/export_ignore"
+      file_extensions: []
+      files: []
+    remote_dir: "res://addons/plugin_exporter/src/class/remote/"
+    export_folder: "plugin-exporter-backport{{version=plugin_exporter}}/plugin_exporter_backport"
+    other_transfers:
+      -
+        to: modular_browser/.gdignore
+    source: "res://addons/plugin_exporter/"
+    parser_overide_settings:
+      parse_cs: {}
+      parse_gd: {}
+      parse_tscn: {}
+      parse_tres: {}
+      backport_target: 3.0
+options:
+  include_import: true
+  include_uid: true
+  overwrite: true
+  parser_settings:
+    use_relative_paths: false
+    replace_editor_interface: false
+    parse_cs: {}
+    parse_gd:
+      class_rename_ignore: []
+      backport_string_renames: {}
+    parse_tscn: {}
+    parse_tres: {}
+plugin_folder: "PluginExporter/PluginExporter{{version=plugin_exporter}}"
+post_script: "res://addons/plugin_exporter/export_ignore/pre_post_export.gd"
+pre_script: "res://addons/plugin_exporter/export_ignore/pre_post_export.gd"

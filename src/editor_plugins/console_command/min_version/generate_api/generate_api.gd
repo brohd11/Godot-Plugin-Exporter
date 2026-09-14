@@ -1,4 +1,4 @@
-extends EditorConsoleSingleton.CommandBase
+extends GDSh.CommandBase
 
 ## Rebuilds the trimmed min-version index (api_min_version.json) from the full
 ## extension_api dumps in plugin_exporter/export_ignore/extension_api/.

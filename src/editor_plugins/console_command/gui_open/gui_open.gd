@@ -1,4 +1,4 @@
-extends EditorConsoleSingleton.CommandBase
+extends GDSh.CommandBase
 
 const PluginExporter = preload("res://addons/plugin_exporter/src/class/plugin_exporter.gd")
 const PECommandUtils = preload("res://addons/plugin_exporter/src/editor_plugins/console_command/command_utils.gd")

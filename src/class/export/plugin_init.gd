@@ -58,14 +58,14 @@ static func plugin_init(plugin_name:=""):
 	#var export_config_path = export_ignore_dir.path_join("plugin_export.json")
 	var export_config_path = export_ignore_dir.path_join("plugin_export.yml")
 	if FileAccess.file_exists(export_config_path):
-		var conf = ALibRuntime.Dialog.Handlers.Confirmation.new("Overwrite: %s?" % export_config_path)
+		var conf = ConfirmationDialogHandler.new("Overwrite: %s?" % export_config_path)
 		var conf_handled = await conf.handled
 		if not conf_handled:
 			return
 	
 	var export_pre_post = export_ignore_dir.path_join("pre_post_export.gd")
 	if FileAccess.file_exists(export_pre_post):
-		var conf = ALibRuntime.Dialog.Handlers.Confirmation.new("Overwrite: %s?" % export_pre_post)
+		var conf = ConfirmationDialogHandler.new("Overwrite: %s?" % export_pre_post)
 		var conf_handled = await conf.handled
 		if not conf_handled:
 			return

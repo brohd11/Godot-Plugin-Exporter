@@ -11,12 +11,11 @@ const SHOW_TOOL_MENU_ITEM = &"plugin/plugin_exporter/show_tool_menu_item"
 const UtilsRemote = preload("res://addons/plugin_exporter/src/class/utils_remote.gd")
 
 const ConsoleCommand = preload("res://addons/plugin_exporter/src/editor_plugins/console_command/console_command.gd")
-const CodeCompletion = preload("res://addons/plugin_exporter/src/editor_plugins/plugin_exporter_code_completion.gd")
 const ContextMenuPlugin = preload("res://addons/plugin_exporter/src/editor_plugins/plugin_exporter_context_menus.gd")
 
 static var instance
 
-var code_completion:CodeCompletion
+
 var context_plugin_inst:ContextMenuPlugin
 var dm_instance_manager:DockManager.InstanceManager
 
@@ -39,14 +38,6 @@ func _enter_tree() -> void:
 	
 	FileSystemSingleton.register_node(self)
 	
-	SyntaxPlusSingleton.register_node(self)
-	SyntaxPlusSingleton.call_on_ready(_add_syntax_comment_tags)
-	
-	EditorCodeCompletion.register_plugin(self)
-	code_completion = CodeCompletion.new()
-	
-	EditorConsoleSingleton.call_on_ready(_register_editor_console)
-	
 	context_plugin_inst = ContextMenuPlugin.new()
 	add_context_menu_plugin(EditorContextMenuPlugin.CONTEXT_SLOT_SCRIPT_EDITOR_CODE, context_plugin_inst)
 	
@@ -56,22 +47,13 @@ func _enter_tree() -> void:
 	
 	if ed_settings.get_setting(SHOW_TOOL_MENU_ITEM):
 		add_tool_menu_item("Plugin Exporter", _on_tool_menu_pressed)
+	
+	_register_singletons.call_deferred()
 
 func _exit_tree() -> void:
 	remove_context_menu_plugin(context_plugin_inst)
 	
 	remove_tool_menu_item("Plugin Exporter")
-	
-	if is_instance_valid(code_completion):
-		code_completion.clean_up()
-	
-	EditorCodeCompletion.unregister_plugin(self)
-	
-	for tag in COMMENT_TAGS:
-		var prefix = tag.get_slice(" ", 0)
-		var tag_name = tag.get_slice(" ", 1)
-		SyntaxPlusSingleton.unregister_comment_tag(prefix, tag_name)
-	SyntaxPlusSingleton.unregister_node(self)
 	
 	FileSystemSingleton.unregister_node(self)
 	
@@ -92,11 +74,52 @@ func new_gui_instance():
 	ins.allow_scene_reload = true
 	return ins
 
-func _add_syntax_comment_tags():
+
+func _register_singletons():
+	_register_editor_console()
+	_register_code_completions()
+	_register_syntax_tags()
+
+func _register_editor_console():
+	var sing_name = "EditorConsoleSingleton"
+	if not Singletons.CheckInstance.check_valid(sing_name):
+		return
+	var singleton = Singletons.CheckInstance.get_instance(sing_name)
+	singleton.register_temp_scope("plugin_exporter", ConsoleCommand)
+
+func _register_code_completions():
+	var sing_name = "EditorCodeCompletionSingleton"
+	if not Singletons.CheckInstance.check_valid(sing_name):
+		return
+	var prefix = "#!"
+	var singleton = Singletons.CheckInstance.get_instance(sing_name)
+	singleton.register_tag(prefix, "remote", singleton.TagLocation.START)
+	singleton.register_tag(prefix, "ignore-remote", singleton.TagLocation.END)
+	singleton.register_tag(prefix, "dependency", singleton.TagLocation.END)
+	singleton.register_tag(prefix, "singleton-module", singleton.TagLocation.END)
+	singleton.register_tag(prefix, "strip-cast", singleton.TagLocation.START)
+
+
+func _register_syntax_tags():
+	var sing_name = "SyntaxPlusSingleton"
+	if not Singletons.CheckInstance.check_valid(sing_name):
+		return
+	var singleton = Singletons.CheckInstance.get_instance(sing_name)
 	for tag in COMMENT_TAGS:
 		var prefix = tag.get_slice(" ", 0)
 		var tag_name = tag.get_slice(" ", 1)
-		SyntaxPlusSingleton.register_comment_tag(prefix, tag_name)
+		singleton.register_comment_tag(prefix, tag_name)
 
-func _register_editor_console():
-	EditorConsoleSingleton.register_temp_scope("plugin_exporter", ConsoleCommand)
+func _unregister_syntax_tags():
+	var sing_name = "SyntaxPlusSingleton"
+	if not Singletons.CheckInstance.check_valid(sing_name):
+		return
+	var singleton = Singletons.CheckInstance.get_instance(sing_name)
+	for tag in COMMENT_TAGS:
+		var prefix = tag.get_slice(" ", 0)
+		var tag_name = tag.get_slice(" ", 1)
+		singleton.unregister_comment_tag(prefix, tag_name)
+
+
+func _unregister_singletons():
+	_unregister_syntax_tags()

@@ -1,4 +1,4 @@
-extends EditorConsoleSingleton.CommandBase
+extends GDSh.CommandBase
 
 
 const PluginExporter = preload("res://addons/plugin_exporter/src/class/plugin_exporter.gd")
@@ -8,6 +8,8 @@ const Export = ExportData.Export
 
 const VersionScanner = preload("res://addons/plugin_exporter/src/editor_plugins/console_command/min_version/version_scanner.gd")
 const VersionApi = preload("res://addons/plugin_exporter/src/editor_plugins/console_command/min_version/version_api.gd")
+
+const UString = PluginExporter.UtilsRemote.UString
 
 const _HELP = \
 "Report the minimum Godot version a plugin's exports can run on.

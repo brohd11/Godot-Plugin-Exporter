@@ -3,11 +3,11 @@ extends Control
 const PluginExporter = preload("res://addons/plugin_exporter/src/class/plugin_exporter.gd")
 const UtilsRemote = preload("res://addons/plugin_exporter/src/class/utils_remote.gd")
 
-const TabBarContainer = ALibEditor.UIHelpers.Tab.TabBarContainer
-const EditorIcons = ALibEditor.Singleton.EditorIcons
+const TabBarContainer = UtilsRemote.TabBarContainer
+const EditorIcons = UtilsRemote.EditorIcons
 
 const Options = UtilsRemote.Options
-const SplitWrapper = ALibRuntime.UICustom.SplitWrapper
+const SplitWrapper = UtilsRemote.SplitWrapper
 
 const UControl = UtilsRemote.UControl
 const UFile = UtilsRemote.UFile

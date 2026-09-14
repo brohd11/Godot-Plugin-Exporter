@@ -17,6 +17,12 @@ enum TargetAddons {
 static func export(plugin_name:String):
 	return PluginExporterStatic.export_by_name(plugin_name)
 
+## Pinned export: deps resolved to tags, exported from a workspace of those tags, then compile
+## checked. `refresh` re-checks cached tags against their remotes; `local` fetches from this
+## project's checkouts instead, so tags needn't be pushed.
+static func export_release(plugin_name:String, refresh:=false, local:=false) -> bool:
+	return load("res://addons/plugin_exporter/src/class/release/release_export.gd").export_release(plugin_name, refresh, local)
+
 static func new_plugin(plugin_name:String):
 	PluginExporterStatic.new_plugin(plugin_name)
 
