@@ -147,6 +147,8 @@ func _rev(mirror:String, tag:String) -> String:
 
 
 static func _git(args:Array, read_stderr:bool = false) -> Dictionary:
+	# OS.execute blocks the editor: a credential prompt nobody can answer would hang it for good.
+	OS.set_environment("GIT_TERMINAL_PROMPT", "0")
 	var output = []
 	var code = OS.execute("git", args, output, read_stderr)
 	return {"exit": code, "output": "".join(output)}

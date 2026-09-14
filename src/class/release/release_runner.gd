@@ -19,18 +19,32 @@ extends EditorPlugin
 # the result for the parent process, then quits. Loaded lazily so a pinned exporter can resolve
 # its global classes first.
 
+var _started := false
+var _done := false
+
 func _enter_tree() -> void:
+	set_process(true)
 	_run.call_deferred()
+
+# A script error stops _run without quitting, and the parent editor would wait on this process
+# forever. Everything after the scan wait runs within one frame, so unfinished by the next it died.
+func _process(_delta:float) -> void:
+	if _started and not _done:
+		_finish({"ok": false, "error": "export aborted by a script error"}, 3)
 
 func _run() -> void:
 	var fs = EditorInterface.get_resource_filesystem()
 	await get_tree().process_frame
 	while fs.is_scanning():
 		await get_tree().process_frame
+	_started = true
 
 	var job = JSON.parse_string(FileAccess.get_file_as_string("res://addons/%s/job.json"))
 	var file_utils = load("res://addons/plugin_exporter/src/class/export/plugin_exporter_file_utils.gd")
 	var exporter = load("res://addons/plugin_exporter/src/class/export/plugin_exporter_static.gd")
+	if not job is Dictionary or not _compiled(file_utils) or not _compiled(exporter):
+		_finish({"ok": false, "error": "exporter scripts failed to compile (missing dependency?)"}, 3)
+		return
 
 	# export_plugin, not export_by_name: only the former returns its result in older releases.
 	var config = file_utils.get_export_config_path(job.target)
@@ -45,8 +59,17 @@ func _run() -> void:
 			if folder == "":
 				folder = String(e.source).trim_suffix("/").get_file()
 			dirs.append(full.path_join(file_utils.replace_version(folder, config)))
-	print("%s" + JSON.stringify({"ok": ok, "full_export_path": full, "export_dirs": dirs}))
-	get_tree().quit(0 if ok else 1)
+	_finish({"ok": ok, "full_export_path": full, "export_dirs": dirs}, 0 if ok else 1)
+
+func _compiled(script) -> bool:
+	return script is GDScript and script.can_instantiate()
+
+func _finish(result:Dictionary, code:int) -> void:
+	if _done:
+		return
+	_done = true
+	print("%s" + JSON.stringify(result))
+	get_tree().quit(code)
 """
 
 

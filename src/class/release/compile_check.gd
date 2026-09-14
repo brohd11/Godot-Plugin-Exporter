@@ -14,18 +14,31 @@ const _PROBE = """@tool
 extends EditorPlugin
 # Written by PluginExporter's release compile check: loads every file of one plugin, then quits.
 
+var _started := false
+var _done := false
+
 func _enter_tree() -> void:
+	set_process(true)
 	_run.call_deferred()
+
+# Same guard as the export autorun: a script error must not leave the parent waiting forever.
+# Quitting without the result line is reported by the parent as an unfinished probe.
+func _process(_delta:float) -> void:
+	if _started and not _done:
+		_done = true
+		get_tree().quit(3)
 
 func _run() -> void:
 	var fs = EditorInterface.get_resource_filesystem()
 	await get_tree().process_frame
 	while fs.is_scanning():
 		await get_tree().process_frame
+	_started = true
 	for path in _walk("res://addons/%s"):
 		if path.get_extension() in %s:
 			if ResourceLoader.load(path, "", ResourceLoader.CACHE_MODE_IGNORE) == null:
 				print("%s" + path)
+	_done = true
 	print("%s{}")
 	get_tree().quit()
 

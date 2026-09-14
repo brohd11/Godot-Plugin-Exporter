@@ -106,8 +106,12 @@ static func _export_release(plugin_name:String, refresh:bool, local:bool) -> boo
 			return _fail("toolchain %s %s (%s) export scripts don't compile" % [
 				Toolchain.NAME, lock.toolchain.version, lock.toolchain.source])
 	if run.result.is_empty() or not run.result.get("ok", false):
-		printerr(run.output.right(4000))
-		return _fail("export in workspace failed (exit %d)" % run.exit)
+		var errs = ReleaseRunner.script_errors(run.output)
+		if errs.is_empty():
+			printerr(run.output.right(4000))
+		for e in errs.slice(0, 12):
+			printerr("  " + e)
+		return _fail("export in workspace failed (exit %d): %s" % [run.exit, run.result.get("error", "see output above")])
 
 	var full_export_path:String = run.result.full_export_path
 	for dir in run.result.export_dirs:

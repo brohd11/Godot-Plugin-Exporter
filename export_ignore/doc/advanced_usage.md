@@ -149,6 +149,13 @@ plugin_exporter export --release --local my_plugin
    `exported_deps`, and every script and resource is loaded. Any parse, compile or load error moves
    the output to `<plugin_folder>-unverified`.
 
+To find out what to require, run `plugin_exporter require my_plugin`. It runs the export crawl
+without writing anything and lists the packages the export pulls in (no tags). A package is the
+nearest folder with a `plugin.cfg` or `version.cfg`, so every file of one release counts once. Its
+identity is the git `origin` when the folder is a checkout, or the cfg `url=` for a package installed
+from a release zip. Packages are grouped by the package whose cfg should require them, and each is
+marked `declared` or `MISSING`.
+
 `--local` is for trying a release before pushing anything. Every repo with a checkout in this
 project is fetched from that checkout instead of its remote; repos without one (a checkout counts
 only if its `origin` is the same repo) still come from their remote, with a warning. A missing
