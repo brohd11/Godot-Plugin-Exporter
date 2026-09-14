@@ -94,17 +94,9 @@ func _execute(ctx:Context):
 	var overall: String = scanner.api.baseline
 
 	for export:Export in export_data.exports:
-		var export_min: String = scanner.api.baseline
-		var all_findings := []    # every occurrence: {feature, version, location}
-
-		for file_path:String in export.files_to_copy.keys():
-			var r = scanner.scan_file(file_path)
-			export_min = VersionApi.max_version(export_min, r["min_version"])
-			for fnd in r["findings"]:
-				all_findings.append({
-					"feature": fnd["feature"], "version": fnd["version"],
-					"location": "%s:%d" % [file_path, fnd["line"]],
-				})
+		var r = scanner.scan_files(export.files_to_copy.keys())
+		var export_min: String = r["min_version"]
+		var all_findings: Array = r["findings"]    # every occurrence: {feature, version, location}
 
 		overall = VersionApi.max_version(overall, export_min)
 

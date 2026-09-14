@@ -18,6 +18,7 @@ const _FileParser = _UtilsLocal.FileParser
 const _UClassDetail = _UtilsRemote.UClassDetail
 const _UFile = _UtilsRemote.UFile
 const _GetFiles = _UtilsRemote.GetFiles
+const _VersionScanner = preload("res://addons/plugin_exporter/src/editor_plugins/console_command/min_version/version_scanner.gd")
 
 var export_data: _ExportData
 var source:String
@@ -510,23 +511,19 @@ func update_plugin_cfg():
 						lines[i] = 'version="%s"' % new_string
 					break
 	
-	# Disabled: console execution is async now and export can't await it yet.
-	#if include_min:
-		#var trimmed = plugin_name.trim_suffix("/").trim_prefix("res://addons/")
-		#var cmd = "plugin_exporter min_version %s | tail 1" % trimmed
-		#var ctx = EditorConsoleSingleton.get_main_ctx()
-		#EditorConsoleSingleton.Execution.execute_command_multiline(cmd, ctx)
-		#var result = ctx.stdout.strip_edges()
-		#var min_version = ""
-		#if result.begins_with("Minimum Godot version:"):
-			#min_version = result.get_slice(":", 1).strip_edges()
-		#if min_version != "":
-			#var min_msg = 'minimum_version="%s"' % min_version
-			#for i in range(lines.size() - 1, -1, -1):
-				#var l = lines[i]
-				#if l.strip_edges() != "":
-					#lines.insert(i + 1, min_msg)
-					#break
+	if include_min:
+		var scanner = _VersionScanner.new()
+		if scanner.api.has_index():
+			# Scans only this export's files, so variants can differ.
+			var min_version = scanner.scan_files(files_to_copy.keys())["min_version"]
+			var min_msg = 'minimum_version="%s"' % min_version
+			for i in range(lines.size() - 1, -1, -1):
+				var l = lines[i]
+				if l.strip_edges() != "":
+					lines.insert(i + 1, min_msg)
+					break
+		else:
+			printerr("No min_version API index found, minimum_version not written: %s" % plugin_cfg_path)
 	
 	
 	var file_access = FileAccess.open(plugin_cfg_path, FileAccess.WRITE)

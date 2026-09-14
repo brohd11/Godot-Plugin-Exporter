@@ -41,6 +41,22 @@ static func _re(pattern: String) -> RegEx:
 	return re
 
 
+## Scan a set of files. Returns { min_version:String, findings:[{feature,version,location}] },
+## location being "path:line". Shared by the min_version command and export's plugin.cfg write.
+func scan_files(file_paths: Array) -> Dictionary:
+	var min_version: String = api.baseline
+	var findings := []
+	for file_path: String in file_paths:
+		var r := scan_file(file_path)
+		min_version = VersionApi.max_version(min_version, r["min_version"])
+		for fnd in r["findings"]:
+			findings.append({
+				"feature": fnd["feature"], "version": fnd["version"],
+				"location": "%s:%d" % [file_path, fnd["line"]],
+			})
+	return {"min_version": min_version, "findings": findings}
+
+
 ## Scan one file. Returns { min_version:String, findings:[{line,feature,version}] }.
 func scan_file(file_path: String) -> Dictionary:
 	var result := {"min_version": api.baseline, "findings": [], "_seen": {}}
