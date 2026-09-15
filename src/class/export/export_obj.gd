@@ -23,6 +23,9 @@ const _VersionScanner = preload("res://addons/plugin_exporter/src/editor_plugins
 var export_data: _ExportData
 var source:String
 var remote_dir:String
+## Package folder under the full export path; zipped as a whole.
+var export_name:String
+## Install path relative to res:// ("addons/..."), recreated inside the package.
 var export_folder:String
 var export_dir_path:String
 var exclude_directories:Array
@@ -745,7 +748,7 @@ func invalidate():
 
 func _simple_export(from, export_path, export_uid_file, export_import_file):
 	if FileAccess.file_exists(export_path): ## this message prints when a duplicate is replaced with get_remote_file_local_path ^^
-		var raw_path = export_dir_path.get_base_dir().get_base_dir()
+		var raw_path = export_data.full_export_path
 		var msg = "Overwriting duplicate file: %s with %s" % [export_path.replace(raw_path, "").trim_prefix("/"), from]
 		_UtilsRemote.UEditor.print_warn(msg)
 	

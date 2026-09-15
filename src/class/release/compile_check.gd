@@ -34,7 +34,7 @@ func _run() -> void:
 	while fs.is_scanning():
 		await get_tree().process_frame
 	_started = true
-	for path in _walk("res://addons/%s"):
+	for path in _walk("%s"):
 		if path.get_extension() in %s:
 			if ResourceLoader.load(path, "", ResourceLoader.CACHE_MODE_IGNORE) == null:
 				print("%s" + path)
@@ -54,7 +54,7 @@ func _walk(dir:String) -> Array:
 
 ## Preload/ext_resource targets that point inside the plugin but don't exist. Cheap, so it runs
 ## before a Godot process is spent. Same walk as export_fixture_test's every-reference check.
-static func broken_references(plugin_dir:String) -> Array[String]:
+static func broken_references(plugin_dir:String, install_path:String) -> Array[String]:
 	plugin_dir = plugin_dir.trim_suffix("/")
 	var preload_regex = RegEx.new()
 	preload_regex.compile(r'(?:preload|load)\(\s*"([^"]+)"\s*\)')
@@ -69,28 +69,28 @@ static func broken_references(plugin_dir:String) -> Array[String]:
 		var regex = preload_regex if ext == "gd" else ext_resource_regex
 		for m in regex.search_all(FileAccess.get_file_as_string(file)):
 			var target = m.get_string(1)
-			var resolved = _resolve(target, file, plugin_dir)
+			var resolved = _resolve(target, file, plugin_dir, install_path)
 			if resolved != "" and not FileAccess.file_exists(resolved):
 				broken.append("%s -> %s" % [file.trim_prefix(plugin_dir + "/"), target])
 	return broken
 
 
-## Errors from loading the export in a clean project at work_dir; [] means it compiled.
-## `extra_installs` maps res:// install paths to source dirs, for runtime deps like GDExtensions.
-static func compile_errors(plugin_dir:String, work_dir:String, extra_installs:Dictionary = {}) -> Array[String]:
+## Errors from loading the export, installed at install_path in a clean project at work_dir; []
+## means it compiled. `extra_installs` maps res:// install paths to source dirs, for runtime deps.
+static func compile_errors(plugin_dir:String, install_path:String, work_dir:String, extra_installs:Dictionary = {}) -> Array[String]:
 	plugin_dir = plugin_dir.trim_suffix("/")
-	var plugin_name = plugin_dir.get_file()
+	install_path = install_path.trim_suffix("/")
 	var errors:Array[String] = []
 
 	if DirAccess.dir_exists_absolute(work_dir):
 		ReleaseRunner.remove_dir(work_dir)
-	if not ReleaseRunner.copy_dir(plugin_dir, work_dir.path_join("addons").path_join(plugin_name)):
+	if not ReleaseRunner.copy_dir(plugin_dir, work_dir.path_join(install_path.trim_prefix("res://"))):
 		errors.append("could not install %s into %s" % [plugin_dir, work_dir])
 		return errors
-	for install_path in extra_installs:
-		ReleaseRunner.copy_dir(extra_installs[install_path], work_dir.path_join(install_path.trim_prefix("res://")))
+	for extra in extra_installs:
+		ReleaseRunner.copy_dir(extra_installs[extra], work_dir.path_join(extra.trim_prefix("res://")))
 
-	var probe = _PROBE % [plugin_name, str(LOAD_EXTENSIONS), LOAD_FAIL_PREFIX, ReleaseRunner.RESULT_PREFIX]
+	var probe = _PROBE % [install_path, str(LOAD_EXTENSIONS), LOAD_FAIL_PREFIX, ReleaseRunner.RESULT_PREFIX]
 	ReleaseRunner.write_plugin(work_dir, PROBE_DIR, probe)
 	var project = ReleaseRunner.project_godot("PE Compile Check", ["res://addons/%s/plugin.cfg" % PROBE_DIR])
 	var file = FileAccess.open(work_dir.path_join("project.godot"), FileAccess.WRITE)
@@ -112,17 +112,14 @@ static func compile_errors(plugin_dir:String, work_dir:String, extra_installs:Di
 	return errors
 
 
-## A reference as written, mapped back onto disk. res://addons/<plugin>/ means the export dir once
+## A reference as written, mapped back onto disk. The install path means the export dir once
 ## installed; other plugins and non-addon paths aren't this check's business.
-static func _resolve(target:String, from_file:String, plugin_dir:String) -> String:
+static func _resolve(target:String, from_file:String, plugin_dir:String, install_path:String) -> String:
 	if target.begins_with("uid://"):
 		return ""
-	if target.begins_with("res://addons/"):
-		var rest = target.trim_prefix("res://addons/")
-		var name = rest.get_slice("/", 0)
-		if name != plugin_dir.get_file() or not rest.begins_with(name + "/"):
-			return ""
-		return plugin_dir.path_join(rest.trim_prefix(name + "/"))
+	var prefix = install_path.trim_suffix("/") + "/"
+	if target.begins_with(prefix):
+		return plugin_dir.path_join(target.trim_prefix(prefix))
 	if target.begins_with("./") or target.begins_with("../"):
 		return from_file.get_base_dir().path_join(target).simplify_path()
 	return ""

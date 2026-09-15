@@ -99,23 +99,22 @@ func _init(export_config_path):
 		if not DirAccess.dir_exists_absolute(export_obj.source):
 			_UEditor.push_toast(export_obj.source + " does not exist.",2)
 			return
-		export_obj.export_folder = export.get(KeysConfig.Export.EXPORT_FOLDER)
-		if export_obj.export_folder == "":
-			export_obj.export_folder = export_obj.source.get_base_dir().get_file()
-		
-		export_obj.export_folder = _ExportFileUtils.replace_version(export_obj.export_folder, export_config_path)
-		if export_obj.export_folder == "":
+		export_obj.export_name = _ExportFileUtils.get_export_name(export, plugin_folder, export_config_path)
+		export_obj.export_folder = _ExportFileUtils.get_export_folder(export, export_config_path)
+		if export_obj.export_name == "" or export_obj.export_folder == "":
+			var raw_folder = String(export.get(KeysConfig.Export.EXPORT_FOLDER, ""))
+			var reason = _ExportFileUtils.ExportPaths.export_folder_error(raw_folder)
+			var msg = "export_folder \"%s\" %s" % [raw_folder, reason] if reason != "" else "invalid export_name or export_folder for " + export_obj.source
+			printerr("Plugin Exporter - " + msg) # a headless release child has no toast
+			_UEditor.push_toast(msg, 2)
 			return
-		
-		var plugin_name = export_obj.source.trim_suffix("/").get_file()
-		export_obj.plugin_name = "res://addons/%s/" % plugin_name
-		var export_plugin_name = export_obj.export_folder.trim_suffix("/").get_file()
-		if plugin_name != export_plugin_name and true: # add bool in json?
+
+		# export_folder is the install path, so a source anywhere else is being renamed.
+		export_obj.plugin_name = export_obj.source
+		var install_path = "res://" + export_obj.export_folder
+		if install_path != export_obj.source:
 			export_obj.rename_plugin = true
-			export_obj.new_plugin_name = "res://addons/%s/" % export_plugin_name
-		
-		if not export_obj.export_folder.ends_with("/"):
-			export_obj.export_folder = export_obj.export_folder + "/"
+			export_obj.new_plugin_name = install_path
 		
 		var exclude = export.get(KeysConfig.Export.EXCLUDE)
 		export_obj.exclude_directories = exclude.get(KeysConfig.Export.Exclude.DIRECTORIES)
@@ -128,7 +127,7 @@ func _init(export_config_path):
 			export_obj.remote_dir = export_obj.source.path_join(export_obj.remote_dir)
 		
 		export_obj.source_files = _UtilsRemote.GetFiles.scan(export_obj.source)
-		export_obj.export_dir_path = full_export_path.path_join(export_obj.export_folder)
+		export_obj.export_dir_path = full_export_path.path_join(export_obj.export_name).path_join(export_obj.export_folder)
 		export_obj.other_transfers = export.get(KeysConfig.Export.OTHER_TRANSFERS, [])
 		if ignore_src and DirAccess.dir_exists_absolute(plugin_folder.path_join("src")): # TEST to hide the files of src, but leave globals available
 			export_obj.other_transfers.append({"to": "src/.gdignore"})

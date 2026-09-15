@@ -85,8 +85,8 @@ static func plugin_init(plugin_name:=""):
 	export[KeysConfig.Export.SOURCE] = export_dir
 	export[KeysConfig.Export.REMOTE_DIR] = export_dir.path_join("src/remote")
 	var export_dir_name_dash = export_dir_name.replace("_", "-")
-	var export_folder = "%s{{version=%s}}/%s" % [export_dir_name_dash, export_dir_name, export_dir_name]
-	export[KeysConfig.Export.EXPORT_FOLDER] = export_folder
+	export[KeysConfig.Export.EXPORT_NAME] = "%s{{version=%s}}" % [export_dir_name_dash, export_dir_name]
+	export[KeysConfig.Export.EXPORT_FOLDER] = export_dir.trim_prefix("res://").trim_suffix("/")
 	
 	var exclude = export.get(KeysConfig.Export.EXCLUDE)
 	exclude[KeysConfig.Export.Exclude.DIRECTORIES] = [export_ignore_dir]
@@ -198,6 +198,7 @@ class PluginExportJSON:
 	static func get_export_obj_data():
 		return {
 			KeysConfig.Export.SOURCE: "",
+			KeysConfig.Export.EXPORT_NAME: "",
 			KeysConfig.Export.EXPORT_FOLDER: "",
 			KeysConfig.Export.EXCLUDE: {
 				KeysConfig.Export.Exclude.DIRECTORIES: [],

@@ -11,7 +11,8 @@
  - source - source location of the plugin
  - exclude - directories, file_extensions, and files to ignore on export
  - remote_dir - where all out of plugin files will be recreated
- - export_folder - final export location of files (export_root + plugin_folder + export_folder)
+ - export_name - package folder under export_root + plugin_folder, zipped as a whole. Defaults to the last segment of plugin_folder
+ - export_folder - install path relative to res://, e.g. `addons/addon_lib/my_lib`. Recreated inside the package, so it extracts straight into a project. Any path relative to res:// (no `{{version}}` templates); defaults to source. A path different from source renames the plugin and rewrites its paths to match
  - other_transfers - other files to transfer into plugin on export
  - ignore_dependencies - do not export any dependencies for the files
  - parser_overide_settings - overide settings per export for the file parser
@@ -19,7 +20,7 @@
 ### options
  - include_import - bool
  - include_uid - bool
- - overwrite - bool, erases the contents of export_folder before export, if false, it will abort if any file already exists
+ - overwrite - bool, erases the contents of export_root + plugin_folder before export, if false, it will abort if any file already exists
  - include_docs - bool, defaults true. Copies the doc folder beside this config (export_ignore/doc) into the exported plugin as `.doc`, preserving its structure. No dependency crawl, the files are copied verbatim without uid or import sidecars. Dot-prefixed so Godot never imports them and they stay out of a game export, while DocViewer can still read them.
  - include_project_license - bool, defaults false. Licenses are gathered by matching every copied file against the closest LICENSE above it, so a nested library keeps its own. The project root (`res://LICENSE`) is held out of that matching - it contains everything, so it would otherwise claim every file no other license covers. Turn this on for a plugin that has no LICENSE of its own and takes the project's; it ships at the export root. Ignored when the plugin does have one.
  - parser_settings - Dictionary of settings for file parser. Applied to all exports unless overiden

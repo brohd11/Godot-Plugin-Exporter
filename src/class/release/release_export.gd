@@ -119,8 +119,8 @@ static func _export_release(plugin_name:String, refresh:bool, local:bool) -> boo
 		return _fail("export in workspace failed (exit %d): %s" % [run.exit, run.result.get("error", "see output above")])
 
 	var full_export_path:String = run.result.full_export_path
-	for dir in run.result.export_dirs:
-		_finalize_export_dir(dir, lock)
+	for e in run.result.exports:
+		_finalize_export_dir(e.dir, lock)
 	_rezip(full_export_path)
 
 	print("Release export: verifying")
@@ -130,13 +130,13 @@ static func _export_release(plugin_name:String, refresh:bool, local:bool) -> boo
 		if entry.get("verify", false):
 			verify_installs[entry.path] = ws.path_join(entry.path.trim_prefix("res://"))
 	var failures:Array[String] = []
-	for dir in run.result.export_dirs:
-		var plugin_dir = String(dir).trim_suffix("/")
+	for exported in run.result.exports:
+		var plugin_dir = String(exported.dir).trim_suffix("/")
 		var label = plugin_dir.trim_prefix(full_export_path.trim_suffix("/") + "/")
-		for b in CompileCheck.broken_references(plugin_dir):
+		for b in CompileCheck.broken_references(plugin_dir, exported.install_path):
 			failures.append("%s: missing reference %s" % [label, b])
 		var work_dir = cache.root.path_join("verify").path_join(label.replace("/", "_"))
-		var errs = CompileCheck.compile_errors(plugin_dir, work_dir, verify_installs)
+		var errs = CompileCheck.compile_errors(plugin_dir, exported.install_path, work_dir, verify_installs)
 		for e in errs:
 			failures.append("%s: %s" % [label, e])
 		if errs.is_empty():
@@ -161,9 +161,10 @@ static func _local_toolchain_dir() -> String:
 	var data = ExportFileUtils.get_export_data(config_path)
 	if not data is Dictionary or data.get("exports", []).is_empty():
 		return ""
+	var entry = data.exports[0]
 	var full = ExportFileUtils.get_full_export_path(data.export_root, data.plugin_folder, config_path)
-	var folder = ExportFileUtils.replace_version(data.exports[0].get("export_folder", Toolchain.NAME), config_path)
-	return full.path_join(folder).trim_suffix("/")
+	var package = full.path_join(ExportFileUtils.get_export_name(entry, data.plugin_folder, config_path))
+	return package.path_join(ExportFileUtils.get_export_folder(entry, config_path)).trim_suffix("/")
 
 
 ## Swaps the dev-tree git snapshot for the lock. The released plugin.cfg is left alone: its

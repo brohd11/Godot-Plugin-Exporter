@@ -194,7 +194,7 @@ static func update_git_submodule_details(export_config_path, export_data:ExportD
 		git_details_file_lines.append("No main repo found.\n")
 	for export:ExportData.Export in export_data.exports:
 		var single_export_git_file_lines = []
-		git_details_file_lines.append("\nExport: " + export.export_folder)
+		git_details_file_lines.append("\nExport: " + export.export_name.path_join(export.export_folder))
 		var source_git_path = export.source.path_join(".git")
 		if FileAccess.file_exists(source_git_path):
 			var lines = _get_git_data(export.source, single_export_git_file_lines)

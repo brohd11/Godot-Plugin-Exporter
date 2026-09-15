@@ -8,7 +8,8 @@ exports:
       file_extensions: []
       files: []
     remote_dir: "res://addons/plugin_exporter/src/class/remote/"
-    export_folder: "plugin-exporter{{version=plugin_exporter}}/plugin_exporter"
+    export_name: "plugin-exporter{{version=plugin_exporter}}"
+    export_folder: "addons/plugin_exporter"
     other_transfers: []
     source: "res://addons/plugin_exporter/"
     parser_overide_settings:

@@ -63,7 +63,7 @@ static func newest_after(mtimes:Dictionary, threshold:int) -> String:
 func _resolve_remote(version:String, cache_root:String, refresh:bool) -> Dictionary:
 	var dir = cache_root.path_join("toolchains").path_join("%s-%s" % [NAME, version])
 	var zip_path = dir.path_join(ASSET % version)
-	var plugin_dir = dir.path_join(NAME)
+	var plugin_dir = dir.path_join(DEV_DIR.trim_prefix("res://")) # release zips carry the install layout
 	var cached = FileAccess.file_exists(zip_path) and FileAccess.file_exists(plugin_dir.path_join("plugin.cfg"))
 
 	if refresh or not cached:

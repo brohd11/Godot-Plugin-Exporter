@@ -53,15 +53,14 @@ func _run() -> void:
 	var ok = FileAccess.file_exists(config) and exporter.export_plugin(config) == true
 	var data = file_utils.get_export_data(config)
 	var full = ""
-	var dirs = []
+	var exports = []
 	if data:
 		full = file_utils.get_full_export_path(data.export_root, data.plugin_folder, config)
 		for e in data.exports:
-			var folder = e.get("export_folder", "")
-			if folder == "":
-				folder = String(e.source).trim_suffix("/").get_file()
-			dirs.append(full.path_join(file_utils.replace_version(folder, config)))
-	_finish({"ok": ok, "full_export_path": full, "export_dirs": dirs}, 0 if ok else 1)
+			var folder = file_utils.get_export_folder(e, config)
+			var package = full.path_join(file_utils.get_export_name(e, data.plugin_folder, config))
+			exports.append({"dir": package.path_join(folder), "install_path": "res://" + folder.trim_suffix("/")})
+	_finish({"ok": ok, "full_export_path": full, "exports": exports}, 0 if ok else 1)
 
 # Not can_instantiate(): scripting is off in the editor, so that is false for any non-@tool script
 # however cleanly it compiled. A script that failed to compile has no members at all.

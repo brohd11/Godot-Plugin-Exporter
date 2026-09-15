@@ -13,6 +13,7 @@ const UClassDetail = UtilsRemote.UClassDetail
 
 const ConfirmationDialogHandler = UtilsRemote.ConfirmationDialogHandler
 const ExportIgnore = preload("res://addons/plugin_exporter/src/class/export/export_ignore.gd")
+const ExportPaths = preload("res://addons/plugin_exporter/src/class/export/export_paths.gd")
 
 const VALID_FILE_NAMES = ["plugin_export.yml", "plugin_export.yaml", "plugin_export.json"]
 
@@ -159,6 +160,27 @@ static func get_full_export_path(export_root, plugin_folder, export_config_path)
 			full_export_path = "/" + full_export_path
 	
 	return full_export_path
+
+
+## An export's package folder under the full export path - the unit that gets zipped. Defaults to
+## plugin_folder's last segment. Version resolved, trailing "/".
+static func get_export_name(export_entry:Dictionary, plugin_folder:String, export_config_path) -> String:
+	var export_name = String(export_entry.get(KeysConfig.Export.EXPORT_NAME, ""))
+	if export_name == "":
+		export_name = plugin_folder.trim_suffix("/").get_file()
+	return replace_version(export_name, export_config_path)
+
+## Where an export installs relative to res:// (e.g. "addons/my_plugin/" or "lib/my_lib/"),
+## recreated as-is inside the package so it extracts straight into a project. Defaults to the
+## source dir; "" when export_folder_error() rejects it.
+static func get_export_folder(export_entry:Dictionary, _export_config_path = null) -> String:
+	var folder = String(export_entry.get(KeysConfig.Export.EXPORT_FOLDER, ""))
+	if ExportPaths.export_folder_error(folder) != "":
+		return ""
+	if folder == "":
+		folder = String(export_entry.get(KeysConfig.Export.SOURCE, ""))
+	folder = folder.strip_edges().trim_prefix("res://").trim_prefix("/").trim_suffix("/")
+	return folder + "/" if folder != "" else ""
 
 
 static func run_export_script(script_path, func_name):
@@ -502,6 +524,7 @@ class KeysConfig:
 	class Export:
 		const SOURCE = "source"
 		const REMOTE_DIR = "remote_dir"
+		const EXPORT_NAME = "export_name"
 		const EXPORT_FOLDER = "export_folder"
 		const OTHER_TRANSFERS = "other_transfers"
 		const EXCLUDE = "exclude"

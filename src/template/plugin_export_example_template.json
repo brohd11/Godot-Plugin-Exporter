@@ -4,7 +4,8 @@
 	"exports": [
 		{
 			"source": "Export template - directory to copy",
-			"export_folder": "plugin_name{{version}}/addons/plugin_name",
+			"export_name": "plugin_name{{version}}",
+			"export_folder": "addons/plugin_name",
 			"exclude": {
 				"directories": [],
 				"file_extensions": ["gd", "cs"],
@@ -28,6 +29,7 @@
 		},
 		{
 			"source": "Export template - directory to copy",
+			"export_name": "",
 			"export_folder": "",
 			"exclude": {
 				"directories": [],

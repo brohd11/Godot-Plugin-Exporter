@@ -7,6 +7,7 @@ extends RefCounted
 const DepResolver = preload("res://addons/plugin_exporter/src/class/release/dep_resolver.gd")
 const ReleaseRunner = preload("res://addons/plugin_exporter/src/class/release/release_runner.gd")
 const ExportIgnore = preload("res://addons/plugin_exporter/src/class/export/export_ignore.gd")
+const ExportPaths = preload("res://addons/plugin_exporter/src/class/export/export_paths.gd")
 
 const READY_MARKER = ".pe_release_ready"
 const TOOLCHAIN_PATH = "res://addons/plugin_exporter"
@@ -105,6 +106,16 @@ func _point_export_root(target_dir:String, export_root_abs:String) -> bool:
 		return false
 
 	var text = FileAccess.get_file_as_string(config_path)
+	# Checked here so an unmigrated tagged config fails before a Godot process is spent on it.
+	var folder_regex = RegEx.new()
+	folder_regex.compile(r'(?m)^\s*"?export_folder"?\s*:\s*"([^"]*)"')
+	for m in folder_regex.search_all(text):
+		var reason = ExportPaths.export_folder_error(m.get_string(1))
+		if reason != "":
+			errors.append('%s in the tagged checkout: export_folder "%s" %s; commit the fixed config and re-tag' % [
+				config_path, m.get_string(1), reason])
+			return false
+
 	var regex = RegEx.new()
 	regex.compile(r'(?m)^(\s*"?export_root"?\s*:\s*)"[^"]*"')
 	if regex.search(text) == null:
@@ -118,11 +129,12 @@ func _point_export_root(target_dir:String, export_root_abs:String) -> bool:
 
 ## One workspace per target: re-tagging under --local changes the lock hash on every attempt.
 ## Matches `<target>-<16 hex>` exactly, so plugin_exporter never prunes plugin_exporter_test's.
+## A nested target (`addon_lib/brohd`) sits in a subdir, so only its last segment is in the name.
 func _prune_other_workspaces(target_name:String, keep:String) -> void:
 	var dir = keep.get_base_dir()
 	if not DirAccess.dir_exists_absolute(dir):
 		return
-	var prefix = target_name + "-"
+	var prefix = target_name.get_file() + "-"
 	for d in DirAccess.get_directories_at(dir):
 		var suffix = d.trim_prefix(prefix)
 		if not d.begins_with(prefix) or suffix.length() != 16 or not suffix.is_valid_hex_number():

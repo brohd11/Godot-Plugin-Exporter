@@ -10,7 +10,8 @@
 				"files": []
 			},
 			"remote_dir":"res://addons/plugin_exporter/src/class/remote/",
-			"export_folder": "plugin-exporter{{version=plugin_exporter}}/plugin_exporter",
+			"export_name": "plugin-exporter{{version=plugin_exporter}}",
+			"export_folder": "addons/plugin_exporter",
 			"other_transfers": [
 				{"to":"modular_browser/.gdignore"}
 			],
@@ -31,7 +32,8 @@
 				"files": []
 			},
 			"remote_dir":"res://addons/plugin_exporter/src/class/remote/",
-			"export_folder": "plugin-exporter-backport{{version=plugin_exporter}}/plugin_exporter_backport",
+			"export_name": "plugin-exporter-backport{{version=plugin_exporter}}",
+			"export_folder": "addons/plugin_exporter_backport",
 			"other_transfers": [
 				{"to":"modular_browser/.gdignore"}
 			],
