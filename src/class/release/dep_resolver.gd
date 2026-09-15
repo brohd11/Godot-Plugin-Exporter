@@ -2,17 +2,20 @@
 extends RefCounted
 ## Resolves an addon's build dependency graph to pinned tags for a release export. Requirements are
 ## `build_require` / `compile_require` in each package's export_ignore/plugin_export.* - plugin.cfg's
-## `require` is install-time only (gdaddon's). Versions are picked Go-MVS style: each repo gets the
+## `require` is install-time only (gdaddon's) unless build_require names `@require`. Versions are
+## picked Go-MVS style: each repo gets the
 ## highest tag any reachable requirement names. Repo access goes through `fetcher` (PackageFetcher,
 ## or a fake in tests); each package's addon folder and install path come from PackageLayout.
 
 const PackageLayout = preload("res://addons/plugin_exporter/src/class/release/package_layout.gd")
+const ExportIgnore = preload("res://addons/plugin_exporter/src/class/export/export_ignore.gd")
 
 const DEFAULT_HOST = "github.com"
 const CFG_NAMES = ["plugin.cfg", "version.cfg"]
 const CONFIG_NAMES = ["plugin_export.yml", "plugin_export.yaml", "plugin_export.json"]
 const BUILD_KEY = "build_require"
 const COMPILE_KEY = "compile_require"
+const REQUIRE_REF = "@require" # build_require item standing for the package cfg's require list
 const TAGS_INCOMPARABLE = -99
 const KIND_AUTO = "auto"
 const KIND_SOURCE = "source"
@@ -78,8 +81,9 @@ static func parse_dep(item:String) -> Dep:
 
 ## {requires: [{dep, compile}], error} from export config text. Each key holds a list of specs or a
 ## single spec; malformed specs are skipped. A repo in both keys yields both entries, and the
-## compile one wins when verify flags are worked out.
-static func requires_in_export_config(text:String, ext:String) -> Dictionary:
+## compile one wins when verify flags are worked out. `@require` under build_require expands to
+## `cfg_text`'s require list - the package's own plugin.cfg/version.cfg.
+static func requires_in_export_config(text:String, ext:String, cfg_text:String = "") -> Dictionary:
 	var data = null
 	if ext == "json":
 		var json = JSON.new()
@@ -97,14 +101,51 @@ static func requires_in_export_config(text:String, ext:String) -> Dictionary:
 		return {"requires": [], "error": "the top level is not a mapping"}
 
 	var out = []
+	var errors = []
 	for key in [BUILD_KEY, COMPILE_KEY]:
 		var value = data.get(key, [])
 		var items = value if value is Array else ([value] if value is String and value != "" else [])
+		var specs = []
 		for item in items:
-			var dep = parse_dep(str(item))
+			if str(item).strip_edges() != REQUIRE_REF:
+				specs.append(str(item))
+			elif key == COMPILE_KEY:
+				errors.append("%s is only valid under %s" % [REQUIRE_REF, BUILD_KEY])
+			elif cfg_text == "":
+				errors.append("%s needs the package's plugin.cfg or version.cfg" % REQUIRE_REF)
+			else:
+				specs.append_array(cfg_require(cfg_text))
+		for spec in specs:
+			var dep = parse_dep(spec)
 			if dep != null:
 				out.append({"dep": dep, "compile": key == COMPILE_KEY})
-	return {"requires": out, "error": ""}
+	return {"requires": out, "error": "; ".join(errors)}
+
+
+## Specs in the [plugin] section's `require` array, as gdaddon writes it: one line or several, with
+## a trailing comma allowed. Collected up to the closing bracket, so plugin_section() can't read it.
+static func cfg_require(cfg_text:String) -> Array[String]:
+	var out:Array[String] = []
+	var in_plugin = false
+	var array_text = ""
+	var collecting = false
+	for line in cfg_text.split("\n"):
+		var stripped = line.strip_edges()
+		if collecting:
+			if not stripped.begins_with(";"):
+				array_text += "\n" + stripped
+		elif stripped.begins_with("["):
+			in_plugin = stripped == "[plugin]"
+			continue
+		elif in_plugin and "=" in stripped and stripped.get_slice("=", 0).strip_edges() == "require":
+			collecting = true
+			array_text = stripped.substr(stripped.find("=") + 1)
+		if collecting and "]" in array_text:
+			break
+	for m in RegEx.create_from_string('"([^"]*)"').search_all(array_text):
+		if m.get_string(1).strip_edges() != "":
+			out.append(m.get_string(1).strip_edges())
+	return out
 
 
 ## Raw `key=value` strings of a cfg's [plugin] section. Hand-read rather than ConfigFile, which
@@ -343,13 +384,10 @@ func _requires(node:Array, default_dest:String) -> Dictionary:
 	if _requires_cache.has(key):
 		return _requires_cache[key]
 	var result = {"requires": [], "error": ""}
-	for nm in CONFIG_NAMES:
-		var rel = "export_ignore".path_join(nm)
-		if pkg.src != "":
-			rel = pkg.src.path_join(rel)
+	for rel in ExportIgnore.candidates(pkg.src, CONFIG_NAMES):
 		var text = fetcher.read_file(pkg.info, rel)
 		if text != null:
-			result = requires_in_export_config(text, nm.get_extension())
+			result = requires_in_export_config(text, rel.get_extension(), _cfg_text(pkg.info, pkg.src))
 			if result.error != "":
 				result.error = "%s: %s" % [rel, result.error]
 			break
@@ -445,7 +483,7 @@ static func _scan_dev_repos(dir:String, depth:int, out:Dictionary) -> void:
 	if depth <= 0:
 		return
 	for sub in DirAccess.get_directories_at(dir):
-		if sub.begins_with(".") or sub == "export_ignore":
+		if sub.begins_with(".") or ExportIgnore.is_name(sub):
 			continue
 		var path = dir.path_join(sub)
 		var git_path = path.path_join(".git")

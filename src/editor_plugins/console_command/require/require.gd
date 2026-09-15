@@ -5,7 +5,7 @@ const PECommandUtils = preload("res://addons/plugin_exporter/src/editor_plugins/
 
 const _HELP = \
 "List the packages (dirs with a plugin.cfg or version.cfg) a plugin's export pulls in, grouped by
-the package whose export_ignore/plugin_export config should list them under build_require. Identity
+the package whose _export_ignore (or export_ignore) plugin_export config should list them under build_require. Identity
 is the git origin, or the cfg url= for a release package. Runs the export crawl only (nothing is
 written) and reports without tags.
 Usage: plugin_exporter require <plugin_name>"

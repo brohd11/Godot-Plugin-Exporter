@@ -22,9 +22,9 @@ All global class or "#! remote" files will be scanned, and any global classes us
 
 ### Setup
 
-You can open a plugin exporter instance from the project menu. In the instance tool menu (screwdriver and wrench), select "Plugin Init". This will prompt you to select your plugin folder. Once selected, an "export_ignore" folder will be created in your plugin. It holds a json configuration file, as well as a gdscript file that has a pre and post export function. These will be called during export and can be used to do anything that may need to be done before or after export.  For example, resetting config files to default values or creating a .gdignore file manually.
+You can open a plugin exporter instance from the project menu. In the instance tool menu (screwdriver and wrench), select "Plugin Init". This will prompt you to select your plugin folder. Once selected, an "_export_ignore" folder will be created in your plugin (an existing "export_ignore" folder is reused instead - both names work, and "_export_ignore" wins if a plugin has both). It holds a json configuration file, as well as a gdscript file that has a pre and post export function. These will be called during export and can be used to do anything that may need to be done before or after export.  For example, resetting config files to default values or creating a .gdignore file manually.
 
-The default export location is "export_ignore/exports". A .gdignore file is created in "exports" so that the files are not imported into your project.
+The default export location is "_export_ignore/exports". The folder itself is never copied into an export, whatever the exclude list says. A .gdignore file is created in "exports" so that the files are not imported into your project.
 
 Alternatively, you can run this setup from the [editor console plugin](https://github.com/brohd11/Godot-Editor-Console) that is bundled with this plugin. With or without the GUI open, run: `PluginExporter call -- plugin_init my_plugin_folder`
 

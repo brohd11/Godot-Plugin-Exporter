@@ -3,26 +3,35 @@ extends RefCounted
 
 ## Builds the shipped min-version index from Godot's extension_api dumps.
 ##
-## Diffs every full `extension_api_*.json` in the dev-only SOURCE_DIR in ascending
+## Diffs every full `extension_api_*.json` in the dev-only source_dir() in ascending
 ## version order and writes one compact `api_min_version.json`: each class / member /
 ## global mapped to its earliest Godot version, plus an `inherits` map for hierarchy walks.
 ## Re-run when dumps change: `preload("res://addons/plugin_exporter/src/editor_plugins/console_command/min_version/extract_api.gd").build()`
 
-const UFile = preload("uid://bl33psa06nv1e") #! resolve ALibRuntime.Utils.UFile.Methods
+const UtilsRemote = preload("res://addons/plugin_exporter/src/class/utils_remote.gd")
 
-const SOURCE_DIR := "res://addons/plugin_exporter/export_ignore/extension_api/"
+const UFile = UtilsRemote.UFile
+
+const ExportIgnore = preload("res://addons/plugin_exporter/src/class/export/export_ignore.gd")
+
 const OUTPUT_PATH := "res://addons/plugin_exporter/src/editor_plugins/console_command/min_version/extension_api/api_min_version.json"
+
+
+## The dumps folder inside plugin_exporter's own _export_ignore/ (or export_ignore/).
+static func source_dir() -> String:
+	return ExportIgnore.dir_or_default("res://addons/plugin_exporter").path_join("extension_api/")
 
 
 ## Build the merged index. Returns the output path (empty on failure).
 static func build() -> String:
 	# Discover every extension_api_*.json dump and read its version from the
 	# header (authoritative, major-agnostic), ascending by version.
+	var source := source_dir()
 	var dumps := []  # [{path:String, version:String}]
-	for file_name in DirAccess.get_files_at(SOURCE_DIR):
+	for file_name in DirAccess.get_files_at(source):
 		if not (file_name.begins_with("extension_api_") and file_name.ends_with(".json")):
 			continue
-		var path := SOURCE_DIR.path_join(file_name)
+		var path := source.path_join(file_name)
 		var data: Dictionary = UFile.read_from_json(path)
 		var header: Dictionary = data.get("header", {})
 		if not header.has("version_minor"):
@@ -31,7 +40,7 @@ static func build() -> String:
 		var version := "%d.%d" % [int(header.get("version_major", 4)), int(header.get("version_minor"))]
 		dumps.append({"path": path, "version": version})
 	if dumps.is_empty():
-		printerr("extract_api: no extension_api_*.json dumps in ", SOURCE_DIR)
+		printerr("extract_api: no extension_api_*.json dumps in ", source)
 		return ""
 	dumps.sort_custom(func(a, b): return _version_code(a["version"]) < _version_code(b["version"]))
 

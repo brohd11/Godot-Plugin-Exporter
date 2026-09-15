@@ -75,7 +75,7 @@ func _init(export_config_path):
 	include_docs = options.get(KeysConfig.Options.INCLUDE_DOCS, true)
 	include_project_license = options.get(KeysConfig.Options.INCLUDE_PROJECT_LICENSE, false)
 
-	# The config always sits in the export_ignore dir, so the doc folder is found beside it.
+	# The config always sits in the _export_ignore (or export_ignore) dir, so docs are found beside it.
 	var doc_source_dir = export_config_path.get_base_dir().path_join("doc")
 
 	parser_settings = options.get(KeysConfig.Options.PARSER_SETTINGS, {})

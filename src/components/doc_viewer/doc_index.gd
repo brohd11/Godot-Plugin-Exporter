@@ -8,8 +8,9 @@ const Parser = preload("res://addons/plugin_exporter/src/components/doc_viewer/m
 
 ## Packaged docs. Dot-prefixed by the exporter so Godot never imports them.
 const DOC_DIR_NAME = ".doc"
-## Where the docs live before they are packaged, so the viewer works in a dev project too.
-const SOURCE_DOC_DIR = "export_ignore/doc"
+## Where the docs live before they are packaged, so the viewer works in a dev project too. Both
+## spellings of the dev-only folder are accepted; the first that exists wins.
+const SOURCE_DOC_DIRS = ["_export_ignore/doc", "export_ignore/doc"]
 
 const KEY_PATH = "path"
 const KEY_REL = "rel"
@@ -26,7 +27,10 @@ static func find_doc_dir(path:String) -> String:
 	path = path.trim_suffix("/")
 	if path == "" or not DirAccess.dir_exists_absolute(path):
 		return ""
-	for candidate in [path.path_join(DOC_DIR_NAME), path.path_join(SOURCE_DOC_DIR)]:
+	var candidates = [path.path_join(DOC_DIR_NAME)]
+	for source_dir in SOURCE_DOC_DIRS:
+		candidates.append(path.path_join(source_dir))
+	for candidate in candidates:
 		if DirAccess.dir_exists_absolute(candidate):
 			return candidate
 	# A caller can also point straight at a doc folder. An addon root is never one, however many

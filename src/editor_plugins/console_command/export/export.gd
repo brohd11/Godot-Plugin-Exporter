@@ -49,6 +49,9 @@ func _execute(ctx:Context):
 	var success
 	if release_flag:
 		success = PluginExporter.export_release(plugin_name, refresh_flag, local_flag)
+		if not success:
+			for line in load("res://addons/plugin_exporter/src/class/release/release_export.gd").messages:
+				ctx.append_error(line)
 	else:
 		success = PluginExporter.export(plugin_name)
 	return ExitCode.OK if success else ExitCode.FAIL

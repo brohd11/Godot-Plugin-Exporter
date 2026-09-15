@@ -63,8 +63,10 @@ func _run() -> void:
 			dirs.append(full.path_join(file_utils.replace_version(folder, config)))
 	_finish({"ok": ok, "full_export_path": full, "export_dirs": dirs}, 0 if ok else 1)
 
+# Not can_instantiate(): scripting is off in the editor, so that is false for any non-@tool script
+# however cleanly it compiled. A script that failed to compile has no members at all.
 func _compiled(script) -> bool:
-	return script is GDScript and script.can_instantiate()
+	return script is GDScript and not script.get_script_method_list().is_empty()
 
 func _finish(result:Dictionary, code:int) -> void:
 	if _done:

@@ -6,6 +6,7 @@ extends RefCounted
 
 const DepResolver = preload("res://addons/plugin_exporter/src/class/release/dep_resolver.gd")
 const ReleaseRunner = preload("res://addons/plugin_exporter/src/class/release/release_runner.gd")
+const ExportIgnore = preload("res://addons/plugin_exporter/src/class/export/export_ignore.gd")
 
 const READY_MARKER = ".pe_release_ready"
 const TOOLCHAIN_PATH = "res://addons/plugin_exporter"
@@ -95,13 +96,12 @@ func _write_project(ws:String, target_name:String, debug_section:String) -> bool
 ## it. A line edit rather than a parse/dump, which would drop the config's comments.
 func _point_export_root(target_dir:String, export_root_abs:String) -> bool:
 	var config_path = ""
-	for nm in CONFIG_NAMES:
-		var p = target_dir.path_join("export_ignore").path_join(nm)
+	for p in ExportIgnore.candidates(target_dir, CONFIG_NAMES):
 		if FileAccess.file_exists(p):
 			config_path = p
 			break
 	if config_path == "":
-		errors.append("no plugin_export config in the tagged checkout at " + target_dir.path_join("export_ignore"))
+		errors.append("no plugin_export config in _export_ignore/ or export_ignore/ of the tagged checkout at " + target_dir)
 		return false
 
 	var text = FileAccess.get_file_as_string(config_path)

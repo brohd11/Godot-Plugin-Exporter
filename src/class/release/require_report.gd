@@ -1,15 +1,19 @@
 @tool
 extends RefCounted
-## What a plugin's build requirements need to say: runs the normal export crawl (nothing is
-## written) and maps every dependency file to the package it belongs to - the nearest dir with a
-## plugin.cfg or version.cfg - so 50 files of one release come back as one package. Packages are
-## grouped by the package whose files pull them in, since that one's export_ignore/plugin_export.*
-## is where the `build_require` entry belongs. The crawl keeps one dependent per file, so a package
-## needed from two places may list under only one.
+## What a plugin's build requirements need to say: scans everything the plugin exports and maps
+## each reference to the package it lands in - the nearest dir with a plugin.cfg or version.cfg -
+## so 50 files of one release come back as one package. Packages are grouped by the package making
+## the reference, since that one's export_ignore/plugin_export.* is where `build_require` belongs.
+## Its own scan, not the export crawl: that only starts from "#! remote" scripts and keeps one
+## dependent per file, so a plain script's reference to another package went unseen.
 
 const UtilsLocal = preload("res://addons/plugin_exporter/src/class/utils_local.gd")
+const UtilsRemote = preload("res://addons/plugin_exporter/src/class/utils_remote.gd")
 const ExportFileUtils = UtilsLocal.ExportFileUtils
 const ExportData = UtilsLocal.ExportData
+const DependencyTags = UtilsLocal.DependencyTags
+const Dependencies = UtilsRemote.Dependencies
+const DepEdge = Dependencies.DepEdge
 const DepResolver = preload("res://addons/plugin_exporter/src/class/release/dep_resolver.gd")
 
 const CFG_NAMES = ["plugin.cfg", "version.cfg"]
@@ -35,21 +39,40 @@ static func build(plugin_name:String) -> Dictionary:
 	report.target = target
 	var needed = {target: {}} # from package -> {required package -> file count}
 
+	var roots = {}
 	for export in data.exports:
-		for file:String in export.file_dependencies:
-			var package = _package_dir(file, cache)
-			if package == target and package != "":
-				continue # the plugin's own files are never a requirement
-			var dependent = export.file_dependencies[file].get("dependent")
-			var from = _package_dir(dependent, cache) if dependent is String and dependent != "" else target
-			if package == from and package != "":
-				continue
-			if package == "":
-				report.loose[file.get_base_dir()] = report.loose.get(file.get_base_dir(), 0) + 1
-				continue
-			if not needed.has(from):
-				needed[from] = {}
-			needed[from][package] = needed[from].get(package, 0) + 1
+		for file:String in export.valid_files_for_transfer:
+			roots[file] = true
+	var scanner = Dependencies.open_many(roots.keys())
+	scanner.class_map = data.class_list
+	scanner.include_missing = false # a file not on disk can't be packaged
+	scanner.follow_load = false
+	scanner.ignore_dir_names = DepResolver.ExportIgnore.NAMES.duplicate()
+	scanner.add_tag_handler(DependencyTags.TAG, DependencyTags.dependency_dir())
+	var graph = scanner.get_graph()
+
+	# Every edge, so a file referenced from inside and outside its package still counts the outside.
+	var counted = {}
+	for edge in graph.edges:
+		# a load() target compiles without the file - same rule as the export, it needs "#! dependency"
+		if edge.to == "" or edge.kind == DepEdge.Kind.LOAD:
+			continue
+		var package = _package_dir(edge.to, cache)
+		if package == target and package != "":
+			continue # the plugin's own files are never a requirement
+		var from = _package_dir(edge.from, cache)
+		if package == from and package != "":
+			continue
+		var key = "%s|%s" % [edge.to, from]
+		if counted.has(key):
+			continue
+		counted[key] = true
+		if package == "":
+			report.loose[edge.to.get_base_dir()] = report.loose.get(edge.to.get_base_dir(), 0) + 1
+			continue
+		if not needed.has(from):
+			needed[from] = {}
+		needed[from][package] = needed[from].get(package, 0) + 1
 
 	var identities = {}
 	for from in needed:
@@ -65,10 +88,12 @@ static func build(plugin_name:String) -> Dictionary:
 			rows.append({"dir": package, "id": identity.id, "via": identity.via, "files": needed[from][package], "declared": state})
 		rows.sort_custom(func(a, b): return a.id < b.id if a.id != b.id else a.dir < b.dir)
 		report.groups[from] = {"config": declared.config, "rows": rows}
-		# compile_require entries are expected not to be crawled, so only build entries can be unused
-		var unused = declared.build.keys().filter(func(i): return not needed_ids.has(i))
-		if not unused.is_empty():
-			report.unused[from] = unused
+		# Only the target: this crawl reaches just part of any other package, so its declarations
+		# can't be judged here. compile_require entries are expected not to be crawled at all.
+		if from == target:
+			var unused = declared.build.keys().filter(func(i): return not needed_ids.has(i))
+			if not unused.is_empty():
+				report.unused[from] = unused
 	return report
 
 
@@ -99,7 +124,7 @@ static func format(report:Dictionary) -> String:
 			continue
 		var header = from if from != "" else "(dependents outside any package)"
 		if from != "" and not group.config:
-			header += "  (no export_ignore/plugin_export config - it declares nothing)"
+			header += "  (no plugin_export config - it declares nothing)"
 		lines.append(header)
 		for r in rows:
 			var name = r.id.trim_prefix("github.com/") if r.id != "" else "(no git origin or url=)"
@@ -153,12 +178,11 @@ static func _declared(dir:String) -> Dictionary:
 	var out = {"config": false, "build": {}, "compile": {}}
 	if dir == "":
 		return out
-	for nm in DepResolver.CONFIG_NAMES:
-		var path = dir.path_join("export_ignore").path_join(nm)
+	for path in DepResolver.ExportIgnore.candidates(dir, DepResolver.CONFIG_NAMES):
 		if not FileAccess.file_exists(path):
 			continue
 		out.config = true
-		var parsed = DepResolver.requires_in_export_config(FileAccess.get_file_as_string(path), nm.get_extension())
+		var parsed = DepResolver.requires_in_export_config(FileAccess.get_file_as_string(path), path.get_extension(), _cfg_text(dir))
 		for req in parsed.requires:
 			out["compile" if req.compile else "build"][req.dep.repo_id] = true
 		break

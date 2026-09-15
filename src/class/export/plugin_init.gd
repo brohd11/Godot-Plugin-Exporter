@@ -7,6 +7,7 @@ const ConfirmationDialogHandler = UtilsRemote.ConfirmationDialogHandler
 
 const ExportFileUtils = UtilsLocal.ExportFileUtils
 const KeysConfig = ExportFileUtils.KeysConfig
+const ExportIgnore = ExportFileUtils.ExportIgnore
 
 static func new_plugin(plugin_dir_name, create_export:=true):
 	var new_plugin_path = "res://addons/%s" % plugin_dir_name
@@ -51,7 +52,7 @@ static func plugin_init(plugin_name:=""):
 		plugin_dir = handled
 	
 	var export_dir:String = ProjectSettings.localize_path(plugin_dir)
-	var export_ignore_dir = export_dir.path_join("export_ignore")
+	var export_ignore_dir = ExportIgnore.dir_or_default(export_dir) # keeps an existing folder's name
 	if not DirAccess.dir_exists_absolute(export_ignore_dir):
 		DirAccess.make_dir_recursive_absolute(export_ignore_dir)
 	
@@ -163,7 +164,7 @@ class PluginExportJSON:
 			KeysConfig.PLUGIN_FOLDER: "",
 			KeysConfig.PRE_SCRIPT: "",
 			KeysConfig.POST_SCRIPT: "",
-			KeysConfig.BUILD_REQUIRE: [],
+			KeysConfig.BUILD_REQUIRE: "@require", # plugin.cfg's require list (DepResolver.REQUIRE_REF)
 			KeysConfig.COMPILE_REQUIRE: [],
 			KeysConfig.OPTIONS: {
 				KeysConfig.Options.OVERWRITE: true,

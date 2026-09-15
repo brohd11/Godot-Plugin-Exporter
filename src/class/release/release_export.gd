@@ -22,10 +22,14 @@ const GIT_DETAILS_FILE = ".export_git_details"
 const UNVERIFIED_SUFFIX = "-unverified"
 const TOOLCHAIN_SCRIPTS = "res://addons/plugin_exporter/src/class/"
 
+## Failure lines from the last export_release call, for callers that don't see the Output log.
+static var messages:Array[String] = []
+
 
 ## `local` fetches every repo checked out in this project from that checkout rather than its
 ## remote - still by tag, so nothing uncommitted gets in, but nothing has to be pushed either.
 static func export_release(plugin_name:String, refresh:bool = false, local:bool = false) -> bool:
+	messages.clear()
 	plugin_name = plugin_name.trim_prefix("/").trim_suffix("/")
 	var started = Time.get_ticks_msec()
 	var ok = _export_release(plugin_name, refresh, local)
@@ -63,7 +67,7 @@ static func _export_release(plugin_name:String, refresh:bool, local:bool) -> boo
 	var lock = resolver.resolve(url, version, dev_dir)
 	if lock.is_empty():
 		for e in resolver.errors:
-			printerr("  " + e)
+			_note("  " + e)
 		return false
 	if local:
 		lock.local = true
@@ -82,7 +86,7 @@ static func _export_release(plugin_name:String, refresh:bool, local:bool) -> boo
 		var info = tc.resolve(options, cache.root, local, refresh, _local_toolchain_dir() if local else "")
 		if info.is_empty():
 			for e in tc.errors:
-				printerr("  " + e)
+				_note("  " + e)
 			return false
 		toolchain = info.dir
 		lock.toolchain = {"version": info.version, "source": info.source, "id": info.id}
@@ -94,7 +98,7 @@ static func _export_release(plugin_name:String, refresh:bool, local:bool) -> boo
 	var ws = workspace.build(lock, plugin_name, toolchain, export_root, debug_section)
 	if ws == "":
 		for e in workspace.errors:
-			printerr("  " + e)
+			_note("  " + e)
 		return false
 
 	print("Release export: exporting in " + ws)
@@ -103,7 +107,7 @@ static func _export_release(plugin_name:String, refresh:bool, local:bool) -> boo
 		var broken = ReleaseRunner.script_errors(run.output).filter(func(e): return TOOLCHAIN_SCRIPTS in e)
 		if not broken.is_empty():
 			for e in broken.slice(0, 8):
-				printerr("  " + e)
+				_note("  " + e)
 			return _fail("toolchain %s %s (%s) export scripts don't compile" % [
 				Toolchain.NAME, lock.toolchain.version, lock.toolchain.source])
 	if run.result.is_empty() or not run.result.get("ok", false):
@@ -111,7 +115,7 @@ static func _export_release(plugin_name:String, refresh:bool, local:bool) -> boo
 		if errs.is_empty():
 			printerr(run.output.right(4000))
 		for e in errs.slice(0, 12):
-			printerr("  " + e)
+			_note("  " + e)
 		return _fail("export in workspace failed (exit %d): %s" % [run.exit, run.result.get("error", "see output above")])
 
 	var full_export_path:String = run.result.full_export_path
@@ -138,11 +142,11 @@ static func _export_release(plugin_name:String, refresh:bool, local:bool) -> boo
 		if errs.is_empty():
 			ReleaseRunner.remove_dir(work_dir)
 		else:
-			printerr("  compile check project kept at " + work_dir)
+			_note("  compile check project kept at " + work_dir)
 
 	if not failures.is_empty():
 		for f in failures:
-			printerr("  " + f)
+			_note("  " + f)
 		_mark_unverified(full_export_path)
 		return _fail("output does not compile on its own; moved to *%s" % UNVERIFIED_SUFFIX)
 	return true
@@ -229,5 +233,11 @@ static func _warn_unpushed(lock:Dictionary, dev_repos:Dictionary) -> void:
 
 
 static func _fail(message:String) -> bool:
-	printerr("Release export: " + message)
+	_note("Release export: " + message)
 	return false
+
+
+## printerr, and kept in `messages` so the console command can show why - Output alone is easy to miss.
+static func _note(line:String) -> void:
+	printerr(line)
+	messages.append(line)

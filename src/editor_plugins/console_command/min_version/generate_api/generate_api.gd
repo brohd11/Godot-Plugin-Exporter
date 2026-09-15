@@ -1,7 +1,7 @@
 extends GDSh.CommandBase
 
 ## Rebuilds the trimmed min-version index (api_min_version.json) from the full
-## extension_api dumps in plugin_exporter/export_ignore/extension_api/.
+## extension_api dumps in plugin_exporter/_export_ignore/extension_api/ (or export_ignore/).
 ## The version list is baked from whatever dumps are present, so supporting a new
 ## Godot release is just: drop its extension_api_<major><minor>.json in that dir
 ## and re-run this command — no code changes.
@@ -10,7 +10,7 @@ const ExtractApi = preload("res://addons/plugin_exporter/src/editor_plugins/cons
 
 const _HELP = \
 "Rebuild the min_version API index from the extension_api dumps in
-plugin_exporter/export_ignore/extension_api/.
+plugin_exporter/_export_ignore/extension_api/ (or export_ignore/).
 Usage: plugin_exporter min_version generate_api"
 
 static func get_command_name() -> String:

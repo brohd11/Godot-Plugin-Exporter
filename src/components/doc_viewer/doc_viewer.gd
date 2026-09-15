@@ -2,7 +2,7 @@ extends VBoxContainer
 ## Documentation browser for a plugin: contents page listing every doc, then one page per doc.
 ##
 ## Point it at an addon directory and it finds the docs itself - the packaged ".doc" folder, the
-## "export_ignore/doc" folder it came from in a dev project, or the plugin's README as a last
+## "_export_ignore/doc" (or "export_ignore/doc") folder it came from in a dev project, or the plugin's README as a last
 ## resort. Point it at a single file instead and that file is the whole viewer, no folder scan.
 ## Engine-only and plugin agnostic, so it can be lifted out of here as is.
 

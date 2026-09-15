@@ -142,7 +142,7 @@ static func _clear_export_dir(full_export_path):
 		if full_export_path == dir:
 			printerr("Could not clear export dir: %s" % full_export_path)
 			printerr("This is so project files are not deleted.")
-			printerr("Recommended location: res://addons/my_plugin/export_ignore/exports")
+			printerr("Recommended location: res://addons/my_plugin/_export_ignore/exports")
 			return false
 	
 	if not DirAccess.dir_exists_absolute(full_export_path):

@@ -12,6 +12,7 @@ const UEditor = UtilsRemote.UEditor
 const UClassDetail = UtilsRemote.UClassDetail
 
 const ConfirmationDialogHandler = UtilsRemote.ConfirmationDialogHandler
+const ExportIgnore = preload("res://addons/plugin_exporter/src/class/export/export_ignore.gd")
 
 const VALID_FILE_NAMES = ["plugin_export.yml", "plugin_export.yaml", "plugin_export.json"]
 
@@ -20,16 +21,15 @@ static var _lookback_regex:RegEx
 
 static var string_maps = {}
 
+## The plugin's export config in _export_ignore/ or export_ignore/, preferring the former. With
+## none, where one would go - so "not found" messages point at a sensible path.
 static func get_export_config_path(addon_name:String):
 	addon_name = addon_name.trim_prefix("/").trim_suffix("/")
-	var file_paths = []
-	for nm in VALID_FILE_NAMES:
-		file_paths.append("res://addons/%s/export_ignore/%s" % [addon_name, nm])
-
-	for file in file_paths:
+	var plugin_dir = "res://addons/%s" % addon_name
+	for file in ExportIgnore.candidates(plugin_dir, VALID_FILE_NAMES):
 		if FileAccess.file_exists(file):
 			return file
-	return file_paths[0]
+	return ExportIgnore.dir_or_default(plugin_dir).path_join(VALID_FILE_NAMES[0])
 
 static func get_export_data(export_config_path:String):
 	if not FileAccess.file_exists(export_config_path):
@@ -188,6 +188,8 @@ static func _run_export_script(script_path, func_name):
 
 
 static func check_ignore(local_path, export_obj:ExportData.Export):
+	if ExportIgnore.is_inside(local_path, export_obj.source):
+		return true # the plugin's dev-only folder never ships, whatever the exclude list still names
 	for d in export_obj.exclude_directories:
 		if local_path.find(d) > -1:
 			return true

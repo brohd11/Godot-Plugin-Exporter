@@ -152,8 +152,8 @@ plugin_exporter export --release --local my_plugin
 
 **Build requirements.** A release export takes its dependencies from the main body of the export
 config, declared once for every export entry. `require`/`deps` in `plugin.cfg` are install-time
-only (gdaddon's), and the exporter ignores them, so an optional dependency such as a GDExtension
-with a GDScript fallback never has to be built against.
+only (gdaddon's), and the exporter ignores them unless `build_require` names `"@require"`, so an
+optional dependency such as a GDExtension with a GDScript fallback never has to be built against.
 
 ```yaml
 build_require:
@@ -167,7 +167,11 @@ compile_require:
 - `compile_require`: also installed beside the exported plugin when it is verified, for extensions
   or plugins yours is meant to run with. A repo in both lists counts as `compile_require`.
 - Each key takes a list of specs or a single spec.
-- A package without an `export_ignore/plugin_export.*` declares nothing. A library that needs
+- `"@require"` in `build_require` stands for the package's own `plugin.cfg`/`version.cfg`
+  `require=` list, so it isn't written twice. It can sit in a list beside explicit specs, and is the
+  default for a new plugin. Not valid in `compile_require`.
+- The config lives in `_export_ignore/` or `export_ignore/`; when both hold one, `_export_ignore`
+  wins. A package without either config declares nothing. A library that needs
   something can carry a config with only these keys.
 - Release zips never include `export_ignore/`, so a dependency fetched as a release declares
   nothing. That's intended: an exported package already carries what it uses.
