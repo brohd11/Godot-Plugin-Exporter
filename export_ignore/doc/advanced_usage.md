@@ -92,9 +92,20 @@ func spawn(at: Vector2) -> Array:
   signals, setters/getters, annotations, or extending anything but RefCounted/Object fail the export.
 - `X.new(...)` becomes an array literal when the arguments are in field order and every other field
   defaults to a literal; otherwise it becomes `X.create(...)`.
-- `: X`, `-> X`, `as X`, `Array[X]` and `Dictionary[K, X]` become `Array`. `is X` fails the export.
-- **Field access is not rewritten yet** (`hit.damage` to `hit[Hit.DAMAGE]`), so a struct whose fields
-  are read outside its own class will not compile after export.
+- `: X`, `-> X`, `as X`, `Array[X]` and `Dictionary[K, X]` become `Array`.
+- `hit.damage` becomes `hit[Hit.DAMAGE]` wherever `hit` is statically typed as the struct: a typed
+  var, param, member or return, `:=`, a `for` over a typed Array, an index into one. A file that
+  reads a field without naming the struct gets a `const` preload appended for the enum.
+- A struct must keep its static type, because once it is an Array a field read through Variant
+  compiles and only fails at runtime. So the export fails on:
+  - an untyped `var x = <struct>`, or a var typed as something else
+  - returning a struct from a func whose return type isn't that struct
+  - assigning a struct into a slot not typed as it
+  - passing a struct to an untyped parameter
+  - appending or inserting one into an untyped Array
+  - `is X`, `is_instance_valid()`, `get()`/`set()`/`call()` on a struct
+- Not checked: structs inside array or dictionary literals, emitted through signals, or passed to
+  engine methods with Variant parameters.
 
 ### Tags
 

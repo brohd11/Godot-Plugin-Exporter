@@ -342,6 +342,217 @@ static func _struct_for(head:String, line:int, resolve:Callable, structs:Diction
 #endregion
 
 
+#region Field access
+
+## `recv.field` -> `recv[S.FIELD]` wherever `type_of.call(recv, line)` returns the class path of a
+## struct owning `field`; `name_for.call(class_path)` is how this file spells that struct. Only the
+## `.field` text changes, so `a.b.c` needs no ordering. Run it before rewrite_lines(): the receiver
+## text must still be what the type resolver parsed. Returns {lines, ops, used:{class_path: true}}.
+static func rewrite_access(lines:PackedStringArray, type_of:Callable, structs:Dictionary, name_for:Callable) -> Dictionary:
+	var out:PackedStringArray = lines.duplicate()
+	var ops = {}
+	var used = {}
+	var regex = _field_regex(structs)
+	if regex == null:
+		return {"lines": out, "ops": ops, "used": used}
+
+	var state = {"quote": "", "depth": 0, "cont": false}
+	for i in lines.size():
+		var in_string = state.quote != ""
+		var comment_idx = TagRegistry.scan_code(lines[i], state)
+		if in_string:
+			continue
+		var code = lines[i].substr(0, comment_idx) if comment_idx > -1 else lines[i]
+		var mask = _string_mask(code)
+		var edits = [] # [receiver start, dot, field end, replacement]
+		for m in regex.search_all(code):
+			var dot = m.get_start()
+			if mask[dot] == 1:
+				continue
+			var start = receiver_start(code, mask, dot)
+			if start == dot:
+				continue
+			var path:String = type_of.call(code.substr(start, dot - start), i)
+			var enum_name = _enum_of(structs.get(path, {}), m.get_string("field"))
+			if enum_name == "":
+				continue
+			edits.append([start, dot, m.get_end(), "[%s.%s]" % [name_for.call(path), enum_name]])
+			used[path] = true
+		if edits.is_empty():
+			continue
+
+		# Left to right against the edited text; an earlier edit shifts every position after its dot.
+		var line_ops = []
+		var applied = [] # [dot, length delta]
+		for e in edits:
+			var s = e[0] + _shift(applied, e[0])
+			var d = e[1] + _shift(applied, e[1])
+			var f = e[2] + _shift(applied, e[2])
+			var from = code.substr(s, f - s)
+			var to = code.substr(s, d - s) + e[3]
+			code = code.substr(0, s) + to + code.substr(f)
+			applied.append([e[1], to.length() - from.length()])
+			line_ops.append([from, to])
+		out[i] = code + (lines[i].substr(comment_idx) if comment_idx > -1 else "")
+		ops[i] = line_ops
+	return {"lines": out, "ops": ops, "used": used}
+
+
+## Start of the expression a `.` at `dot` is accessed on: identifiers, dots, and call/index groups.
+## Returns `dot` when there is nothing to resolve, e.g. a string literal.
+static func receiver_start(code:String, mask:PackedByteArray, dot:int) -> int:
+	var i = dot - 1
+	while i >= 0:
+		if mask[i] == 1:
+			return dot
+		var c = code[i]
+		if c == ")" or c == "]":
+			var open = _find_open(code, mask, i)
+			if open == -1:
+				return dot
+			i = open - 1
+			continue
+		if not _is_ident_char(c):
+			break
+		while i >= 0 and mask[i] == 0 and _is_ident_char(code[i]):
+			i -= 1
+		if i >= 0 and mask[i] == 0 and code[i] == ".":
+			i -= 1
+			continue
+		break
+	return i + 1
+
+
+static func _shift(applied:Array, pos:int) -> int:
+	var total = 0
+	for a in applied:
+		if a[0] < pos:
+			total += a[1]
+	return total
+
+
+static func _enum_of(def:Dictionary, field:String) -> String:
+	for f in def.get("fields", []):
+		if f.name == field:
+			return f.enum
+	return ""
+
+
+static var _field_regexes:Dictionary = {}
+
+## `.name` not followed by a call, for every field name of every struct.
+static func _field_regex(structs:Dictionary) -> RegEx:
+	var names = {}
+	for def in structs.values():
+		for f in def.fields:
+			names[f.name] = true
+	if names.is_empty():
+		return null
+	var keys = names.keys()
+	keys.sort()
+	var key = "|".join(keys)
+	if not _field_regexes.has(key):
+		var regex = RegEx.new()
+		regex.compile(r"\.(?<field>" + key + r")\b(?!\s*\()")
+		_field_regexes[key] = regex
+	return _field_regexes[key]
+
+#endregion
+
+
+#region Flow
+
+## Name-based lookups that stop working once the value is an Array.
+const NAME_LOOKUPS = ["get", "set", "has_method", "get_script", "call", "is_class"]
+const ARRAY_INSERTS = ["append", "push_back", "push_front", "insert", "append_array"]
+const CALL_SKIP = ["if", "elif", "while", "for", "match", "return", "not", "and", "or", "in", "await",
+	"func", "super", "preload", "load", "assert"]
+
+## Every place a struct value would lose its static type, after which a field read compiles against
+## Variant and only fails at runtime. Callables, all by line:
+##   type_of(expr) -> struct class path or ""        raw_type(expr) -> resolved type, no instance mark
+##   return_path() -> the enclosing func's written return type as a class path, or ""
+##   params(callee) -> Array of has_static_type per parameter, or null when the callee is unknown
+static func check_flow(lines:PackedStringArray, type_of:Callable, raw_type:Callable, return_path:Callable, params:Callable) -> Array:
+	var errors = []
+	var state = {"quote": "", "depth": 0, "cont": false}
+	for i in lines.size():
+		var skip = state.quote != "" or state.cont
+		var comment_idx = TagRegistry.scan_code(lines[i], state)
+		if skip:
+			continue
+		var raw_code = lines[i].substr(0, comment_idx) if comment_idx > -1 else lines[i]
+		var code = raw_code.strip_edges()
+		if code.is_empty():
+			continue
+		_check_statement(code, i, type_of, raw_type, return_path, errors)
+		_check_calls(raw_code, i, type_of, raw_type, params, errors)
+	return errors
+
+
+static func _check_statement(code:String, line:int, type_of:Callable, raw_type:Callable, return_path:Callable, errors:Array) -> void:
+	var m = _rx("flow_var").search(code)
+	if m:
+		if type_of.call(m.get_string("rhs"), line) != "":
+			errors.append(_err(line, "untyped `var %s` holds a struct - give it the struct's type or `:=`" % m.get_string("name")))
+		return
+	m = _rx("flow_typed_var").search(code)
+	if m:
+		# The written type, not the var: on its own declaration line the var is not in scope yet.
+		var held:String = type_of.call(m.get_string("rhs"), line)
+		if held != "" and raw_type.call(m.get_string("type"), line) != held:
+			errors.append(_err(line, "`var %s` is not typed as the struct it holds" % m.get_string("name")))
+		return
+	m = _rx("flow_return").search(code)
+	if m:
+		var returned:String = type_of.call(m.get_string("rhs"), line)
+		if returned != "" and return_path.call(line) != returned:
+			errors.append(_err(line, "returns a struct from a func whose return type is not that struct"))
+		return
+	m = _rx("flow_assign").search(code)
+	if m:
+		var assigned:String = type_of.call(m.get_string("rhs"), line)
+		if assigned != "" and raw_type.call(m.get_string("target"), line) != assigned:
+			errors.append(_err(line, "struct assigned into `%s`, which is not typed as that struct" % m.get_string("target")))
+
+
+static func _check_calls(code:String, line:int, type_of:Callable, raw_type:Callable, params:Callable, errors:Array) -> void:
+	var mask = _string_mask(code)
+	for m in _rx("call").search_all(code):
+		if mask[m.get_start()] == 1:
+			continue
+		var callee = m.get_string("callee")
+		if callee in CALL_SKIP or code.substr(0, m.get_start()).strip_edges().ends_with("func"):
+			continue
+		var dot = callee.rfind(".")
+		var last = callee.substr(dot + 1)
+		var receiver = callee.substr(0, dot) if dot > -1 else ""
+		if receiver != "" and last in NAME_LOOKUPS and type_of.call(receiver, line) != "":
+			errors.append(_err(line, "`%s` looks a struct up by name, which cannot work on an Array" % callee))
+			continue
+
+		var close = _find_close(code, mask, m.get_end() - 1)
+		if close == -1:
+			continue
+		var args = _split_args(code.substr(m.get_end(), close - m.get_end()))
+		var param_types = null
+		for k in args.size():
+			if args[k] == "" or type_of.call(args[k], line) == "":
+				continue
+			if callee == "is_instance_valid":
+				errors.append(_err(line, "is_instance_valid() on a struct cannot work once it is an Array"))
+			elif receiver != "" and last in ARRAY_INSERTS:
+				if raw_type.call(receiver, line) in ["Array", "", "Variant"]:
+					errors.append(_err(line, "struct added to `%s`, which is not typed as an Array of that struct" % receiver))
+			else:
+				if param_types == null:
+					param_types = params.call(callee, line)
+				if param_types is Array and k < param_types.size() and not param_types[k]:
+					errors.append(_err(line, "struct passed to untyped parameter %d of `%s`" % [k + 1, callee]))
+
+#endregion
+
+
 #region Text helpers
 
 ## 1 for every character inside a string literal on this single line.
@@ -373,6 +584,25 @@ static func _string_mask(code:String) -> PackedByteArray:
 				continue
 		i += 1
 	return mask
+
+
+static func _find_open(code:String, mask:PackedByteArray, close:int) -> int:
+	var depth = 0
+	for i in range(close, -1, -1):
+		if mask[i] == 1:
+			continue
+		var c = code[i]
+		if c in ")]}":
+			depth += 1
+		elif c in "([{":
+			depth -= 1
+			if depth == 0:
+				return i
+	return -1
+
+
+static func _is_ident_char(c:String) -> bool:
+	return c == "_" or (c >= "a" and c <= "z") or (c >= "A" and c <= "Z") or (c >= "0" and c <= "9")
 
 
 static func _find_close(code:String, mask:PackedByteArray, open:int) -> int:
@@ -452,6 +682,11 @@ static func _rx(key:String) -> RegEx:
 			"typed_first": r"(?<pre>\b(?:Array|Dictionary)\[\s*)(?<chain>" + _CHAIN + r")(?=\s*[\],])",
 			"typed_second": r"(?<pre>\bDictionary\[\s*" + _CHAIN + r"\s*,\s*)(?<chain>" + _CHAIN + r")(?=\s*\])",
 			"literal": r'^(?:-?\d[\d_.eE+-]*|true|false|null|"[^"\\]*"|&"[^"\\]*"|\^"[^"\\]*"|\[\s*\]|\{\s*\}|[A-Z]\w*\(\s*\))$',
+			"flow_var": r"^(?:static\s+)?var\s+(?<name>\w+)\s*=(?!=)\s*(?<rhs>.+?)\s*$",
+			"flow_typed_var": r"^(?:static\s+)?var\s+(?<name>\w+)\s*:\s*(?<type>[^=]+?)\s*=(?!=)\s*(?<rhs>.+?)\s*$",
+			"flow_return": r"^return\s+(?<rhs>.+?)\s*$",
+			"flow_assign": r"^(?<target>[A-Za-z_][\w.\[\]()\x22\x27]*?)\s*(?<![!<>=+\-*/%&|^:~])=(?!=)\s*(?<rhs>.+?)\s*$",
+			"call": r"(?<![\w.])(?<callee>" + _CHAIN + r")\s*\(",
 		}
 		for k in patterns:
 			var regex = RegEx.new()
