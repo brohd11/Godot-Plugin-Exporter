@@ -78,6 +78,10 @@ var access_reductions:Dictionary = {}
 ## what an ancestor already declares if the two agree.
 var access_bindings:Dictionary = {}
 
+## {class_path: def} of the `#! struct` classes in this export, filled by parse/gd/struct.gd's
+## pre_export. Keyed by parser type path, the same form TagRegistry identities take.
+var structs:Dictionary = {}
+
 var unique_files:Array = []
 
 var shared_data:Dictionary = {}

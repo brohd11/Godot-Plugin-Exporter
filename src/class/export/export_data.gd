@@ -32,6 +32,8 @@ var include_project_license:bool = false
 
 var file_parser: _UtilsLocal.FileParser
 var parser_settings:Dictionary = {}
+## Shared by every export in this config: a source file's tags do not change between them.
+var tag_registry: _UtilsLocal.TagRegistry = _UtilsLocal.TagRegistry.new()
 
 var exports:Array[Export]
 

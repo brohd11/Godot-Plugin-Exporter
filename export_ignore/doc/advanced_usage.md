@@ -55,12 +55,56 @@ func _ready():
 
 On export, these files will be copied into your plugin, and have their paths adjusted. If you want to organize your scripts into a hierarchy, you can use my [pseudo-namespace](https://github.com/brohd11/Godot-Pseudo-Namespace) plugin. This works well with this workflow.
 
+### Structs
+
+A class tagged `#! struct` is written like any data class, but exports as a plain Array, which
+skips object allocation and property lookup.
+
+``` gdscript
+#! struct
+class Hit:
+	var position: Vector2
+	var damage := 1
+
+	func _init(p_position: Vector2) -> void:
+		position = p_position
+
+func spawn(at: Vector2) -> Hit:
+	return Hit.new(at)
+```
+
+exports as
+
+``` gdscript
+#! struct
+class Hit:
+	enum { POSITION, DAMAGE }
+	static func create(p_position: Vector2) -> Array:
+		return [p_position, 1]
+
+func spawn(at: Vector2) -> Array:
+	return [at, 1]
+```
+
+- Put the tag on the line above `class X:`. At the top of a file, followed by a blank line, it makes
+  the whole script the struct.
+- A struct holds only `var` fields and an `_init` that assigns fields from its arguments. Methods,
+  signals, setters/getters, annotations, or extending anything but RefCounted/Object fail the export.
+- `X.new(...)` becomes an array literal when the arguments are in field order and every other field
+  defaults to a literal; otherwise it becomes `X.create(...)`.
+- `: X`, `-> X`, `as X`, `Array[X]` and `Dictionary[K, X]` become `Array`. `is X` fails the export.
+- **Field access is not rewritten yet** (`hit.damage` to `hit[Hit.DAMAGE]`), so a struct whose fields
+  are read outside its own class will not compile after export.
+
 ### Tags
 
 There are a couple of tags you can use to change how files are processed.
  - "#! ignore-remote" - This will stop a file path from being pulled into the plugin on export and from being updated to relative or on name change
  - "#! dependency" - This will add the path to the list to copy and process. This is mostly for non preloadable or loadable files, config, JSON, etc.
  - "#! singleton-module" - This is for a singleton class I use to share libraries between plugins. Only useful if extending one of the Singleton classes.
+ - "#! struct" - Exports a data-only class as an Array, see [Structs](#structs).
+
+A tag has the form `#! tag value` or `#! tag mods; args`, and has to open its comment.
 
 The reason I mention the singleton-module tag is because you could add your own tags and parse them with your own custom parser. You can add any parsers to folder `plugin_exporter/src/class/export/parse/<extension>` replace with your file extension and the parser will be called on those files. You can add parameters in the `plugin_export.json` file under `parser_settings`, more info [here](./export_settings.md).
 
