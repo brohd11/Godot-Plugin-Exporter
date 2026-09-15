@@ -16,11 +16,14 @@ const INJECT_HEADER = "### Plugin Exporter Structs"
 var _plans:Dictionary = {}
 ## Shared by this export's parsers, so a script parsed for one file's lookups is reused by the next.
 var _parser_cache:Dictionary = {}
+## "file line N: message" for struct uses this pass cannot follow; printed, never fatal.
+var _warnings:Array = []
 
 
 func pre_export() -> void:
 	_plans.clear()
 	_parser_cache.clear()
+	_warnings.clear()
 	export_obj.structs.clear()
 	var registry:TagRegistry = export_obj.export_data.tag_registry
 
@@ -55,6 +58,10 @@ func pre_export() -> void:
 		var plan = _plan_file(sources[key], reach.has(sources[key]), errors)
 		if not plan.is_empty():
 			_plans[key] = plan
+	for warning in _warnings:
+		UtilsRemote.UEditor.print_warn("#! struct - " + warning)
+	if not _warnings.is_empty():
+		UtilsRemote.UEditor.print_warn("#! struct: %d warnings" % _warnings.size())
 	_fail(errors)
 
 
@@ -79,8 +86,11 @@ func _plan_file(source:String, reachable:bool, errors:Array) -> Dictionary:
 	if reachable:
 		StructRewrite.rewrite_lines(lines, resolve, export_obj.structs) # only fills `names`
 		var types = StructTypes.new(GDScriptParser, source, export_obj.structs, _parser_cache)
-		for err in StructRewrite.check_flow(lines, types.type_of, types.raw_type, types.return_path, types.params):
+		var flow = StructRewrite.check_flow(lines, types.type_of, types.raw_type, types.return_raw, types.params, export_obj.structs)
+		for err in flow.errors:
 			errors.append("%s %s" % [source, err])
+		for warning in flow.warnings:
+			_warnings.append("%s %s" % [source, warning])
 		var name_for = func(path:String) -> String:
 			if not names.has(path):
 				names[path] = _injection(path, lines, injected)

@@ -467,30 +467,48 @@ const NAME_LOOKUPS = ["get", "set", "has_method", "get_script", "call", "is_clas
 const ARRAY_INSERTS = ["append", "push_back", "push_front", "insert", "append_array"]
 const CALL_SKIP = ["if", "elif", "while", "for", "match", "return", "not", "and", "or", "in", "await",
 	"func", "super", "preload", "load", "assert"]
+## Array methods that call back per element: {method: lambda parameter indexes holding an element}.
+const ITERATORS = {"map": [0], "filter": [0], "any": [0], "all": [0], "find_custom": [0],
+	"rfind_custom": [0], "reduce": [1], "sort_custom": [0, 1]}
+## Where a struct leaves for receivers this pass cannot see - warned, not refused.
+const CALLABLE_SINKS = ["emit", "emit_signal", "call", "call_deferred", "callv", "bind", "bindv",
+	"set_meta", "rpc", "rpc_id"]
+## Words after which `[` opens a literal rather than a subscript.
+const LITERAL_KEYWORDS = ["return", "in", "and", "or", "not", "else", "if", "elif", "while", "match",
+	"await", "when"]
 
 ## Every place a struct value would lose its static type, after which a field read compiles against
-## Variant and only fails at runtime. Callables, all by line:
+## Variant and only fails at runtime. Returns {errors, warnings}. Callables, all by line:
 ##   type_of(expr) -> struct class path or ""        raw_type(expr) -> resolved type, no instance mark
-##   return_path() -> the enclosing func's written return type as a class path, or ""
+##   return_raw() -> the enclosing func's written return type, or ""
 ##   params(callee) -> Array of has_static_type per parameter, or null when the callee is unknown
-static func check_flow(lines:PackedStringArray, type_of:Callable, raw_type:Callable, return_path:Callable, params:Callable) -> Array:
-	var errors = []
+## A statement spanning lines is checked as one, at its first line.
+static func check_flow(lines:PackedStringArray, type_of:Callable, raw_type:Callable, return_raw:Callable,
+		params:Callable, structs:Dictionary) -> Dictionary:
+	var out = {"errors": [], "warnings": []}
 	var state = {"quote": "", "depth": 0, "cont": false}
-	for i in lines.size():
-		var skip = state.quote != "" or state.cont
-		var comment_idx = TagRegistry.scan_code(lines[i], state)
-		if skip:
-			continue
-		var raw_code = lines[i].substr(0, comment_idx) if comment_idx > -1 else lines[i]
+	var i = 0
+	while i < lines.size():
+		var start = i
+		var parts = []
+		while i < lines.size():
+			var comment_idx = TagRegistry.scan_code(lines[i], state)
+			parts.append(lines[i].substr(0, comment_idx) if comment_idx > -1 else lines[i])
+			i += 1
+			if not state.cont:
+				break
+		var raw_code = " ".join(parts)
 		var code = raw_code.strip_edges()
 		if code.is_empty():
 			continue
-		_check_statement(code, i, type_of, raw_type, return_path, errors)
-		_check_calls(raw_code, i, type_of, raw_type, params, errors)
-	return errors
+		_check_statement(code, start, type_of, raw_type, return_raw, out.errors)
+		_check_literals(raw_code, start, type_of, raw_type, return_raw, out.errors)
+		_check_lambdas(raw_code, start, raw_type, structs, out.errors)
+		_check_calls(raw_code, start, type_of, raw_type, params, structs, out)
+	return out
 
 
-static func _check_statement(code:String, line:int, type_of:Callable, raw_type:Callable, return_path:Callable, errors:Array) -> void:
+static func _check_statement(code:String, line:int, type_of:Callable, raw_type:Callable, return_raw:Callable, errors:Array) -> void:
 	var m = _rx("flow_var").search(code)
 	if m:
 		if type_of.call(m.get_string("rhs"), line) != "":
@@ -506,7 +524,8 @@ static func _check_statement(code:String, line:int, type_of:Callable, raw_type:C
 	m = _rx("flow_return").search(code)
 	if m:
 		var returned:String = type_of.call(m.get_string("rhs"), line)
-		if returned != "" and return_path.call(line) != returned:
+		var written:String = return_raw.call(line)
+		if returned != "" and (written == "" or raw_type.call(written, line) != returned):
 			errors.append(_err(line, "returns a struct from a func whose return type is not that struct"))
 		return
 	m = _rx("flow_assign").search(code)
@@ -516,7 +535,8 @@ static func _check_statement(code:String, line:int, type_of:Callable, raw_type:C
 			errors.append(_err(line, "struct assigned into `%s`, which is not typed as that struct" % m.get_string("target")))
 
 
-static func _check_calls(code:String, line:int, type_of:Callable, raw_type:Callable, params:Callable, errors:Array) -> void:
+static func _check_calls(code:String, line:int, type_of:Callable, raw_type:Callable, params:Callable,
+		structs:Dictionary, out:Dictionary) -> void:
 	var mask = _string_mask(code)
 	for m in _rx("call").search_all(code):
 		if mask[m.get_start()] == 1:
@@ -528,27 +548,188 @@ static func _check_calls(code:String, line:int, type_of:Callable, raw_type:Calla
 		var last = callee.substr(dot + 1)
 		var receiver = callee.substr(0, dot) if dot > -1 else ""
 		if receiver != "" and last in NAME_LOOKUPS and type_of.call(receiver, line) != "":
-			errors.append(_err(line, "`%s` looks a struct up by name, which cannot work on an Array" % callee))
+			out.errors.append(_err(line, "`%s` looks a struct up by name, which cannot work on an Array" % callee))
 			continue
 
 		var close = _find_close(code, mask, m.get_end() - 1)
-		if close == -1:
-			continue
-		var args = _split_args(code.substr(m.get_end(), close - m.get_end()))
+		var end = close if close != -1 else code.length()
+		var args = _split_args(code.substr(m.get_end(), end - m.get_end()))
+		if receiver != "" and ITERATORS.has(last) and not args.is_empty():
+			_check_iterator(callee, receiver, ITERATORS[last], args[0], line, raw_type, structs, out)
+
 		var param_types = null
 		for k in args.size():
 			if args[k] == "" or type_of.call(args[k], line) == "":
 				continue
 			if callee == "is_instance_valid":
-				errors.append(_err(line, "is_instance_valid() on a struct cannot work once it is an Array"))
+				out.errors.append(_err(line, "is_instance_valid() on a struct cannot work once it is an Array"))
 			elif receiver != "" and last in ARRAY_INSERTS:
 				if raw_type.call(receiver, line) in ["Array", "", "Variant"]:
-					errors.append(_err(line, "struct added to `%s`, which is not typed as an Array of that struct" % receiver))
+					out.errors.append(_err(line, "struct added to `%s`, which is not typed as an Array of that struct" % receiver))
+			elif last in CALLABLE_SINKS:
+				out.warnings.append(_err(line, "struct passed to `%s` - its receivers are not checked; type their parameters as the struct" % callee))
 			else:
 				if param_types == null:
 					param_types = params.call(callee, line)
 				if param_types is Array and k < param_types.size() and not param_types[k]:
-					errors.append(_err(line, "struct passed to untyped parameter %d of `%s`" % [k + 1, callee]))
+					out.errors.append(_err(line, "struct passed to untyped parameter %d of `%s`" % [k + 1, callee]))
+
+
+## `map`/`filter`/... on an Array of structs: an inline lambda's element parameters must be typed; a
+## Callable passed by name cannot be seen into, so it only warns.
+static func _check_iterator(callee:String, receiver:String, indexes:Array, callable_arg:String, line:int,
+		raw_type:Callable, structs:Dictionary, out:Dictionary) -> void:
+	var element = _collection_element(raw_type.call(receiver, line))
+	if element == "" or not structs.has(raw_type.call(element, line)):
+		return
+	var arg = callable_arg.strip_edges()
+	if not _rx("lambda").search(arg) or not arg.begins_with("func"):
+		out.warnings.append(_err(line, "`%s` takes a Callable over an Array of structs - its parameters are not checked" % callee))
+		return
+	var lambda_params = _lambda_params(arg)
+	for idx in indexes:
+		if idx >= lambda_params.size() or lambda_params[idx].type == "":
+			out.errors.append(_err(line, "`%s` over an Array of structs needs lambda parameter %d typed" % [callee, idx + 1]))
+
+
+## The runtime parser does not resolve lambda parameters, so a field read through one could not be
+## rewritten and the export would fail to compile - refused here with a line instead.
+static func _check_lambdas(code:String, line:int, raw_type:Callable, structs:Dictionary, errors:Array) -> void:
+	var mask = _string_mask(code)
+	for m in _rx("lambda").search_all(code):
+		if mask[m.get_start()] == 1:
+			continue
+		for p in _lambda_params(code.substr(m.get_start())):
+			if p.type != "" and structs.has(raw_type.call(p.type, line)):
+				errors.append(_err(line, "lambdas taking a struct are not supported yet - loop with a typed `for` instead"))
+				break
+
+
+## A struct inside an array or dict literal is only kept typed when the literal is the whole value of
+## a var, assignment or return declared `Array[S]` / `Dictionary[K, S]`. One report per statement.
+static func _check_literals(code:String, line:int, type_of:Callable, raw_type:Callable, return_raw:Callable, errors:Array) -> void:
+	var stripped = code.strip_edges()
+	if stripped.begins_with("enum"):
+		return
+	var context = _literal_context(stripped, line, raw_type, return_raw)
+	var mask = _string_mask(code)
+	for i in code.length():
+		if mask[i] == 1 or not code[i] in "[{":
+			continue
+		if code[i] == "[" and not _is_literal_open(code, mask, i):
+			continue
+		var close = _find_close(code, mask, i)
+		if close == -1:
+			continue
+		var text = code.substr(i, close - i + 1)
+		var allowed:String = context[1] if text == context[0] else ""
+		for element in _literal_elements(text):
+			if element == "":
+				continue
+			var held:String = type_of.call(element, line)
+			if held != "" and held != allowed:
+				errors.append(_err(line, "struct inside a literal - only a var, assignment or return typed Array[S] or Dictionary[K, S] may hold one; bind it to one first"))
+				return
+
+
+## [rhs, class path of the struct that rhs may hold] for a statement whose declared type is a typed
+## collection, or ["", ""].
+static func _literal_context(code:String, line:int, raw_type:Callable, return_raw:Callable) -> Array:
+	var m = _rx("flow_typed_var").search(code)
+	if m:
+		return [m.get_string("rhs"), _element_path(m.get_string("type"), line, raw_type)]
+	if _rx("flow_var").search(code):
+		return ["", ""]
+	m = _rx("flow_return").search(code)
+	if m:
+		return [m.get_string("rhs"), _element_path(return_raw.call(line), line, raw_type)]
+	m = _rx("flow_assign").search(code)
+	if m:
+		return [m.get_string("rhs"), _element_path(raw_type.call(m.get_string("target"), line), line, raw_type)]
+	return ["", ""]
+
+
+static func _element_path(type_text:String, line:int, raw_type:Callable) -> String:
+	var element = _collection_element(type_text)
+	return raw_type.call(element, line) if element != "" else ""
+
+
+## "Array[X]" -> "X", "Dictionary[K, X]" -> "X", anything else -> "".
+static func _collection_element(type_text:String) -> String:
+	var t = type_text.strip_edges()
+	if not t.ends_with("]"):
+		return ""
+	if t.begins_with("Array["):
+		return t.substr(6, t.length() - 7).strip_edges()
+	if t.begins_with("Dictionary["):
+		var parts = _split_args(t.substr(11, t.length() - 12))
+		return parts[1] if parts.size() == 2 else ""
+	return ""
+
+
+## A `[` opens a literal unless it follows an expression - a name, a call or another subscript -
+## where it indexes instead.
+static func _is_literal_open(code:String, mask:PackedByteArray, i:int) -> bool:
+	var j = i - 1
+	while j >= 0 and code[j] in " \t":
+		j -= 1
+	if j < 0:
+		return true
+	if mask[j] == 1 or code[j] == ")" or code[j] == "]":
+		return false
+	if not _is_ident_char(code[j]):
+		return true
+	var k = j
+	while k >= 0 and _is_ident_char(code[k]):
+		k -= 1
+	return code.substr(k + 1, j - k) in LITERAL_KEYWORDS
+
+
+## Elements of a literal: array items, or both sides of each dict entry.
+static func _literal_elements(text:String) -> Array:
+	var parts = _split_args(text.substr(1, text.length() - 2))
+	if text.begins_with("["):
+		return parts
+	var out = []
+	for entry:String in parts:
+		var mask = _string_mask(entry)
+		var depth = 0
+		var sep = -1
+		for i in entry.length():
+			if mask[i] == 1:
+				continue
+			var c = entry[i]
+			if c in "([{":
+				depth += 1
+			elif c in ")]}":
+				depth -= 1
+			elif depth == 0 and (c == ":" or c == "="):
+				sep = i
+				break
+		if sep == -1:
+			out.append(entry)
+		else:
+			out.append(entry.substr(0, sep).strip_edges())
+			out.append(entry.substr(sep + 1).strip_edges())
+	return out
+
+
+## [{name, type}] of the lambda `text` starts with; `type` is "" for an untyped or `:=` parameter.
+static func _lambda_params(text:String) -> Array:
+	var open = text.find("(")
+	if open == -1:
+		return []
+	var close = _find_close(text, _string_mask(text), open)
+	if close == -1:
+		return []
+	var out = []
+	for p in _split_args(text.substr(open + 1, close - open - 1)):
+		var am = _rx("arg").search(p)
+		if am == null:
+			continue
+		var typed = am.get_string("op") != ":="
+		out.append({"name": am.get_string("name"), "type": am.get_string("type").strip_edges() if typed else ""})
+	return out
 
 #endregion
 
@@ -687,6 +868,7 @@ static func _rx(key:String) -> RegEx:
 			"flow_return": r"^return\s+(?<rhs>.+?)\s*$",
 			"flow_assign": r"^(?<target>[A-Za-z_][\w.\[\]()\x22\x27]*?)\s*(?<![!<>=+\-*/%&|^:~])=(?!=)\s*(?<rhs>.+?)\s*$",
 			"call": r"(?<![\w.])(?<callee>" + _CHAIN + r")\s*\(",
+			"lambda": r"\bfunc\s*\(",
 		}
 		for k in patterns:
 			var regex = RegEx.new()

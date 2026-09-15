@@ -40,16 +40,16 @@ func raw_type(expr:String, line:int) -> String:
 	return parser.resolve_expression_to_type(expr, line).trim_suffix(_ins)
 
 
-## The enclosing func's written return type as a class path; "" when it has none, since the parser
-## would otherwise infer one from the very return being checked.
-func return_path(line:int) -> String:
+## The enclosing func's return type as written, e.g. "Array[StructVec]"; "" when it has none, since
+## the parser would otherwise infer one from the very return being checked.
+func return_raw(line:int) -> String:
 	var class_obj = parser.get_class_object(parser.get_class_at_line(line))
 	if class_obj == null:
 		return ""
 	var function = class_obj.functions.get(parser.get_function_at_line(line))
 	if function == null or not function.has_static_return():
 		return ""
-	return function.get_return_type().trim_suffix(_ins)
+	return function.get_return_type_raw().trim_suffix(_ins)
 
 
 ## has_static_type per parameter of `callee`, or null when the parser cannot find it.
