@@ -348,7 +348,12 @@ static func _struct_for(head:String, line:int, resolve:Callable, structs:Diction
 ## struct owning `field`; `name_for.call(class_path)` is how this file spells that struct. Only the
 ## `.field` text changes, so `a.b.c` needs no ordering. Run it before rewrite_lines(): the receiver
 ## text must still be what the type resolver parsed. Returns {lines, ops, used:{class_path: true}}.
-static func rewrite_access(lines:PackedStringArray, type_of:Callable, structs:Dictionary, name_for:Callable) -> Dictionary:
+##
+## Indexing an Array yields Variant, which `:=` cannot infer from, so a `var x := <rhs>` whose rhs had a
+## read rewritten becomes `var x: T =` with T from `annotate.call(rhs, line, column)` (the type the
+## source inferred), or plain `=` when that is "".
+static func rewrite_access(lines:PackedStringArray, type_of:Callable, structs:Dictionary, name_for:Callable,
+		annotate:Callable = Callable()) -> Dictionary:
 	var out:PackedStringArray = lines.duplicate()
 	var ops = {}
 	var used = {}
@@ -372,7 +377,7 @@ static func rewrite_access(lines:PackedStringArray, type_of:Callable, structs:Di
 			var start = receiver_start(code, mask, dot)
 			if start == dot:
 				continue
-			var path:String = type_of.call(code.substr(start, dot - start), i)
+			var path:String = type_of.call(code.substr(start, dot - start), i, start)
 			var enum_name = _enum_of(structs.get(path, {}), m.get_string("field"))
 			if enum_name == "":
 				continue
@@ -380,6 +385,9 @@ static func rewrite_access(lines:PackedStringArray, type_of:Callable, structs:Di
 			used[path] = true
 		if edits.is_empty():
 			continue
+		var inferred = _rx("decl_infer").search(code)
+		if inferred and edits.back()[1] < inferred.get_end():
+			inferred = null # every read sits before the `:=`, in no rhs of it
 
 		# Left to right against the edited text; an earlier edit shifts every position after its dot.
 		var line_ops = []
@@ -393,6 +401,18 @@ static func rewrite_access(lines:PackedStringArray, type_of:Callable, structs:Di
 			code = code.substr(0, s) + to + code.substr(f)
 			applied.append([e[1], to.length() - from.length()])
 			line_ops.append([from, to])
+		if inferred:
+			var rhs_start = inferred.get_end()
+			while rhs_start < lines[i].length() and lines[i][rhs_start] in " \t":
+				rhs_start += 1
+			var rhs = lines[i].substr(rhs_start, (comment_idx if comment_idx > -1 else lines[i].length()) - rhs_start).strip_edges()
+			var annotation:String = annotate.call(rhs, i, rhs_start) if annotate.is_valid() else ""
+			var decl:String = inferred.get_string("decl")
+			var head = decl.substr(0, decl.rfind(":=")).strip_edges(false, true)
+			var typed_decl = head + (": %s =" % annotation if annotation != "" else " =")
+			var at = code.find(decl) # the declaration precedes every edit, so it is unchanged
+			code = code.substr(0, at) + typed_decl + code.substr(at + decl.length())
+			line_ops.append([decl, typed_decl])
 		out[i] = code + (lines[i].substr(comment_idx) if comment_idx > -1 else "")
 		ops[i] = line_ops
 	return {"lines": out, "ops": ops, "used": used}
@@ -478,65 +498,101 @@ const LITERAL_KEYWORDS = ["return", "in", "and", "or", "not", "else", "if", "eli
 	"await", "when"]
 
 ## Every place a struct value would lose its static type, after which a field read compiles against
-## Variant and only fails at runtime. Returns {errors, warnings}. Callables, all by line:
-##   type_of(expr) -> struct class path or ""        raw_type(expr) -> resolved type, no instance mark
-##   return_raw() -> the enclosing func's written return type, or ""
-##   params(callee) -> Array of has_static_type per parameter, or null when the callee is unknown
-## A statement spanning lines is checked as one, at its first line.
-static func check_flow(lines:PackedStringArray, type_of:Callable, raw_type:Callable, return_raw:Callable,
-		params:Callable, structs:Dictionary) -> Dictionary:
-	var out = {"errors": [], "warnings": []}
+## Variant and only fails at runtime. Returns {errors, warnings}. `lookups` callables all take a
+## position (line, character column), since two lambdas on one line are separate scopes:
+##   type_of(expr) -> struct class path or ""       raw_type(expr) -> resolved type, no instance mark
+##   return_raw() -> written return type of the innermost lambda or func there, or ""
+##   params(callee) / lambda_params(name) -> has_static_type per parameter, or null when unknown
+##   lambda_body() -> whether the position is inside a lambda's body
+## A statement spanning lines is checked as one; lambda body lines inside it are checked as their own.
+static func check_flow(lines:PackedStringArray, lookups:Dictionary, structs:Dictionary) -> Dictionary:
+	var ctx = {"lookups": lookups, "structs": structs, "errors": [], "warnings": []}
 	var state = {"quote": "", "depth": 0, "cont": false}
 	var i = 0
 	while i < lines.size():
-		var start = i
 		var parts = []
+		var positions:Array[Vector2i] = [] # joined-text offset -> (line, column)
 		while i < lines.size():
 			var comment_idx = TagRegistry.scan_code(lines[i], state)
-			parts.append(lines[i].substr(0, comment_idx) if comment_idx > -1 else lines[i])
+			var part:String = lines[i].substr(0, comment_idx) if comment_idx > -1 else lines[i]
+			if not parts.is_empty():
+				positions.append(Vector2i(i - 1, parts.back().length())) # the joining space
+				_check_body_line(part, i, ctx)
+			for c in part.length():
+				positions.append(Vector2i(i, c))
+			parts.append(part)
 			i += 1
 			if not state.cont:
 				break
 		var raw_code = " ".join(parts)
-		var code = raw_code.strip_edges()
-		if code.is_empty():
+		if raw_code.strip_edges().is_empty():
 			continue
-		_check_statement(code, start, type_of, raw_type, return_raw, out.errors)
-		_check_literals(raw_code, start, type_of, raw_type, return_raw, out.errors)
-		_check_lambdas(raw_code, start, raw_type, structs, out.errors)
-		_check_calls(raw_code, start, type_of, raw_type, params, structs, out)
-	return out
+		var lead = raw_code.length() - raw_code.strip_edges(true, false).length()
+		_check_statement(raw_code.strip_edges(), lead, positions, ctx)
+		_check_literals(raw_code, positions, ctx)
+		_check_calls(raw_code, positions, ctx)
+	return {"errors": ctx.errors, "warnings": ctx.warnings}
 
 
-static func _check_statement(code:String, line:int, type_of:Callable, raw_type:Callable, return_raw:Callable, errors:Array) -> void:
+## A continuation line that starts a statement in a lambda body: joined, its `var` or `return` would
+## sit mid-statement where the statement rules never look.
+static func _check_body_line(part:String, line:int, ctx:Dictionary) -> void:
+	var code = part.strip_edges()
+	if code.is_empty():
+		return
+	var lead = part.length() - part.strip_edges(true, false).length()
+	if not ctx.lookups.lambda_body.call(line, lead):
+		return
+	var positions:Array[Vector2i] = []
+	for c in part.length():
+		positions.append(Vector2i(line, c))
+	_check_statement(code, lead, positions, ctx)
+
+
+static func _at(positions:Array[Vector2i], offset:int) -> Vector2i:
+	if positions.is_empty():
+		return Vector2i.ZERO
+	return positions[clampi(offset, 0, positions.size() - 1)]
+
+
+static func _type(ctx:Dictionary, expr:String, pos:Vector2i) -> String:
+	return ctx.lookups.type_of.call(expr, pos.x, pos.y)
+
+
+static func _raw(ctx:Dictionary, expr:String, pos:Vector2i) -> String:
+	return ctx.lookups.raw_type.call(expr, pos.x, pos.y)
+
+
+## `code` is stripped and starts at offset `lead` of `positions`.
+static func _check_statement(code:String, lead:int, positions:Array[Vector2i], ctx:Dictionary) -> void:
+	var here = _at(positions, lead)
 	var m = _rx("flow_var").search(code)
 	if m:
-		if type_of.call(m.get_string("rhs"), line) != "":
-			errors.append(_err(line, "untyped `var %s` holds a struct - give it the struct's type or `:=`" % m.get_string("name")))
+		if _type(ctx, m.get_string("rhs"), _at(positions, lead + m.get_start("rhs"))) != "":
+			ctx.errors.append(_err(here.x, "untyped `var %s` holds a struct - give it the struct's type or `:=`" % m.get_string("name")))
 		return
 	m = _rx("flow_typed_var").search(code)
 	if m:
 		# The written type, not the var: on its own declaration line the var is not in scope yet.
-		var held:String = type_of.call(m.get_string("rhs"), line)
-		if held != "" and raw_type.call(m.get_string("type"), line) != held:
-			errors.append(_err(line, "`var %s` is not typed as the struct it holds" % m.get_string("name")))
+		var held = _type(ctx, m.get_string("rhs"), _at(positions, lead + m.get_start("rhs")))
+		if held != "" and _raw(ctx, m.get_string("type"), _at(positions, lead + m.get_start("type"))) != held:
+			ctx.errors.append(_err(here.x, "`var %s` is not typed as the struct it holds" % m.get_string("name")))
 		return
 	m = _rx("flow_return").search(code)
 	if m:
-		var returned:String = type_of.call(m.get_string("rhs"), line)
-		var written:String = return_raw.call(line)
-		if returned != "" and (written == "" or raw_type.call(written, line) != returned):
-			errors.append(_err(line, "returns a struct from a func whose return type is not that struct"))
+		var returned = _type(ctx, m.get_string("rhs"), _at(positions, lead + m.get_start("rhs")))
+		var written:String = ctx.lookups.return_raw.call(here.x, here.y)
+		if returned != "" and (written == "" or _raw(ctx, written, here) != returned):
+			ctx.errors.append(_err(here.x, "returns a struct from a func whose return type is not that struct"))
 		return
 	m = _rx("flow_assign").search(code)
 	if m:
-		var assigned:String = type_of.call(m.get_string("rhs"), line)
-		if assigned != "" and raw_type.call(m.get_string("target"), line) != assigned:
-			errors.append(_err(line, "struct assigned into `%s`, which is not typed as that struct" % m.get_string("target")))
+		var assigned = _type(ctx, m.get_string("rhs"), _at(positions, lead + m.get_start("rhs")))
+		if assigned != "" and _raw(ctx, m.get_string("target"), here) != assigned:
+			ctx.errors.append(_err(here.x, "struct assigned into `%s`, which is not typed as that struct" % m.get_string("target")))
 
 
-static func _check_calls(code:String, line:int, type_of:Callable, raw_type:Callable, params:Callable,
-		structs:Dictionary, out:Dictionary) -> void:
+static func _check_calls(code:String, positions:Array[Vector2i], ctx:Dictionary) -> void:
 	var mask = _string_mask(code)
 	for m in _rx("call").search_all(code):
 		if mask[m.get_start()] == 1:
@@ -544,74 +600,69 @@ static func _check_calls(code:String, line:int, type_of:Callable, raw_type:Calla
 		var callee = m.get_string("callee")
 		if callee in CALL_SKIP or code.substr(0, m.get_start()).strip_edges().ends_with("func"):
 			continue
+		var here = _at(positions, m.get_start())
 		var dot = callee.rfind(".")
 		var last = callee.substr(dot + 1)
 		var receiver = callee.substr(0, dot) if dot > -1 else ""
-		if receiver != "" and last in NAME_LOOKUPS and type_of.call(receiver, line) != "":
-			out.errors.append(_err(line, "`%s` looks a struct up by name, which cannot work on an Array" % callee))
+		if receiver != "" and last in NAME_LOOKUPS and _type(ctx, receiver, here) != "":
+			ctx.errors.append(_err(here.x, "`%s` looks a struct up by name, which cannot work on an Array" % callee))
 			continue
 
 		var close = _find_close(code, mask, m.get_end() - 1)
 		var end = close if close != -1 else code.length()
-		var args = _split_args(code.substr(m.get_end(), end - m.get_end()))
+		var args = _split_args_at(code.substr(m.get_end(), end - m.get_end()))
 		if receiver != "" and ITERATORS.has(last) and not args.is_empty():
-			_check_iterator(callee, receiver, ITERATORS[last], args[0], line, raw_type, structs, out)
+			_check_iterator(callee, receiver, ITERATORS[last], args[0][0], _at(positions, m.get_end() + args[0][1]), here, ctx)
 
 		var param_types = null
 		for k in args.size():
-			if args[k] == "" or type_of.call(args[k], line) == "":
+			var arg:String = args[k][0]
+			var arg_pos = _at(positions, m.get_end() + args[k][1])
+			if arg == "" or _type(ctx, arg, arg_pos) == "":
 				continue
 			if callee == "is_instance_valid":
-				out.errors.append(_err(line, "is_instance_valid() on a struct cannot work once it is an Array"))
+				ctx.errors.append(_err(arg_pos.x, "is_instance_valid() on a struct cannot work once it is an Array"))
 			elif receiver != "" and last in ARRAY_INSERTS:
-				if raw_type.call(receiver, line) in ["Array", "", "Variant"]:
-					out.errors.append(_err(line, "struct added to `%s`, which is not typed as an Array of that struct" % receiver))
+				if _raw(ctx, receiver, here) in ["Array", "", "Variant"]:
+					ctx.errors.append(_err(arg_pos.x, "struct added to `%s`, which is not typed as an Array of that struct" % receiver))
 			elif last in CALLABLE_SINKS:
-				out.warnings.append(_err(line, "struct passed to `%s` - its receivers are not checked; type their parameters as the struct" % callee))
+				ctx.warnings.append(_err(arg_pos.x, "struct passed to `%s` - its receivers are not checked; type their parameters as the struct" % callee))
 			else:
 				if param_types == null:
-					param_types = params.call(callee, line)
+					param_types = ctx.lookups.params.call(callee, here.x, here.y)
 				if param_types is Array and k < param_types.size() and not param_types[k]:
-					out.errors.append(_err(line, "struct passed to untyped parameter %d of `%s`" % [k + 1, callee]))
+					ctx.errors.append(_err(arg_pos.x, "struct passed to untyped parameter %d of `%s`" % [k + 1, callee]))
 
 
-## `map`/`filter`/... on an Array of structs: an inline lambda's element parameters must be typed; a
-## Callable passed by name cannot be seen into, so it only warns.
-static func _check_iterator(callee:String, receiver:String, indexes:Array, callable_arg:String, line:int,
-		raw_type:Callable, structs:Dictionary, out:Dictionary) -> void:
-	var element = _collection_element(raw_type.call(receiver, line))
-	if element == "" or not structs.has(raw_type.call(element, line)):
+## `map`/`filter`/... on an Array of structs hand each element to a lambda whose parameter must be
+## typed, or `e.x` in its body compiles against Variant. A Callable that is neither inline nor a lambda
+## bound to a var in scope cannot be seen into, so it only warns.
+static func _check_iterator(callee:String, receiver:String, indexes:Array, arg:String, arg_pos:Vector2i,
+		here:Vector2i, ctx:Dictionary) -> void:
+	var element = _collection_element(_raw(ctx, receiver, here))
+	if element == "" or not ctx.structs.has(_raw(ctx, element, here)):
 		return
-	var arg = callable_arg.strip_edges()
-	if not _rx("lambda").search(arg) or not arg.begins_with("func"):
-		out.warnings.append(_err(line, "`%s` takes a Callable over an Array of structs - its parameters are not checked" % callee))
+	var typed = null
+	if arg.begins_with("func") and _rx("lambda").search(arg):
+		typed = _lambda_params(arg).map(func(p): return p.type != "")
+	elif arg.is_valid_ascii_identifier():
+		typed = ctx.lookups.lambda_params.call(arg, arg_pos.x, arg_pos.y)
+	if typed == null:
+		ctx.warnings.append(_err(here.x, "`%s` takes a Callable over an Array of structs - its parameters are not checked" % callee))
 		return
-	var lambda_params = _lambda_params(arg)
 	for idx in indexes:
-		if idx >= lambda_params.size() or lambda_params[idx].type == "":
-			out.errors.append(_err(line, "`%s` over an Array of structs needs lambda parameter %d typed" % [callee, idx + 1]))
-
-
-## The runtime parser does not resolve lambda parameters, so a field read through one could not be
-## rewritten and the export would fail to compile - refused here with a line instead.
-static func _check_lambdas(code:String, line:int, raw_type:Callable, structs:Dictionary, errors:Array) -> void:
-	var mask = _string_mask(code)
-	for m in _rx("lambda").search_all(code):
-		if mask[m.get_start()] == 1:
-			continue
-		for p in _lambda_params(code.substr(m.get_start())):
-			if p.type != "" and structs.has(raw_type.call(p.type, line)):
-				errors.append(_err(line, "lambdas taking a struct are not supported yet - loop with a typed `for` instead"))
-				break
+		if idx >= typed.size() or not typed[idx]:
+			ctx.errors.append(_err(here.x, "`%s` over an Array of structs needs lambda parameter %d typed" % [callee, idx + 1]))
 
 
 ## A struct inside an array or dict literal is only kept typed when the literal is the whole value of
 ## a var, assignment or return declared `Array[S]` / `Dictionary[K, S]`. One report per statement.
-static func _check_literals(code:String, line:int, type_of:Callable, raw_type:Callable, return_raw:Callable, errors:Array) -> void:
+static func _check_literals(code:String, positions:Array[Vector2i], ctx:Dictionary) -> void:
 	var stripped = code.strip_edges()
 	if stripped.begins_with("enum"):
 		return
-	var context = _literal_context(stripped, line, raw_type, return_raw)
+	var lead = code.length() - code.strip_edges(true, false).length()
+	var context = _literal_context(stripped, lead, positions, ctx)
 	var mask = _string_mask(code)
 	for i in code.length():
 		if mask[i] == 1 or not code[i] in "[{":
@@ -624,34 +675,36 @@ static func _check_literals(code:String, line:int, type_of:Callable, raw_type:Ca
 		var text = code.substr(i, close - i + 1)
 		var allowed:String = context[1] if text == context[0] else ""
 		for element in _literal_elements(text):
-			if element == "":
+			if element[0] == "":
 				continue
-			var held:String = type_of.call(element, line)
+			var pos = _at(positions, i + element[1])
+			var held = _type(ctx, element[0], pos)
 			if held != "" and held != allowed:
-				errors.append(_err(line, "struct inside a literal - only a var, assignment or return typed Array[S] or Dictionary[K, S] may hold one; bind it to one first"))
+				ctx.errors.append(_err(pos.x, "struct inside a literal - only a var, assignment or return typed Array[S] or Dictionary[K, S] may hold one; bind it to one first"))
 				return
 
 
 ## [rhs, class path of the struct that rhs may hold] for a statement whose declared type is a typed
-## collection, or ["", ""].
-static func _literal_context(code:String, line:int, raw_type:Callable, return_raw:Callable) -> Array:
+## collection, or ["", ""]. `code` is stripped and starts at offset `lead`.
+static func _literal_context(code:String, lead:int, positions:Array[Vector2i], ctx:Dictionary) -> Array:
+	var here = _at(positions, lead)
 	var m = _rx("flow_typed_var").search(code)
 	if m:
-		return [m.get_string("rhs"), _element_path(m.get_string("type"), line, raw_type)]
+		return [m.get_string("rhs"), _element_path(m.get_string("type"), _at(positions, lead + m.get_start("type")), ctx)]
 	if _rx("flow_var").search(code):
 		return ["", ""]
 	m = _rx("flow_return").search(code)
 	if m:
-		return [m.get_string("rhs"), _element_path(return_raw.call(line), line, raw_type)]
+		return [m.get_string("rhs"), _element_path(ctx.lookups.return_raw.call(here.x, here.y), here, ctx)]
 	m = _rx("flow_assign").search(code)
 	if m:
-		return [m.get_string("rhs"), _element_path(raw_type.call(m.get_string("target"), line), line, raw_type)]
+		return [m.get_string("rhs"), _element_path(_raw(ctx, m.get_string("target"), here), here, ctx)]
 	return ["", ""]
 
 
-static func _element_path(type_text:String, line:int, raw_type:Callable) -> String:
+static func _element_path(type_text:String, pos:Vector2i, ctx:Dictionary) -> String:
 	var element = _collection_element(type_text)
-	return raw_type.call(element, line) if element != "" else ""
+	return _raw(ctx, element, pos) if element != "" else ""
 
 
 ## "Array[X]" -> "X", "Dictionary[K, X]" -> "X", anything else -> "".
@@ -685,13 +738,15 @@ static func _is_literal_open(code:String, mask:PackedByteArray, i:int) -> bool:
 	return code.substr(k + 1, j - k) in LITERAL_KEYWORDS
 
 
-## Elements of a literal: array items, or both sides of each dict entry.
+## Elements of a literal as [text, offset in the literal]: array items, or both sides of each dict entry.
 static func _literal_elements(text:String) -> Array:
-	var parts = _split_args(text.substr(1, text.length() - 2))
-	if text.begins_with("["):
-		return parts
 	var out = []
-	for entry:String in parts:
+	for part in _split_args_at(text.substr(1, text.length() - 2)):
+		var entry:String = part[0]
+		var at:int = part[1] + 1
+		if text.begins_with("["):
+			out.append([entry, at])
+			continue
 		var mask = _string_mask(entry)
 		var depth = 0
 		var sep = -1
@@ -707,10 +762,12 @@ static func _literal_elements(text:String) -> Array:
 				sep = i
 				break
 		if sep == -1:
-			out.append(entry)
+			out.append([entry, at])
 		else:
-			out.append(entry.substr(0, sep).strip_edges())
-			out.append(entry.substr(sep + 1).strip_edges())
+			var key = _stripped_at(entry, 0, sep)
+			var value = _stripped_at(entry, sep + 1, entry.length())
+			out.append([key[0], at + key[1]])
+			out.append([value[0], at + value[1]])
 	return out
 
 
@@ -802,6 +859,11 @@ static func _find_close(code:String, mask:PackedByteArray, open:int) -> int:
 
 
 static func _split_args(text:String) -> Array:
+	return _split_args_at(text).map(func(part): return part[0])
+
+
+## Top-level comma-separated parts as [stripped text, offset of that text in `text`].
+static func _split_args_at(text:String) -> Array:
 	if text.strip_edges() == "":
 		return []
 	var mask = _string_mask(text)
@@ -817,10 +879,15 @@ static func _split_args(text:String) -> Array:
 		elif c in ")]}":
 			depth -= 1
 		elif c == "," and depth == 0:
-			out.append(text.substr(last, i - last).strip_edges())
+			out.append(_stripped_at(text, last, i))
 			last = i + 1
-	out.append(text.substr(last).strip_edges())
+	out.append(_stripped_at(text, last, text.length()))
 	return out
+
+
+static func _stripped_at(text:String, from:int, to:int) -> Array:
+	var raw = text.substr(from, to - from)
+	return [raw.strip_edges(), from + raw.length() - raw.strip_edges(true, false).length()]
 
 
 static func _is_header(code:String) -> bool:
@@ -869,6 +936,7 @@ static func _rx(key:String) -> RegEx:
 			"flow_assign": r"^(?<target>[A-Za-z_][\w.\[\]()\x22\x27]*?)\s*(?<![!<>=+\-*/%&|^:~])=(?!=)\s*(?<rhs>.+?)\s*$",
 			"call": r"(?<![\w.])(?<callee>" + _CHAIN + r")\s*\(",
 			"lambda": r"\bfunc\s*\(",
+			"decl_infer": r"^\s*(?<decl>(?:static\s+)?var\s+\w+\s*:=)",
 		}
 		for k in patterns:
 			var regex = RegEx.new()

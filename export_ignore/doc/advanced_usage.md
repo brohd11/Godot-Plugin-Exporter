@@ -106,12 +106,15 @@ func spawn(at: Vector2) -> Array:
   - a struct inside an array or dict literal, unless the literal is the whole value of a var,
     assignment or return typed `Array[X]` or `Dictionary[K, X]`
   - an untyped element parameter in a lambda given to `map`, `filter`, `any`, `all`, `reduce`,
-    `sort_custom`, `find_custom` or `rfind_custom` on an Array of structs
-  - any lambda taking a struct parameter: not supported yet, so loop with a typed `for` instead
+    `sort_custom`, `find_custom` or `rfind_custom` on an Array of structs, whether the lambda is
+    written inline or bound to a var and passed by name
   - `is X`, `is_instance_valid()`, `get()`/`set()`/`call()` on a struct
+- Lambdas may take structs: `func(hit: Hit): return hit.damage` is rewritten like any other typed
+  read, inline or bound to a var, including several lambdas on one line.
 - The export warns, with file and line, when a struct is passed to `emit`, `emit_signal`, `call`,
-  `call_deferred`, `callv`, `bind`, `set_meta` or `rpc`, or when a Callable passed by name iterates
-  an Array of structs. Their receivers can't be seen, so type their parameters as the struct.
+  `call_deferred`, `callv`, `bind`, `set_meta` or `rpc`, or when a Callable that isn't a lambda in
+  scope iterates an Array of structs. Their receivers can't be seen, so type their parameters as the
+  struct.
 - Not checked: structs passed to other engine methods with Variant parameters. A struct is also a
   plain Array to anything outside the plugin, so keep structs out of a plugin's public API.
 

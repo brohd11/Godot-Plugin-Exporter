@@ -86,7 +86,7 @@ func _plan_file(source:String, reachable:bool, errors:Array) -> Dictionary:
 	if reachable:
 		StructRewrite.rewrite_lines(lines, resolve, export_obj.structs) # only fills `names`
 		var types = StructTypes.new(GDScriptParser, source, export_obj.structs, _parser_cache)
-		var flow = StructRewrite.check_flow(lines, types.type_of, types.raw_type, types.return_raw, types.params, export_obj.structs)
+		var flow = StructRewrite.check_flow(lines, types.lookups(), export_obj.structs)
 		for err in flow.errors:
 			errors.append("%s %s" % [source, err])
 		for warning in flow.warnings:
@@ -95,7 +95,7 @@ func _plan_file(source:String, reachable:bool, errors:Array) -> Dictionary:
 			if not names.has(path):
 				names[path] = _injection(path, lines, injected)
 			return names[path]
-		var access = StructRewrite.rewrite_access(lines, types.type_of, export_obj.structs, name_for)
+		var access = StructRewrite.rewrite_access(lines, types.type_of, export_obj.structs, name_for, types.annotation)
 		ops = access.ops
 		sites = access.lines
 
