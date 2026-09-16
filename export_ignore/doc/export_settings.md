@@ -57,7 +57,10 @@ options:
         inline_functions: true
         scalar_replacement: true
         struct_read_types: typed_locals # off | typed_locals | as_casts
-        allow_ref_counted: false
+        scalar_replacement_allow_ref_counted: false
+        struct_read_types_allow_ref_counted: false
+        inline_functions_allow_ref_counted: false
+        inline_functions_allow_variants: false
 ```
 
 `enabled: false` bypasses the whole optimizer, including struct lowering and validation
@@ -69,8 +72,9 @@ Structs run before inlining. Mark data classes with `#! struct`, and supported t
 static functions with `#! inline`. Scalar replacement removes eligible non-escaping local
 struct allocations; typed locals restore known types on surviving struct reads. Cast mode
 uses `as` at the read site and can cost more than it saves. Reference fields remain excluded
-unless `allow_ref_counted` is enabled, which can extend lifetimes and introduce type checks
-on freed objects. Optimizer output then passes through the normal packaging rewrites.
+unless their respective `scalar_replacement_allow_ref_counted` or
+`struct_read_types_allow_ref_counted` flag is enabled. These can extend lifetimes and
+introduce type checks on freed objects. Optimizer output then passes through the normal packaging rewrites.
 
 Each export entry can override individual optimizer keys, inheriting the rest:
 
@@ -89,3 +93,13 @@ The export log reports optimizer source-site statistics, including applied/skipp
 calls, direct/expanded calls, scalar replacements, typed captures, and casts. These count
 transformations, not runtime invocations. Source scripts and original helper definitions
 are retained; no separate optimizer YAML file is needed by PluginExporter.
+
+Direct inlining supports single-return boolean/comparison expressions and String
+`begins_with`, `ends_with`, `contains`, and `is_empty` predicates, including conditional
+call sites. Arguments must be literals or locals; no conditional temporaries are introduced.
+`inline_functions_allow_ref_counted` permits direct reference member/index access and
+method calls without parameter lifetime protection. `inline_functions_allow_variants`
+permits unchecked Variant substitution, removing signature checks/conversions; unknown
+runtime values may include references. Known reference types still require their own opt-in.
+Both flags default to false and leave existing template expansion rules unchanged.
+The old `allow_ref_counted` key is rejected; replace it with the two struct flags above.

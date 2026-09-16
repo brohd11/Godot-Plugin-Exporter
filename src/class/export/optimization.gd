@@ -58,7 +58,10 @@ func pre_export() -> void:
 	context.injection_header = "### Plugin Exporter Structs"
 	context.scalar_replacement = options.scalar_replacement
 	context.struct_read_types = options.struct_read_types as Optimizer.Context.StructReadTypes
-	context.allow_ref_counted = options.allow_ref_counted
+	context.scalar_replacement_allow_ref_counted = options.scalar_replacement_allow_ref_counted
+	context.struct_read_types_allow_ref_counted = options.struct_read_types_allow_ref_counted
+	context.inline_functions_allow_ref_counted = options.inline_functions_allow_ref_counted
+	context.inline_functions_allow_variants = options.inline_functions_allow_variants
 	var sources:Dictionary = {}
 	for key:String in export_obj.files_to_copy:
 		var source:String = export_obj.files_to_copy[key].get(KeysData.REPLACE_WITH, key)
