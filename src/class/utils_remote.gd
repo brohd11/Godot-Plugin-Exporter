@@ -28,6 +28,7 @@ const UControl = preload("uid://brio73mirr5e6") #! resolve ALibRuntime.Utils.UCo
 const FSTreeClasses = preload("res://addons/addon_lib/brohd/alib_editor/file_system/components/tree/fs_tree_classes.gd")
 
 const Dependencies = preload("uid://dbn0kmkxa7caq") #! resolve ALibRuntime.Utils.UResource.Dependencies
+const GDScriptOptimizer = preload("res://addons/addon_lib/gdscript_optimizer/optimizer.gd")
 const GDScriptParser = preload("uid://c4465kdwgj042") #! resolve ALibRuntime.Utils.UGDScript.Parser
 const DepGraphPanel = preload("res://addons/addon_lib/brohd/alib_runtime/ui/dep_graph/dep_graph_panel.gd")
 

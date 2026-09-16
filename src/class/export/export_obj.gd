@@ -78,10 +78,6 @@ var access_reductions:Dictionary = {}
 ## what an ancestor already declares if the two agree.
 var access_bindings:Dictionary = {}
 
-## {class_path: def} of the `#! struct` classes in this export, filled by parse/gd/struct.gd's
-## pre_export. Keyed by parser type path, the same form TagRegistry identities take.
-var structs:Dictionary = {}
-
 var unique_files:Array = []
 
 var shared_data:Dictionary = {}
@@ -675,6 +671,8 @@ func export_files():
 				_ExportFileUtils.write_new_uid(export_path + ".uid")
 		
 		file_parser.post_export_edit_file(export_path)
+		if not export_valid:
+			return
 	##
 	
 	for virtual_file_type in virtual_files.keys():

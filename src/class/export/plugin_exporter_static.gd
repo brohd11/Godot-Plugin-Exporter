@@ -100,6 +100,8 @@ static func export_plugin(export_config_path:String, include_uid_overide=null, i
 			return false
 		
 		export.export_files()
+		if not export.export_valid:
+			return false
 		export.write_export_data_file()
 		export.update_plugin_cfg()
 		count += 1

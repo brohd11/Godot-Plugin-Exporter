@@ -160,6 +160,8 @@ func post_export_edit_file(file_path:String):
 	
 	for parse_ins in valid_parsers:
 		file_lines_edited = parse_ins.post_export_edit_file(file_path, file_lines_edited)
+		if not parse_ins.export_obj.export_valid:
+			return
 	
 	if file_lines_edited != null:
 		file_lines = file_lines_edited
