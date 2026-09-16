@@ -40,3 +40,52 @@ these settings are passed to parsers. You can overide on a per export basis usin
 
 ##### parse_cs
  - namespace_rename - Dictionary with keys "namespace":"rename_as"
+
+
+### GDScript optimizer
+
+`plugin_init` seeds the following block in each new `plugin_export.yml`. Existing files
+without it use the same defaults; omit individual keys to inherit their defaults.
+
+```yaml
+options:
+  parser_settings:
+    parse_gd:
+      optimizer:
+        enabled: true
+        structs: true
+        inline_functions: true
+        scalar_replacement: true
+        struct_read_types: typed_locals # off | typed_locals | as_casts
+        allow_ref_counted: false
+```
+
+`enabled: false` bypasses the whole optimizer, including struct lowering and validation
+of inactive optimization options. Packaging, path relocation, and backporting still run.
+When enabled, invalid optimizer keys or values invalidate the export before its files
+are copied. Unsupported inline sites remain unchanged with diagnostic reasons.
+
+Structs run before inlining. Mark data classes with `#! struct`, and supported top-level
+static functions with `#! inline`. Scalar replacement removes eligible non-escaping local
+struct allocations; typed locals restore known types on surviving struct reads. Cast mode
+uses `as` at the read site and can cost more than it saves. Reference fields remain excluded
+unless `allow_ref_counted` is enabled, which can extend lifetimes and introduce type checks
+on freed objects. Optimizer output then passes through the normal packaging rewrites.
+
+Each export entry can override individual optimizer keys, inheriting the rest:
+
+```yaml
+exports:
+  - source: res://addons/my_plugin
+    export_name: my-plugin-baseline
+    parser_overide_settings:
+      parse_gd:
+        optimizer:
+          enabled: false
+```
+
+Keep an optimized export entry alongside this baseline for performance comparisons.
+The export log reports optimizer source-site statistics, including applied/skipped inline
+calls, direct/expanded calls, scalar replacements, typed captures, and casts. These count
+transformations, not runtime invocations. Source scripts and original helper definitions
+are retained; no separate optimizer YAML file is needed by PluginExporter.

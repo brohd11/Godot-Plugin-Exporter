@@ -47,7 +47,9 @@ func post_export_edit_file(file_path:String, file_lines:Variant=null):
 	var classes_preloaded = []
 	var classes_used = []
 	
-	var global_classes_in_file = ExportFileUtils._get_global_classes_in_file(file_path, export_obj.export_data.class_list)
+	if file_lines == null:
+		file_lines = Array(FileAccess.get_file_as_string(file_path).split("\n"))
+	var global_classes_in_file = ExportFileUtils._get_global_classes_in_text("\n".join(file_lines), export_obj.export_data.class_list)
 	var class_declaration = global_classes_in_file.get("global_class_definition", "")
 	global_classes_in_file.erase("global_class_definition")
 	
@@ -56,13 +58,11 @@ func post_export_edit_file(file_path:String, file_lines:Variant=null):
 	var reductions = _file_reductions()
 	var declared_bindings = {}
 
-	var file_access = FileAccess.open(file_path, FileAccess.READ)
-	
 	var extended_class_string = ""
 	
 	var adjusted_file_lines = []
-	while not file_access.eof_reached():
-		var line:String = file_access.get_line()
+	for original_line:String in file_lines:
+		var line:String = original_line
 		var comment_stripped = _strip_comment(line)
 		
 		if comment_stripped.begins_with("class_name "):

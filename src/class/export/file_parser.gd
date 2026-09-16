@@ -14,12 +14,14 @@ var custom_text_types:Array = []
 var custom_parse_data:Dictionary = {}
 
 var default_parsers:Dictionary = {}
+var optimization
 
 
 var current_file_path_parsing:String
 var current_adjusted_file_path:String
 
 func _init() -> void:
+	optimization = load("res://addons/plugin_exporter/src/class/export/optimization.gd").new()
 	var file_parser_path = self.get_script().resource_path
 	var parse_folder_path = file_parser_path.get_base_dir().path_join("parse")
 	
@@ -50,6 +52,9 @@ func _init() -> void:
 		var files = DirAccess.get_files_at(dir_path)
 		var parse_ins_array = []
 		for file in files:
+			# The compatibility adapter is invoked centrally before packaging rewrites.
+			if dir == "gd" and file == "struct.gd":
+				continue
 			if file.get_extension() == "uid":
 				continue
 			var full_path = dir_path.path_join(file)
@@ -63,6 +68,7 @@ func _init() -> void:
 		custom_parse_data[dir] = parse_ins_array
 
 func set_parser_settings(parser_settings):
+	optimization.set_parse_settings(parser_settings.get("parse_gd", {}))
 	for parser_ext in default_parsers.keys():
 		var parse_ins = default_parsers.get(parser_ext)
 		var settings = parser_settings.get("parse_%s" % parser_ext, {})
@@ -75,6 +81,7 @@ func set_parser_settings(parser_settings):
 			parse_ins.set_parse_settings(settings)
 
 func set_export_obj(export_obj):
+	optimization.export_obj = export_obj
 	for parser_ext in default_parsers.keys():
 		var parse_ins = default_parsers.get(parser_ext)
 		parse_ins.export_obj = export_obj
@@ -124,6 +131,9 @@ func get_dependencies(file_path:String, all_dependencies:Dictionary, scanned_fil
 				files_to_scan.push_back(path)
 
 func pre_export():
+	optimization.pre_export()
+	if not optimization.export_obj.export_valid:
+		return
 	for ext in default_parsers:
 		var parse_ins = default_parsers.get(ext)
 		parse_ins.pre_export()
@@ -157,6 +167,8 @@ func post_export_edit_file(file_path:String):
 		valid_parsers.append_array(parse_ins_array)
 	
 	var file_lines_edited
+	if ext == "gd" and optimization.replacements.has(current_file_path_parsing):
+		file_lines_edited = optimization.replacements[current_file_path_parsing].duplicate()
 	
 	for parse_ins in valid_parsers:
 		file_lines_edited = parse_ins.post_export_edit_file(file_path, file_lines_edited)

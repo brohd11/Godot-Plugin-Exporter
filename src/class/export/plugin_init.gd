@@ -158,6 +158,11 @@ func post_export():
 
 
 class PluginExportJSON:
+	static func _optimizer_defaults() -> Dictionary:
+		var settings:Dictionary = UtilsRemote.GDScriptOptimizer.Config.DEFAULTS.duplicate(true)
+		settings.enabled = true
+		return settings
+
 	static func get_body_data():
 		return {
 			KeysConfig.EXPORT_ROOT: "",
@@ -185,6 +190,7 @@ class PluginExportJSON:
 						},
 					"parse_gd":{
 						"replace_editor_interface":false,
+						"optimizer": _optimizer_defaults(),
 						"class_rename_ignore":[],
 						"backport_string_renames":{},
 						},

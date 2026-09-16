@@ -39,3 +39,23 @@ Console command: `PluginExporter call -- gui_open my_plugin_folder` will open a 
 You can export through the GUI by clicking "Export" in the tool menu.
 
 Console command: `PluginExporter call -- export my_plugin_folder`
+
+
+### GDScript optimization
+
+Exports use the shared GDScript optimizer before packaging rewrites. Tagged `#! struct`
+classes and `#! inline` static functions are optimized by default, with scalar replacement
+and typed field reads enabled. `plugin_init` seeds the settings in `plugin_export.yml`.
+Set `options.parser_settings.parse_gd.optimizer.enabled: false` to export an unoptimized
+baseline, or override individual options per export entry. Reference types remain opt-in.
+See [optimizer settings](export_ignore/doc/export_settings.md#gdscript-optimizer).
+
+Validation:
+
+```sh
+godot --headless --path . --script res://tests/plugin_exporter/run_headless.gd
+python3 tests/plugin_exporter/optimizer_export_smoke.py --godot /path/to/godot
+```
+
+The smoke test exports the fixture plugin with optimizer and packaging variants, then
+executes their struct and inline workloads in isolated projects and compares results.

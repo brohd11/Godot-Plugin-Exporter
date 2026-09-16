@@ -137,7 +137,7 @@ func _init(export_config_path):
 		
 		export_obj.file_parser = _UtilsLocal.FileParser.new()
 		export_obj.file_parser.set_export_obj(export_obj)
-		var overide_settings:Dictionary = export.get(KeysConfig.Options.PARSER_OVERIDE_SETTINGS, {})
+		var overide_settings:Dictionary = export.get(KeysConfig.Options.PARSER_OVERIDE_SETTINGS, {}).duplicate(true)
 		#overide_settings = _sort_settings_dict(overide_settings)
 		
 		for parse_key in parser_settings.keys():
@@ -146,6 +146,10 @@ func _init(export_config_path):
 			# Copied so every export gets settings of its own.
 			var parse_data:Dictionary = parser_settings.get(parse_key, {}).duplicate(true)
 			if overide_settings.has(parse_key):
+				if parse_key == "parse_gd" and overide_settings[parse_key].has("optimizer") and parse_data.has("optimizer"):
+					var local:Variant = overide_settings[parse_key].optimizer
+					if local is Dictionary and parse_data.optimizer is Dictionary:
+						local.merge(parse_data.optimizer.duplicate(true))
 				overide_settings[parse_key].merge(parse_data)
 			else:
 				overide_settings[parse_key] = parse_data
