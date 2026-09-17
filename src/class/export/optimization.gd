@@ -56,6 +56,7 @@ func pre_export() -> void:
 	context.removed_globals = export_obj.class_renames
 	context.scan_references = _references
 	context.injection_header = "### Plugin Exporter Structs"
+	context.debug_tags = options.get("debug_tags", false)
 	context.scalar_replacement = options.scalar_replacement
 	context.struct_read_types = options.struct_read_types as Optimizer.Context.StructReadTypes
 	context.scalar_replacement_allow_ref_counted = options.scalar_replacement_allow_ref_counted

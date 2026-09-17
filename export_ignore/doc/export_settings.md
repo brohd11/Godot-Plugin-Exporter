@@ -55,6 +55,7 @@ options:
         enabled: true
         structs: true
         inline_functions: true
+        debug_tags: false
         scalar_replacement: true
         struct_read_types: typed_locals # off | typed_locals | as_casts
         scalar_replacement_allow_ref_counted: false
@@ -103,3 +104,16 @@ permits unchecked Variant substitution, removing signature checks/conversions; u
 runtime values may include references. Known reference types still require their own opt-in.
 Both flags default to false and leave existing template expansion rules unchanged.
 The old `allow_ref_counted` key is rejected; replace it with the two struct flags above.
+
+`#! inline; substitute` opts one helper into direct expression substitution: supplied
+arguments can be skipped, repeated, or evaluated in body order. Type opt-ins remain
+separate. Native rest parameters are supported in eligible templates; simple all/any
+loops over a sole rest parameter lower to `and`/`or` chains. Normal inline requires
+proven safe arguments for these chains; substitution permits effectful arguments.
+Nested expression helpers expand inside arguments and templates, with cycle/depth/size
+checks. General loop expansion and conditional temporary extraction remain deferred.
+
+`debug_tags: true` adds searchable `# optimizer-inline;`, `# optimizer-struct;`,
+`# optimizer-scalar-replacement;`, and `# optimizer-struct-read;` comments beside
+successful transformations. Inline comments record the helper, mode, tag arguments,
+nesting depth, and source site. This defaults off and does not change runtime behavior.
