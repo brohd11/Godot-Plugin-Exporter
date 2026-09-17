@@ -173,9 +173,9 @@ func sort_valid_files():
 		if not file_parser.check_file_valid(file):
 			continue
 
+		files_to_scan_for_deps[file] = true
 		var file_ext = file.get_extension()
 		if file_ext == "tres" or file_ext == "tscn":
-			files_to_scan_for_deps[file] = true
 			continue
 
 		if file_ext == "gd":
@@ -186,12 +186,9 @@ func sort_valid_files():
 					_KeysData.PATH: file
 					}
 		
-		# gd is excluded from the crawl unless it is "#! remote"; tscn and tres are seeded above
-		# no matter what
-		if not _ExportFileUtils.is_remote_file(file):
+		if file_ext != "gd" or not _ExportFileUtils.is_remote_file(file):
 			continue
 
-		files_to_scan_for_deps[file] = true
 		var remote_file_path = _ExportFileUtils.get_remote_extends_path(file, self)
 		if remote_file_path == "":
 			continue
@@ -240,9 +237,6 @@ func get_global_classes_used_in_valid_files():
 				_KeysData.DEPENDENT: file,
 				_KeysData.PATH: remote_path
 				}
-			if _UtilsRemote.UFile.is_file_in_directory(remote_path, source):
-				if not _ExportFileUtils.is_remote_file(remote_path):
-					continue
 			files_to_scan_for_deps[remote_path] = true
 
 
@@ -285,11 +279,7 @@ func get_file_dependencies():
 		_register_copy(remote_path, remote_dir_path, dependent)
 
 
-## A reduced access path is a real reference, so the file it resolves to has to travel even when
-## nothing else in the plugin preloads it. Only files the crawl visits contribute their
-## access-path targets, and an ordinary in-plugin script is never a crawl root: left unseeded,
-## the target is absent from the export, build_access_bindings() drops its binding, and the
-## export ends up naming a class it does not contain.
+## Seed targets already found by the global-class pass, including their transitive dependencies.
 func _seed_access_reduction_targets() -> void:
 	if not reduce_access_paths:
 		return

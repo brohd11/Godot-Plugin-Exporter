@@ -59,19 +59,29 @@ func post_export_edit_file(file_path:String, file_lines:Variant=null):
 	var declared_bindings = {}
 
 	var extended_class_string = ""
+	var ignored_lines = Dependencies.ScanGD.ignored_line_numbers(
+		"\n".join(file_lines), [DependencyTags.IGNORE_REMOTE])
 	
 	var adjusted_file_lines = []
-	for original_line:String in file_lines:
-		var line:String = original_line
+	for line_index in file_lines.size():
+		var line:String = file_lines[line_index]
 		var comment_stripped = _strip_comment(line)
 		
 		if comment_stripped.begins_with("class_name "):
 			if _check_text_valid(line, "class_name "):
 				if class_renames.has(class_declaration):
 					if comment_stripped.find(" extends ") > -1:
-						line = "extends " + comment_stripped.get_slice(" extends ", 1)
+						line = "extends " + comment_stripped.get_slice(" extends ", 1) + line.substr(comment_stripped.length())
 					else:
 						line = ""
+		if ignored_lines.has(line_index):
+			# An ignored preload can still declare a binding used on another line.
+			if comment_stripped.strip_edges().begins_with("const "):
+				var binding = const_name_regex.search(comment_stripped)
+				if binding != null:
+					classes_preloaded.append(binding.get_string(1))
+			adjusted_file_lines.append(line)
+			continue
 		
 		if comment_stripped.find("extends ") > -1 and comment_stripped.count('"') == 2: # make this if so it will scan class nm too?
 			#if not _check_for_comment(line, ["extends", "class"]):
@@ -343,8 +353,7 @@ func _reduction_preload_lines(reductions:Dictionary, declared_bindings:Dictionar
 
 
 func _update_paths(line:String):
-	var has_ignore_tag = line_has_tag(line, "ignore-remote")
-	if has_ignore_tag:
+	if not Dependencies.ScanGD.ignored_line_numbers(line, [DependencyTags.IGNORE_REMOTE]).is_empty():
 		return line
 	var current_parse_file = export_obj.file_parser.current_file_path_parsing
 	var comment_index = line.find("#")

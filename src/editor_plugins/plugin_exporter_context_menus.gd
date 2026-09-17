@@ -65,10 +65,7 @@ static func get_valid_items(script_editor:CodeEdit) -> Dictionary:
 			valid_dep = false
 		if valid_dep:
 			valid_items[DEPENDENCY] = STD_META
-			if _is_remote_file(script_editor):
-				pass
-			else:
-				valid_items[IGNORE_REMOTE] = STD_META
+			valid_items[IGNORE_REMOTE] = STD_META
 	
 	return valid_items
 
@@ -99,10 +96,3 @@ static func add_backport_flag(script_editor):
 	var line = script_editor.get_caret_line()
 	var text = script_editor.get_line(line)
 	script_editor.insert_text_at_caret("const BACKPORTED = 100")
-
-static func _is_remote_file(script_editor:CodeEdit):
-	for i in range(10):
-		var line = script_editor.get_line(i)
-		if line.begins_with("#! remote"):
-			return true
-	return false

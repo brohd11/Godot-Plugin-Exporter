@@ -4,8 +4,7 @@ extends RefCounted
 ## each reference to the package it lands in - the nearest dir with a plugin.cfg or version.cfg -
 ## so 50 files of one release come back as one package. Packages are grouped by the package making
 ## the reference, since that one's export_ignore/plugin_export.* is where `build_require` belongs.
-## Its own scan, not the export crawl: that only starts from "#! remote" scripts and keeps one
-## dependent per file, so a plain script's reference to another package went unseen.
+## Its own graph keeps every dependent, so cross-package references cannot overwrite each other.
 
 const UtilsLocal = preload("res://addons/plugin_exporter/src/class/utils_local.gd")
 const UtilsRemote = preload("res://addons/plugin_exporter/src/class/utils_remote.gd")
@@ -46,13 +45,7 @@ static func build(plugin_name:String) -> Dictionary:
 	for export in data.exports:
 		for file:String in export.valid_files_for_transfer:
 			roots[file] = true
-	var scanner = Dependencies.open_many(roots.keys())
-	scanner.class_map = data.class_list
-	scanner.include_missing = false # a file not on disk can't be packaged
-	scanner.follow_load = false
-	scanner.ignore_dir_names = DepResolver.ExportIgnore.NAMES.duplicate()
-	scanner.add_tag_handler(DependencyTags.TAG, DependencyTags.dependency_dir())
-	var graph = scanner.get_graph()
+	var graph = _scan_files(roots.keys(), data.class_list)
 
 	# Every edge, so a file referenced from inside and outside its package still counts the outside.
 	var counted = {}
@@ -173,6 +166,17 @@ static func _package_dir(path:String, cache:Dictionary) -> String:
 	for w in walked:
 		cache[w] = found
 	return found
+
+
+static func _scan_files(roots:Array, class_map:Dictionary):
+	var scanner = Dependencies.open_many(roots)
+	scanner.class_map = class_map
+	scanner.include_missing = false # a file not on disk can't be packaged
+	scanner.follow_load = false
+	scanner.ignore_line_tags = [DependencyTags.IGNORE_REMOTE]
+	scanner.ignore_dir_names = DepResolver.ExportIgnore.NAMES.duplicate()
+	scanner.add_tag_handler(DependencyTags.TAG, DependencyTags.dependency_dir())
+	return scanner.get_graph()
 
 
 ## {config, build, compile}: whether the package has an export config, and the repo ids it lists

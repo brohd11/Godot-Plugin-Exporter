@@ -84,7 +84,9 @@ func class_reduced_away(file_path:String, cls:String) -> bool:
 	var expressions = expressions_headed_by(plan, cls)
 	if expressions.is_empty():
 		return false
-	return class_fully_reduced(FileAccess.get_file_as_string(file_path), cls, expressions)
+	var text = Dependencies.ScanGD.mask_ignored_lines(
+		FileAccess.get_file_as_string(file_path), [DependencyTags.IGNORE_REMOTE])
+	return class_fully_reduced(text, cls, expressions)
 
 # One scanner per Export, reused across files by reassigning roots.
 func _get_dep_scanner():
@@ -108,6 +110,7 @@ static func build_dep_scanner(class_map:Dictionary = {}):
 	scanner.use_project_classes = false # the export's own class list is the authority
 	scanner.class_map = class_map
 	scanner.resolve_access_paths = not class_map.is_empty()
+	scanner.ignore_line_tags = [DependencyTags.IGNORE_REMOTE]
 	scanner.add_tag_handler(DependencyTags.TAG, DependencyTags.dependency_dir())
 	return scanner
 
@@ -134,7 +137,7 @@ static func edges_to_dependencies(edges:Array, out:Dictionary) -> Dictionary:
 ## What each dotted access path in a file reduces to: {expression: {name, path, tail}}.
 ## Two kinds of expression are deliberately left alone: one whose head is already the deepest
 ## file it names (a genuine use of that class, not a pass-through), and one that walks a file's
-## own const preloads rather than a global class - "#! remote" already rewrites those on export.
+## own const preloads rather than a global class - those paths are already rewritten on export.
 static func edges_to_reductions(edges:Array, out:Dictionary) -> Dictionary:
 	for edge in edges:
 		var expression:String = edge.meta.get(DepEdge.META_RESOLVED_FROM, "")

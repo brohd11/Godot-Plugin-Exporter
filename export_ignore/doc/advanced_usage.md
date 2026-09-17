@@ -1,8 +1,15 @@
 
 
-### Global Class
+### Automatic dependencies
 
-Global classes can just be used as normal.
+Every exportable source file is scanned for references, and each discovered dependency is scanned
+in turn. Preloads, inheritance, global classes, and scene/resource references are gathered without
+any tag. An optional preload hub such as `utils_remote.gd` works the same as any other script.
+
+Literal `load()` calls and ordinary path strings are only copied when marked `#! dependency`.
+Use `#! dependency current` or an explicit directory to choose where a dependency is placed.
+
+Global classes can be used as normal.
 
 ### Remote Class
 
@@ -19,11 +26,11 @@ On export, this file will be replaced with the extended class, and all dependenc
 
 Because the file is replaced any changes will not be present in the copied file. I would use this if I want this file to be in a specific spot, or if I created another script to extend it and make changes there.
 
-This was an earlier workflow in the production of this plugin. I would suggest using the next method for most things, though there are scenarios where this is needed.
+`#! remote` only enables this replacement behavior. It is unnecessary for dependency gathering; existing tags on files without a replaceable base are harmless.
 
 **Note**: because this is extending the class, it is not the same as the class. It could have identical functionality, but if you need to type check, this class is not the same as the extended class. If you need to type check, use the plugin preload file method.
 
-### Plugin Preload File
+### Optional Preload Hub
 
 This format can be used to make a master file that preloads out of plugin files. Typically, I will name this utils_remote.gd or something similar, to denote that these files are not local to the plugin. This file can either be preloaded in your plugin scripts, or given a global class name. 
 
@@ -32,7 +39,6 @@ This is useful if the desired files are not global classes, you can preload any 
 You can also declare files as dependencies if they are not preloadable. You can also give these a custom path. `#! dependency current` will place the file in the same directory as the file it is declared in. You also put a path there, it must be within your plugin folder to be valid.
 
 ``` gdscript
-#! remote
 class_name MyPluginUtilsRemote
 
 const MyClass = preload("res://some_other/folder/my_class.gd")
@@ -121,8 +127,8 @@ func spawn(at: Vector2) -> Array:
 ### Tags
 
 There are a couple of tags you can use to change how files are processed.
- - "#! ignore-remote" - This will stop a file path from being pulled into the plugin on export and from being updated to relative or on name change
- - "#! dependency" - This will add the path to the list to copy and process. This is mostly for non preloadable or loadable files, config, JSON, etc.
+ - "#! ignore-remote" - Skip dependency gathering and path rewriting for references on this line, including global-class and access-path discovery. Another untagged reference may still gather the same dependency. A standalone header tag does not opt out the whole file.
+ - "#! dependency" - Explicitly gather a path, including optional `load()` targets and non-resource files such as config or JSON. An optional directory controls placement.
  - "#! singleton-module" - This is for a singleton class I use to share libraries between plugins. Only useful if extending one of the Singleton classes.
  - "#! struct" - Exports a data-only class as an Array, see [Structs](#structs).
 

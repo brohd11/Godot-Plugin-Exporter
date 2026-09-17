@@ -10,6 +10,8 @@ const UString = UtilsRemote.UString
 const UConfig = UtilsRemote.UConfig
 const UEditor = UtilsRemote.UEditor
 const UClassDetail = UtilsRemote.UClassDetail
+const ScanGD = UtilsRemote.Dependencies.ScanGD
+const DependencyTags = UtilsLocal.DependencyTags
 
 const ConfirmationDialogHandler = UtilsRemote.ConfirmationDialogHandler
 const ExportIgnore = preload("res://addons/plugin_exporter/src/class/export/export_ignore.gd")
@@ -332,9 +334,9 @@ static func is_remote_file(file_path:String):
 ## The path a `#! remote` file extends, resolved absolute, or "" if it does not extend one.
 ## Such a file is a stub standing in for the real script, which is what gets copied in its place.
 static func get_remote_extends_path(file_path:String, export_obj:ExportData.Export) -> String:
-	var file_access = FileAccess.open(file_path, FileAccess.READ)
-	while not file_access.eof_reached():
-		var line = file_access.get_line()
+	var text = ScanGD.mask_ignored_lines(FileAccess.get_file_as_string(file_path),
+		[DependencyTags.IGNORE_REMOTE])
+	for line:String in text.split("\n"):
 		var extend_idx = line.find("extends ") # ""
 		var class_idx = line.find("class ") # ""
 		var comment_idx = line.find("#")
@@ -384,6 +386,7 @@ static func _get_global_classes_in_text(file_as_string:String, global_class_dict
 		_global_class_regex.compile("\\b[a-zA-Z_]\\w*\\b")
 
 	var string_map = get_string_map(file_as_string)
+	var dependency_text = ScanGD.mask_ignored_lines(file_as_string, [DependencyTags.IGNORE_REMOTE])
 	var found_classes = {}
 	
 	var matches = _global_class_regex.search_all(file_as_string)
@@ -402,6 +405,8 @@ static func _get_global_classes_in_text(file_as_string:String, global_class_dict
 			continue
 		if is_class_definition(file_as_string, start_index):
 			found_classes["global_class_definition"] = word
+			continue
+		if dependency_text.substr(start_index, word.length()) != word:
 			continue
 		
 		found_classes[word] = true
