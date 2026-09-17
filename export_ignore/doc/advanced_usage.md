@@ -235,7 +235,9 @@ compile_require:
 - Each key takes a list of specs or a single spec.
 - `"@require"` in `build_require` stands for the package's own `plugin.cfg`/`version.cfg`
   `require=` list, so it isn't written twice. It can sit in a list beside explicit specs, and is the
-  default for a new plugin. Not valid in `compile_require`.
+  default for a new plugin. Not valid in `compile_require`. `require update` (below) drops it rather
+  than expanding it: `require=` is gdaddon's install-time list and may name optional deps that were
+  never built against, such as a plugin that adds functionality when present.
 - The config lives in `_export_ignore/` or `export_ignore/`; when both hold one, `_export_ignore`
   wins. A package without either config declares nothing. A library that needs
   something can carry a config with only these keys.
@@ -268,6 +270,19 @@ identity is the git `origin` when the folder is a checkout, or the cfg `url=` fo
 from a release zip. Packages are grouped by the package whose export config should list them, and
 each is marked `declared (build)`, `declared (compile)` or `MISSING`. A package with no export
 config is flagged, since it declares nothing.
+
+`plugin_exporter require --self my_plugin` prints only that plugin's own list, one `owner/repo@tag`
+per line and nothing else, for piping.
+
+`plugin_exporter require update my_plugin` writes that list into the plugin's own `build_require`,
+in the config it already has - only the target's, never a package it depends on. A tag is `v` plus
+the required package's cfg `version=`; when that tag isn't in the package's checkout yet you get a
+warning, since tagging comes after the update, and a package with no version to pin is an error that
+writes nothing at all. Entries the config already lists keep their tag, so a deliberate older pin
+survives; `--overwrite` re-pins them (a leading host and the `/source` marker are kept), and
+`--prune` drops the ones the crawl no longer finds. A package already under `compile_require` is
+left to it. Only the `build_require` block is rewritten - comments and key order elsewhere in the
+config are untouched, and `plugin.cfg` is never written.
 
 `--local` is for trying a release before pushing anything. Every repo with a checkout in this
 project is fetched from that checkout instead of its remote; repos without one (a checkout counts

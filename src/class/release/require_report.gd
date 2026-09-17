@@ -19,13 +19,16 @@ const DepResolver = preload("res://addons/plugin_exporter/src/class/release/dep_
 const CFG_NAMES = ["plugin.cfg", "version.cfg"]
 
 
-## {target, groups: {from_package: {config, rows: [{dir, id, via, files, declared}]}},
-## loose: {dir: files}, unused: {from_package: [id]}, errors}. `declared` is "build", "compile" or
-## "". A from_package of "" is a dependent outside any package.
+## {target, plugin_name, config_path, groups: {from_package: {config, rows: [{dir, id, via, files,
+## declared}]}}, loose: {dir: files}, unused: {from_package: [id]}, errors}. `declared` is "build",
+## "compile" or "". A from_package of "" is a dependent outside any package.
 static func build(plugin_name:String) -> Dictionary:
-	var report = {"target": "", "groups": {}, "loose": {}, "unused": {}, "errors": []}
+	var report = {"target": "", "plugin_name": "", "config_path": "", "groups": {}, "loose": {},
+		"unused": {}, "errors": []}
 	plugin_name = plugin_name.trim_prefix("/").trim_suffix("/")
 	var config_path = ExportFileUtils.get_export_config_path(plugin_name)
+	report.plugin_name = plugin_name
+	report.config_path = config_path
 	if not FileAccess.file_exists(config_path):
 		report.errors.append("no export config at " + config_path)
 		return report

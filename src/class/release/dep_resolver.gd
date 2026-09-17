@@ -255,7 +255,7 @@ func resolve(target_url:String, version:String, target_path:String) -> Dictionar
 	var root_url = url_overrides.get(root_id, target_url)
 	var root_tag = _find_tag(root_url, version, KIND_SOURCE, target_url)
 	if root_tag == "":
-		_error("%s: no tag for version %s (tried %s)%s" % [root_id, version, ", ".join(_tag_candidates(version)), _fetch_note()])
+		_error("%s: no tag for version %s (tried %s)%s" % [root_id, version, ", ".join(tag_candidates(version)), _fetch_note()])
 		return {}
 	var root_pkg = _package(root_id, root_url, root_tag, KIND_SOURCE, target_url, target_path)
 	if root_pkg.has("error"):
@@ -446,13 +446,13 @@ func _entry(id:String, pkg:Dictionary, verify:bool) -> Dictionary:
 
 ## The dep's own spelling first, then with the leading v toggled - gdaddon's tagEqual.
 func _find_tag(url:String, want:String, kind:String, canonical:String) -> String:
-	for candidate in _tag_candidates(want):
+	for candidate in tag_candidates(want):
 		if not fetcher.lookup(url, candidate, kind, canonical).is_empty():
 			return candidate
 	return ""
 
 
-static func _tag_candidates(want:String) -> Array:
+static func tag_candidates(want:String) -> Array:
 	var bare = want.trim_prefix("v")
 	var toggled = bare if want.begins_with("v") else "v" + bare
 	return [want, toggled]
@@ -499,6 +499,17 @@ static func origin_url(dir:String) -> String:
 	var output = []
 	var code = OS.execute("git", ["-C", ProjectSettings.globalize_path(dir), "remote", "get-url", "origin"], output)
 	return "".join(output).strip_edges() if code == 0 else ""
+
+
+## Whether a checkout already carries one of the tag's spellings locally. False for a dir that is no
+## checkout at all, so a caller has to know which case it is in before reporting one.
+static func local_tag_exists(dir:String, tag:String) -> bool:
+	for candidate in tag_candidates(tag):
+		var output = []
+		var code = OS.execute("git", ["-C", ProjectSettings.globalize_path(dir), "tag", "--list", candidate], output)
+		if code == 0 and "".join(output).strip_edges() != "":
+			return true
+	return false
 
 
 ## Stable hash of a lock, used to key reusable workspaces.
