@@ -49,7 +49,7 @@ func _run() -> void:
 		return
 
 	# export_plugin, not export_by_name: only the former returns its result in older releases.
-	var config = file_utils.get_export_config_path(job.target)
+	var config = job.config
 	var ok = FileAccess.file_exists(config) and exporter.export_plugin(config) == true
 	var data = file_utils.get_export_data(config)
 	var full = ""
@@ -85,12 +85,12 @@ static func godot(project_dir:String, args:Array) -> Dictionary:
 
 
 ## Imports first: without it every class_name reads as undeclared on the editor run.
-static func run_export(project_dir:String, target_name:String) -> Dictionary:
+static func run_export(project_dir:String, config_path:String) -> Dictionary:
 	var job_path = project_dir.path_join("addons").path_join(EXPORT_AUTORUN_DIR).path_join("job.json")
 	var file = FileAccess.open(job_path, FileAccess.WRITE)
 	if file == null:
 		return {"exit": -1, "output": "could not write " + job_path, "result": {}}
-	file.store_string(JSON.stringify({"target": target_name}))
+	file.store_string(JSON.stringify({"config": config_path}))
 	file.close()
 
 	var imported = godot(project_dir, ["--import"])

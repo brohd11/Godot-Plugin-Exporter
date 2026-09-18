@@ -11,7 +11,6 @@ const ExportPaths = preload("res://addons/plugin_exporter/src/class/export/expor
 
 const READY_MARKER = ".pe_release_ready"
 const TOOLCHAIN_PATH = "res://addons/plugin_exporter"
-const CONFIG_NAMES = ["plugin_export.yml", "plugin_export.yaml", "plugin_export.json"]
 
 var fetcher # PackageFetcher
 var errors:Array[String] = []
@@ -22,7 +21,10 @@ func _init(package_fetcher) -> void:
 
 
 func workspace_dir(target_name:String, lock:Dictionary) -> String:
-	return fetcher.root.path_join("workspaces").path_join("%s-%s" % [target_name, DepResolver.lock_hash(lock)])
+	var key = ExportPaths.workspace_key(target_name)
+	if key == "":
+		return ""
+	return fetcher.root.path_join("workspaces").path_join("%s-%s" % [key, DepResolver.lock_hash(lock)])
 
 
 ## Builds (or reuses) the workspace and points its export at export_root_abs. `toolchain_dir` may be
@@ -31,6 +33,9 @@ func workspace_dir(target_name:String, lock:Dictionary) -> String:
 func build(lock:Dictionary, target_name:String, toolchain_dir:String, export_root_abs:String, debug_section:String) -> String:
 	errors.clear()
 	var ws = workspace_dir(target_name, lock)
+	if ws == "":
+		errors.append("invalid workspace target: " + target_name)
+		return ""
 	_prune_other_workspaces(target_name, ws)
 	if not FileAccess.file_exists(ws.path_join(READY_MARKER)):
 		if DirAccess.dir_exists_absolute(ws):
@@ -96,13 +101,9 @@ func _write_project(ws:String, target_name:String, debug_section:String) -> bool
 ## Rewrites the target config's export_root in place so output lands where a workspace export puts
 ## it. A line edit rather than a parse/dump, which would drop the config's comments.
 func _point_export_root(target_dir:String, export_root_abs:String) -> bool:
-	var config_path = ""
-	for p in ExportIgnore.candidates(target_dir, CONFIG_NAMES):
-		if FileAccess.file_exists(p):
-			config_path = p
-			break
-	if config_path == "":
-		errors.append("no plugin_export config in _export_ignore/ or export_ignore/ of the tagged checkout at " + target_dir)
+	var config_path = ExportIgnore.config_path(target_dir)
+	if not FileAccess.file_exists(config_path):
+		errors.append("no export config in _export_ignore/ or export_ignore/ of the tagged checkout at " + target_dir)
 		return false
 
 	var text = FileAccess.get_file_as_string(config_path)
@@ -128,13 +129,12 @@ func _point_export_root(target_dir:String, export_root_abs:String) -> bool:
 
 
 ## One workspace per target: re-tagging under --local changes the lock hash on every attempt.
-## Matches `<target>-<16 hex>` exactly, so plugin_exporter never prunes plugin_exporter_test's.
-## A nested target (`addon_lib/brohd`) sits in a subdir, so only its last segment is in the name.
+## Matches the canonical target key and lock hash, so packages sharing a basename stay separate.
 func _prune_other_workspaces(target_name:String, keep:String) -> void:
 	var dir = keep.get_base_dir()
 	if not DirAccess.dir_exists_absolute(dir):
 		return
-	var prefix = target_name.get_file() + "-"
+	var prefix = ExportPaths.workspace_key(target_name) + "-"
 	for d in DirAccess.get_directories_at(dir):
 		var suffix = d.trim_prefix(prefix)
 		if not d.begins_with(prefix) or suffix.length() != 16 or not suffix.is_valid_hex_number():

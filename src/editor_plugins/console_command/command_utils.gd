@@ -4,6 +4,7 @@ const Completion = CommandBase.Completion
 
 const PluginExporter = preload("res://addons/plugin_exporter/src/class/plugin_exporter.gd")
 const TargetAddons = PluginExporter.TargetAddons
+const TARGET_HELP = "\nTargets are relative to res://addons/ (e.g. addon_lib/brohd), or absolute res:// / filesystem paths inside this project."
 
 static func plugin_name_completion(cmd:CommandBase, ctx:Completion,target_addons:=TargetAddons.VALID, target_position:int=0):
 	if not cmd.positional_arg_index in [target_position, target_position - 1]:

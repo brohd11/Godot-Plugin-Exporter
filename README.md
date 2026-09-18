@@ -22,7 +22,7 @@ All global class or "#! remote" files will be scanned, and any global classes us
 
 ### Setup
 
-You can open a plugin exporter instance from the project menu. In the instance tool menu (screwdriver and wrench), select "Plugin Init". This will prompt you to select your plugin folder. Once selected, an "_export_ignore" folder will be created in your plugin (an existing "export_ignore" folder is reused instead - both names work, and "_export_ignore" wins if a plugin has both). It holds a json configuration file, as well as a gdscript file that has a pre and post export function. These will be called during export and can be used to do anything that may need to be done before or after export.  For example, resetting config files to default values or creating a .gdignore file manually.
+You can open a plugin exporter instance from the project menu. In the instance tool menu (screwdriver and wrench), select "Plugin Init". This will prompt you to select your plugin folder. Once selected, an "_export_ignore" folder will be created in your plugin (an existing "export_ignore" folder is reused instead - both names work, and "_export_ignore" wins if a plugin has both). It holds an `export.yml` configuration file, as well as a gdscript file that has a pre and post export function. These will be called during export and can be used to do anything that may need to be done before or after export.  For example, resetting config files to default values or creating a .gdignore file manually.
 
 The default export location is "_export_ignore/exports". The folder itself is never copied into an export, whatever the exclude list says. A .gdignore file is created in "exports" so that the files are not imported into your project.
 
@@ -41,11 +41,34 @@ You can export through the GUI by clicking "Export" in the tool menu.
 Console command: `PluginExporter call -- export my_plugin_folder`
 
 
+### Package targets
+
+Existing-package commands (`export`, `plugin_init`, `gui_open`, `open_export_folder`,
+`require`, `license`, and `min_version`) accept paths relative to `res://addons/`,
+explicit `res://` paths, or absolute filesystem paths inside the current project.
+For example:
+
+```text
+plugin_exporter export addon_lib/brohd
+plugin_exporter plugin_init res://lib/my_package
+plugin_exporter export res://lib/my_package
+plugin_exporter export --release --local res://lib/my_package
+```
+
+Autocomplete recursively finds folders under `addons/` containing `plugin.cfg` or
+`version.cfg`, suggesting their addon-relative paths. Export commands suggest configured
+packages; init suggests packages without an export config. Packages elsewhere can be
+addressed explicitly. `new_plugin` continues to scaffold editor plugins under `addons/`.
+
+New configs use `export.yml`. Legacy `plugin_export.yml`, `plugin_export.yaml`, and
+`plugin_export.json` still work. `_export_ignore` takes precedence over `export_ignore`;
+within either folder, `export.yml` takes precedence over legacy filenames.
+
 ### GDScript optimization
 
 Exports use the shared GDScript optimizer before packaging rewrites. Tagged `#! struct`
 classes and `#! inline` static functions are optimized by default, with scalar replacement
-and typed field reads enabled. `plugin_init` seeds the settings in `plugin_export.yml`.
+and typed field reads enabled. `plugin_init` seeds the settings in `export.yml`.
 Set `options.parser_settings.parse_gd.optimizer.enabled: false` to export an unoptimized
 baseline, or override individual options per export entry. Reference types remain opt-in.
 See [optimizer settings](export_ignore/doc/export_settings.md#gdscript-optimizer).

@@ -39,8 +39,9 @@ static func export_by_name(plugin_dir_name):
 
 
 static func _print_result(success:bool, export_config_path:String):
-	var plugin_dir_name = export_config_path.get_base_dir().get_base_dir().get_file()
-	var plugin_version = ExportFileUtils.get_version(plugin_dir_name, export_config_path)
+	var plugin_dir = export_config_path.get_base_dir().get_base_dir()
+	var plugin_dir_name = plugin_dir.get_file()
+	var plugin_version = ExportFileUtils.get_version(plugin_dir, export_config_path)
 	var plugin_name = "%s - %s" % [plugin_dir_name.capitalize(), plugin_version] 
 	var accent_color = EditorInterface.get_editor_theme().get_color("accent_color", &"Editor").to_html()
 	if success:
@@ -50,8 +51,9 @@ static func _print_result(success:bool, export_config_path:String):
 
 
 static func export_plugin(export_config_path:String, include_uid_overide=null, include_import_overide=null):
-	var plugin_dir_name = export_config_path.get_base_dir().get_base_dir().get_file()
-	var plugin_version = ExportFileUtils.get_version(plugin_dir_name, export_config_path)
+	var plugin_dir = export_config_path.get_base_dir().get_base_dir()
+	var plugin_dir_name = plugin_dir.get_file()
+	var plugin_version = ExportFileUtils.get_version(plugin_dir, export_config_path)
 	var plugin_name = "%s - %s" % [plugin_dir_name.capitalize(), plugin_version] 
 	print("Exporting: %s" % plugin_name)
 	

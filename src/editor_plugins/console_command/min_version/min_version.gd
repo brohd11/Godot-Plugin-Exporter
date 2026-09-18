@@ -32,7 +32,7 @@ static func get_command_name():
 
 static func get_self_command_data():
 	return _command_data({
-		&"help": _HELP,
+		&"help": _HELP + PECommandUtils.TARGET_HELP,
 		&"positional_count": 1,
 	})
 

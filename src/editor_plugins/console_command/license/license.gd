@@ -16,7 +16,6 @@ const LICENSES = {
 const _HELP = \
 "Generate a LICENSE file for a plugin
 Usage: plugin_exporter license <--type> <plugin_name> <name> <year>
-  plugin_name is a path relative to res://addons/ (e.g. addon_lib/my_lib)
   Exactly one license type flag is required:"
 
 var _license_id := ""
@@ -27,7 +26,7 @@ static func get_command_name() -> String:
 
 static func get_self_command_data() -> Dictionary:
 	return _command_data({
-		&"help": _HELP,
+		&"help": _HELP + PECommandUtils.TARGET_HELP,
 		&"positional_count": 3,
 	})
 

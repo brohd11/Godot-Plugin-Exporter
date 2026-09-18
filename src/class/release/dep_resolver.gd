@@ -12,7 +12,7 @@ const ExportIgnore = preload("res://addons/plugin_exporter/src/class/export/expo
 
 const DEFAULT_HOST = "github.com"
 const CFG_NAMES = ["plugin.cfg", "version.cfg"]
-const CONFIG_NAMES = ["plugin_export.yml", "plugin_export.yaml", "plugin_export.json"]
+const CONFIG_NAMES = ExportIgnore.CONFIG_NAMES
 const BUILD_KEY = "build_require"
 const COMPILE_KEY = "compile_require"
 const REQUIRE_REF = "@require" # build_require item standing for the package cfg's require list
@@ -471,19 +471,21 @@ func _error(message:String) -> void:
 
 #region Dev project
 
-## repo_id -> res:// dir for every git checkout under addons_dir, keyed by its origin remote.
-## Nested repos go deep here (addons/addon_lib/gdsh_lib/utils), hence the generous default.
-static func scan_dev_repos(addons_dir:String = "res://addons", max_depth:int = 6) -> Dictionary:
+## repo_id -> res:// dir for project checkouts. A negative depth scans the whole tree.
+static func scan_dev_repos(addons_dir:String = "res://", max_depth:int = -1) -> Dictionary:
 	var out = {}
 	_scan_dev_repos(addons_dir, max_depth, out)
 	return out
 
 
 static func _scan_dev_repos(dir:String, depth:int, out:Dictionary) -> void:
-	if depth <= 0:
+	if depth == 0:
 		return
-	for sub in DirAccess.get_directories_at(dir):
-		if sub.begins_with(".") or ExportIgnore.is_name(sub):
+	var access = DirAccess.open(dir)
+	if access == null:
+		return
+	for sub in access.get_directories():
+		if sub.begins_with(".") or ExportIgnore.is_name(sub) or access.is_link(sub):
 			continue
 		var path = dir.path_join(sub)
 		var git_path = path.path_join(".git")
@@ -492,7 +494,7 @@ static func _scan_dev_repos(dir:String, depth:int, out:Dictionary) -> void:
 			var id = repo_id_from_url(url)
 			if id != "" and not out.has(id):
 				out[id] = path
-		_scan_dev_repos(path, depth - 1, out)
+		_scan_dev_repos(path, depth - 1 if depth > 0 else -1, out)
 
 
 static func origin_url(dir:String) -> String:

@@ -1,8 +1,12 @@
 const LicenseText = preload("res://addons/plugin_exporter/src/editor_plugins/console_command/license/license_text.gd")
+const ExportPaths = preload("res://addons/plugin_exporter/src/class/export/export_paths.gd")
 
 # Never overwrites an existing LICENSE (prints an error and returns false instead).
 static func generate(plugin_name:String, name:String, year:String, license_id:String, ctx) -> bool:
-	var plugin_dir = "res://addons/".path_join(plugin_name)
+	var plugin_dir = ExportPaths.resolve_target(plugin_name)
+	if plugin_dir == "":
+		ctx.append_error("Invalid package target (expected a path inside this project): " + plugin_name)
+		return false
 	if not DirAccess.dir_exists_absolute(plugin_dir):
 		ctx.append_error("Plugin folder not found: " + plugin_dir)
 		return false

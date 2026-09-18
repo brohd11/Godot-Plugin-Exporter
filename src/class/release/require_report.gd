@@ -24,9 +24,12 @@ const CFG_NAMES = ["plugin.cfg", "version.cfg"]
 static func build(plugin_name:String) -> Dictionary:
 	var report = {"target": "", "plugin_name": "", "config_path": "", "groups": {}, "loose": {},
 		"unused": {}, "errors": []}
-	plugin_name = plugin_name.trim_prefix("/").trim_suffix("/")
+	var package_dir = ExportFileUtils.ExportPaths.resolve_target(plugin_name)
+	if package_dir == "":
+		report.errors.append("Invalid package target (expected a path inside this project): " + plugin_name)
+		return report
 	var config_path = ExportFileUtils.get_export_config_path(plugin_name)
-	report.plugin_name = plugin_name
+	report.plugin_name = package_dir
 	report.config_path = config_path
 	if not FileAccess.file_exists(config_path):
 		report.errors.append("no export config at " + config_path)
@@ -37,7 +40,7 @@ static func build(plugin_name:String) -> Dictionary:
 		return report
 
 	var cache = {}
-	var target = _package_dir("res://addons/%s/plugin.cfg" % plugin_name, cache)
+	var target = _package_dir(package_dir.path_join("plugin.cfg"), cache)
 	report.target = target
 	var needed = {target: {}} # from package -> {required package -> file count}
 
@@ -154,13 +157,15 @@ static func _package_dir(path:String, cache:Dictionary) -> String:
 	var dir = path.get_base_dir()
 	var walked = []
 	var found = ""
-	while dir.begins_with("res://") and dir != "res://":
+	while dir.begins_with("res://"):
 		if cache.has(dir):
 			found = cache[dir]
 			break
 		walked.append(dir)
 		if CFG_NAMES.any(func(nm): return FileAccess.file_exists(dir.path_join(nm))):
 			found = dir
+			break
+		if dir == "res://":
 			break
 		dir = dir.get_base_dir()
 	for w in walked:

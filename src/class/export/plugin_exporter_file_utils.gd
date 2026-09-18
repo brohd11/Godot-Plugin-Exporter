@@ -17,7 +17,7 @@ const ConfirmationDialogHandler = UtilsRemote.ConfirmationDialogHandler
 const ExportIgnore = preload("res://addons/plugin_exporter/src/class/export/export_ignore.gd")
 const ExportPaths = preload("res://addons/plugin_exporter/src/class/export/export_paths.gd")
 
-const VALID_FILE_NAMES = ["plugin_export.yml", "plugin_export.yaml", "plugin_export.json"]
+const VALID_FILE_NAMES = ExportIgnore.CONFIG_NAMES
 
 static var _global_class_regex:RegEx
 static var _lookback_regex:RegEx
@@ -27,12 +27,11 @@ static var string_maps = {}
 ## The plugin's export config in _export_ignore/ or export_ignore/, preferring the former. With
 ## none, where one would go - so "not found" messages point at a sensible path.
 static func get_export_config_path(addon_name:String):
-	addon_name = addon_name.trim_prefix("/").trim_suffix("/")
-	var plugin_dir = "res://addons/%s" % addon_name
-	for file in ExportIgnore.candidates(plugin_dir, VALID_FILE_NAMES):
-		if FileAccess.file_exists(file):
-			return file
-	return ExportIgnore.dir_or_default(plugin_dir).path_join(VALID_FILE_NAMES[0])
+	var plugin_dir = ExportPaths.resolve_target(addon_name)
+	if plugin_dir == "":
+		printerr("Invalid package target (expected a path inside this project): " + addon_name)
+		return ""
+	return ExportIgnore.config_path(plugin_dir)
 
 static func get_export_data(export_config_path:String):
 	if not FileAccess.file_exists(export_config_path):
@@ -90,8 +89,7 @@ static func get_file_export_path(file_path:String, export_config_path:String, de
 
 
 static func get_version(folder, export_config_file):
-	var addons_folder = "res://addons"
-	var target_folder = addons_folder.path_join(folder)
+	var target_folder = ExportPaths.resolve_target(folder)
 	var plugin_cfg_path = target_folder.path_join("plugin.cfg")
 	if not FileAccess.file_exists(plugin_cfg_path):
 		plugin_cfg_path = target_folder.path_join("version.cfg")
@@ -112,25 +110,23 @@ static func get_version(folder, export_config_file):
 
 
 static func replace_version(input_text: String, export_config_file) -> String:
-	var output_text = ""
-	var slice_count = input_text.get_slice_count("/")
 	var regex = RegEx.new()
 	var pattern = r"\{\{version=([^}]*)\}\}"
 	regex.compile(pattern)
+	# Targets can contain slashes, so resolve explicit tokens before walking output segments.
+	var matches = regex.search_all(input_text)
+	matches.reverse()
+	for found in matches:
+		var version = get_version(found.get_string(1), export_config_file)
+		if not version:
+			return ""
+		input_text = input_text.substr(0, found.get_start()) + "-" + str(version) + input_text.substr(found.get_end())
+	var output_text = ""
+	var slice_count = input_text.get_slice_count("/")
 	for i in range(slice_count):
 		var slice = input_text.get_slice("/", i)
 		var edited_slice
-		if slice.find("{{version=") > -1:
-			var _match = regex.search(slice)
-			var version_target = _match.get_string(1)
-			var version = get_version(version_target, export_config_file)
-			if version:
-				version = "-" + version
-				edited_slice = regex.sub(slice, version)
-			else:
-				edited_slice = regex.sub(slice, "{{version error}}")
-				return ""
-		elif slice.find("{{version}}") > -1:
+		if slice.find("{{version}}") > -1:
 			var version_target = slice.replace("{{version}}", "")
 			var version = get_version(version_target, export_config_file)
 			if version:

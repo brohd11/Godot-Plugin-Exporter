@@ -15,5 +15,7 @@ const ParseTSCN = preload("res://addons/plugin_exporter/src/class/export/parse/p
 const ParseCS = preload("res://addons/plugin_exporter/src/class/export/parse/parse_cs.gd")
 const ParseTres = preload("res://addons/plugin_exporter/src/class/export/parse/parse_tres.gd")
 
+const ExportIgnore = preload("res://addons/plugin_exporter/src/class/export/export_ignore.gd")
+
 const Backport = preload("res://addons/plugin_exporter/src/class/export/parse/gd/backport.gd")
 const CompatData = preload("res://addons/plugin_exporter/src/class/export/backport/compat_data.gd")

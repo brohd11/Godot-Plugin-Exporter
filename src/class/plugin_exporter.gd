@@ -7,6 +7,7 @@ const UtilsRemote = preload("res://addons/plugin_exporter/src/class/utils_remote
 const UtilsLocal = preload("res://addons/plugin_exporter/src/class/utils_local.gd")
 const PluginExporterStatic = UtilsLocal.PluginExporterStatic
 const PluginInit = UtilsLocal.PluginInit
+const PackageDiscovery = preload("res://addons/plugin_exporter/src/class/export/package_discovery.gd")
 
 enum TargetAddons {
 	ALL,
@@ -53,17 +54,4 @@ static func open_export_folder(plugin_name:String):
 
 
 static func get_addons_dirs(limit_to:=TargetAddons.VALID) -> Dictionary:
-	var addons_dirs = DirAccess.get_directories_at("res://addons")
-	var data = {}
-	for dir in addons_dirs:
-		var plugin_export_path = UtilsLocal.ExportFileUtils.get_export_config_path(dir)
-		if limit_to == TargetAddons.VALID:
-			if not FileAccess.file_exists(plugin_export_path):
-				continue
-		elif limit_to == TargetAddons.NOT_VALID:
-			if FileAccess.file_exists(plugin_export_path):
-				continue
-		elif limit_to != TargetAddons.ALL:
-			continue
-		data[dir] = {}
-	return data
+	return PackageDiscovery.discover("res://addons", limit_to)

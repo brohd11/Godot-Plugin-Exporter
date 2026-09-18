@@ -6,6 +6,17 @@ extends RefCounted
 
 const NAMES = ["_export_ignore", "export_ignore"] # preference order
 const DEFAULT_NAME = "_export_ignore"
+const CONFIG_NAMES = ["export.yml", "plugin_export.yml", "plugin_export.yaml", "plugin_export.json"]
+
+
+## Searches both folder spellings; a missing config returns its default creation path.
+static func config_path(package_dir:String) -> String:
+	if package_dir == "":
+		return ""
+	for path in candidates(package_dir, CONFIG_NAMES):
+		if FileAccess.file_exists(path):
+			return path
+	return dir_or_default(package_dir).path_join(CONFIG_NAMES[0])
 
 
 static func is_name(dir_name:String) -> bool:

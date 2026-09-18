@@ -312,7 +312,7 @@ released `plugin.cfg` is not modified.
 
 ### Shipping Docs
 
-With `include_docs` on (the default), the `doc` folder beside your `plugin_export.yml` is copied
+With `include_docs` on (the default), the `doc` folder beside your `export.yml` is copied
 into the exported plugin as `.doc`, structure intact. Nothing in it is parsed or crawled for
 dependencies, it is copied verbatim, and no `.uid`/`.import` sidecars come along. The dot prefix
 keeps Godot from importing the folder, so it never reaches a game export.

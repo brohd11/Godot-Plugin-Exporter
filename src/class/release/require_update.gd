@@ -21,7 +21,7 @@ static func resolve_target(report:Dictionary) -> Dictionary:
 	var out = {"specs": [], "warnings": [], "errors": []}
 	var target = report.get("target", "")
 	if target == "":
-		out.errors.append("res://addons/%s has no plugin.cfg or version.cfg" % report.get("plugin_name", ""))
+		out.errors.append("%s has no plugin.cfg or version.cfg" % report.get("plugin_name", ""))
 		return out
 	for row in report.get("groups", {}).get(target, {}).get("rows", []):
 		if row.id == "":

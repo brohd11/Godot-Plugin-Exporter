@@ -8,6 +8,7 @@ const ConfirmationDialogHandler = UtilsRemote.ConfirmationDialogHandler
 const ExportFileUtils = UtilsLocal.ExportFileUtils
 const KeysConfig = ExportFileUtils.KeysConfig
 const ExportIgnore = ExportFileUtils.ExportIgnore
+const ExportPaths = ExportFileUtils.ExportPaths
 
 static func new_plugin(plugin_dir_name, create_export:=true):
 	var new_plugin_path = "res://addons/%s" % plugin_dir_name
@@ -39,7 +40,10 @@ static func new_plugin(plugin_dir_name, create_export:=true):
 static func plugin_init(plugin_name:=""):
 	var plugin_dir = ""
 	if plugin_name != "":
-		plugin_dir = "res://addons".path_join(plugin_name)
+		plugin_dir = ExportPaths.resolve_target(plugin_name)
+		if plugin_dir == "":
+			printerr("Invalid package target (expected a path inside this project): " + plugin_name)
+			return
 		if not DirAccess.dir_exists_absolute(plugin_dir):
 			printerr("Plugin directory does not exist: %s" % plugin_dir)
 			return
@@ -49,7 +53,10 @@ static func plugin_init(plugin_name:=""):
 		var handled = await dialog.handled
 		if handled == dialog.cancel_string:
 			return
-		plugin_dir = handled
+		plugin_dir = ExportPaths.resolve_target(handled)
+		if plugin_dir == "":
+			printerr("Selected package must be inside this project: " + handled)
+			return
 	
 	var export_dir:String = ProjectSettings.localize_path(plugin_dir)
 	var export_ignore_dir = ExportIgnore.dir_or_default(export_dir) # keeps an existing folder's name
@@ -57,7 +64,7 @@ static func plugin_init(plugin_name:=""):
 		DirAccess.make_dir_recursive_absolute(export_ignore_dir)
 	
 	#var export_config_path = export_ignore_dir.path_join("plugin_export.json")
-	var export_config_path = export_ignore_dir.path_join("plugin_export.yml")
+	var export_config_path = export_ignore_dir.path_join(ExportIgnore.CONFIG_NAMES[0])
 	if FileAccess.file_exists(export_config_path):
 		var conf = ConfirmationDialogHandler.new("Overwrite: %s?" % export_config_path)
 		var conf_handled = await conf.handled
@@ -79,13 +86,13 @@ static func plugin_init(plugin_name:=""):
 	var template_data = PluginExportJSON.get_body_data()
 	template_data[KeysConfig.EXPORT_ROOT] = export_ignore_dir.path_join("exports")
 	var plugin_folder = export_dir_name.capitalize().replace(" ", "")
-	template_data[KeysConfig.PLUGIN_FOLDER] = "%s{{version=%s}}" % [plugin_folder, export_dir_name]
+	template_data[KeysConfig.PLUGIN_FOLDER] = "%s{{version=%s}}" % [plugin_folder, export_dir]
 	
 	var export = PluginExportJSON.get_export_obj_data()
 	export[KeysConfig.Export.SOURCE] = export_dir
 	export[KeysConfig.Export.REMOTE_DIR] = export_dir.path_join("src/remote")
 	var export_dir_name_dash = export_dir_name.replace("_", "-")
-	export[KeysConfig.Export.EXPORT_NAME] = "%s{{version=%s}}" % [export_dir_name_dash, export_dir_name]
+	export[KeysConfig.Export.EXPORT_NAME] = "%s{{version=%s}}" % [export_dir_name_dash, export_dir]
 	export[KeysConfig.Export.EXPORT_FOLDER] = export_dir.trim_prefix("res://").trim_suffix("/")
 	
 	var exclude = export.get(KeysConfig.Export.EXCLUDE)

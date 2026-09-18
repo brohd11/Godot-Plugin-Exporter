@@ -20,7 +20,7 @@ static func get_command_name() -> String:
 
 static func get_self_command_data() -> Dictionary:
 	return _command_data({
-		&"help": _HELP,
+		&"help": _HELP + PECommandUtils.TARGET_HELP,
 		&"positional_count": 1
 	})
 

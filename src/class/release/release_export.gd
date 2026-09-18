@@ -7,6 +7,7 @@ extends RefCounted
 const UtilsLocal = preload("res://addons/plugin_exporter/src/class/utils_local.gd")
 const UtilsRemote = preload("res://addons/plugin_exporter/src/class/utils_remote.gd")
 const ExportFileUtils = UtilsLocal.ExportFileUtils
+const ExportPaths = ExportFileUtils.ExportPaths
 
 const DepResolver = preload("res://addons/plugin_exporter/src/class/release/dep_resolver.gd")
 const RepoCache = preload("res://addons/plugin_exporter/src/class/release/repo_cache.gd")
@@ -30,7 +31,6 @@ static var messages:Array[String] = []
 ## remote - still by tag, so nothing uncommitted gets in, but nothing has to be pushed either.
 static func export_release(plugin_name:String, refresh:bool = false, local:bool = false) -> bool:
 	messages.clear()
-	plugin_name = plugin_name.trim_prefix("/").trim_suffix("/")
 	var started = Time.get_ticks_msec()
 	var ok = _export_release(plugin_name, refresh, local)
 	var seconds = (Time.get_ticks_msec() - started) / 1000.0
@@ -42,7 +42,9 @@ static func export_release(plugin_name:String, refresh:bool = false, local:bool 
 
 
 static func _export_release(plugin_name:String, refresh:bool, local:bool) -> bool:
-	var dev_dir = "res://addons/" + plugin_name
+	var dev_dir = ExportPaths.resolve_target(plugin_name)
+	if dev_dir == "":
+		return _fail("Invalid package target (expected a path inside this project): " + plugin_name)
 	var config_path = ExportFileUtils.get_export_config_path(plugin_name)
 	if not FileAccess.file_exists(config_path):
 		return _fail("no export config at " + config_path)
@@ -57,6 +59,7 @@ static func _export_release(plugin_name:String, refresh:bool, local:bool) -> boo
 	var cache = RepoCache.new("", refresh)
 	var fetcher = PackageFetcher.new(cache, ReleaseCache.new(cache.root, refresh))
 	var dev_repos = DepResolver.scan_dev_repos()
+	dev_repos[DepResolver.repo_id_from_url(url)] = dev_dir
 	var overrides = {}
 	if local:
 		for id in dev_repos:
@@ -95,14 +98,17 @@ static func _export_release(plugin_name:String, refresh:bool, local:bool) -> boo
 	var workspace = ReleaseWorkspace.new(fetcher)
 	var debug_section = ReleaseRunner.project_section(FileAccess.get_file_as_string("res://project.godot"), "debug")
 	var export_root = ProjectSettings.globalize_path(config.get("export_root", ""))
-	var ws = workspace.build(lock, plugin_name, toolchain, export_root, debug_section)
+	var ws = workspace.build(lock, dev_dir, toolchain, export_root, debug_section)
 	if ws == "":
 		for e in workspace.errors:
 			_note("  " + e)
 		return false
 
 	print("Release export: exporting in " + ws)
-	var run = ReleaseRunner.run_export(ws, plugin_name)
+	var target_dir = ws.path_join(String(lock.target.path).trim_prefix("res://"))
+	var workspace_config = ExportFileUtils.ExportIgnore.config_path(target_dir)
+	var config_resource = "res://" + workspace_config.trim_prefix(ws.trim_suffix("/") + "/")
+	var run = ReleaseRunner.run_export(ws, config_resource)
 	if lock.has("toolchain"):
 		var broken = ReleaseRunner.script_errors(run.output).filter(func(e): return TOOLCHAIN_SCRIPTS in e)
 		if not broken.is_empty():

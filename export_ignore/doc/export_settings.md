@@ -44,7 +44,7 @@ these settings are passed to parsers. You can overide on a per export basis usin
 
 ### GDScript optimizer
 
-`plugin_init` seeds the following block in each new `plugin_export.yml`. Existing files
+`plugin_init` seeds the following block in each new `export.yml`. Existing files
 without it use the same defaults; omit individual keys to inherit their defaults.
 
 ```yaml

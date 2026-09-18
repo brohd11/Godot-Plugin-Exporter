@@ -426,7 +426,7 @@ class FilePathLine extends LineEdit:
 	signal path_dropped(path:String)
 	
 	func _init() -> void:
-		placeholder_text = "plugin_export.yaml"
+		placeholder_text = "export.yml"
 		#right_icon = EditorInterface.get_editor_theme().get_icon(&"File", &"EditorIcons")
 	
 	func _can_drop_data(_at_position: Vector2, data: Variant) -> bool:
