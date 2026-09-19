@@ -32,6 +32,12 @@ static func configuration(settings:Variant) -> Dictionary:
 	return result
 
 
+static func _policy(options:Dictionary) -> Dictionary:
+	var policy := options.duplicate()
+	policy.erase("enabled")
+	return policy
+
+
 func set_parse_settings(settings) -> void:
 	_settings = settings.get("optimizer", {})
 	if _settings is Dictionary:
@@ -56,13 +62,7 @@ func pre_export() -> void:
 	context.removed_globals = export_obj.class_renames
 	context.scan_references = _references
 	context.injection_header = "### Plugin Exporter Structs"
-	context.debug_tags = options.get("debug_tags", false)
-	context.scalar_replacement = options.scalar_replacement
-	context.struct_read_types = options.struct_read_types as Optimizer.Context.StructReadTypes
-	context.scalar_replacement_allow_ref_counted = options.scalar_replacement_allow_ref_counted
-	context.struct_read_types_allow_ref_counted = options.struct_read_types_allow_ref_counted
-	context.inline_functions_allow_ref_counted = options.inline_functions_allow_ref_counted
-	context.inline_functions_allow_variants = options.inline_functions_allow_variants
+	context.configure(_policy(options))
 	var sources:Dictionary = {}
 	for key:String in export_obj.files_to_copy:
 		var source:String = export_obj.files_to_copy[key].get(KeysData.REPLACE_WITH, key)
@@ -70,14 +70,13 @@ func pre_export() -> void:
 			sources[key] = source
 	context.map_path = func(key:String): return sources.get(key, key)
 	var passes:Array = []
-	if options.structs:
+	if options.struct_mode != "off":
 		passes.append(Optimizer.StructPass)
-	elif options.scalar_replacement or options.struct_read_types != 0:
-		warnings.append("Scalar replacement and struct read types require structs: true; options are inactive.")
-	if options.inline_functions:
+	if options.inline_mode != "off":
 		passes.append(Optimizer.InlinePass)
 	var optimizer = Optimizer.new()
 	var prepared:Dictionary = optimizer.prepare(sources, context, passes)
+	stats = optimizer.stats.duplicate()
 	errors.append_array(prepared.errors)
 	warnings.append_array(prepared.warnings)
 	var pending:Dictionary = {}

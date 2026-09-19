@@ -53,15 +53,10 @@ options:
     parse_gd:
       optimizer:
         enabled: true
-        structs: true
-        inline_functions: true
+        struct_mode: tagged # auto | tagged | off
+        inline_mode: tagged # auto | tagged | off
+        aggressive: false
         debug_tags: false
-        scalar_replacement: true
-        struct_read_types: typed_locals # off | typed_locals | as_casts
-        scalar_replacement_allow_ref_counted: false
-        struct_read_types_allow_ref_counted: false
-        inline_functions_allow_ref_counted: false
-        inline_functions_allow_variants: false
 ```
 
 `enabled: false` bypasses the whole optimizer, including struct lowering and validation
@@ -69,51 +64,11 @@ of inactive optimization options. Packaging, path relocation, and backporting st
 When enabled, invalid optimizer keys or values invalidate the export before its files
 are copied. Unsupported inline sites remain unchanged with diagnostic reasons.
 
-Structs run before inlining. Mark data classes with `#! struct`, and supported top-level
-static functions with `#! inline`. Scalar replacement removes eligible non-escaping local
-struct allocations; typed locals restore known types on surviving struct reads. Cast mode
-uses `as` at the read site and can cost more than it saves. Reference fields remain excluded
-unless their respective `scalar_replacement_allow_ref_counted` or
-`struct_read_types_allow_ref_counted` flag is enabled. These can extend lifetimes and
-introduce type checks on freed objects. Optimizer output then passes through the normal packaging rewrites.
-
-Each export entry can override individual optimizer keys, inheriting the rest:
-
-```yaml
-exports:
-  - source: res://addons/my_plugin
-    export_name: my-plugin-baseline
-    parser_overide_settings:
-      parse_gd:
-        optimizer:
-          enabled: false
-```
-
-Keep an optimized export entry alongside this baseline for performance comparisons.
-The export log reports optimizer source-site statistics, including applied/skipped inline
-calls, direct/expanded calls, scalar replacements, typed captures, and casts. These count
-transformations, not runtime invocations. Source scripts and original helper definitions
-are retained; no separate optimizer YAML file is needed by PluginExporter.
-
-Direct inlining supports single-return boolean/comparison expressions and String
-`begins_with`, `ends_with`, `contains`, and `is_empty` predicates, including conditional
-call sites. Arguments must be literals or locals; no conditional temporaries are introduced.
-`inline_functions_allow_ref_counted` permits direct reference member/index access and
-method calls without parameter lifetime protection. `inline_functions_allow_variants`
-permits unchecked Variant substitution, removing signature checks/conversions; unknown
-runtime values may include references. Known reference types still require their own opt-in.
-Both flags default to false and leave existing template expansion rules unchanged.
-The old `allow_ref_counted` key is rejected; replace it with the two struct flags above.
-
-`#! inline; substitute` opts one helper into direct expression substitution: supplied
-arguments can be skipped, repeated, or evaluated in body order. Type opt-ins remain
-separate. Native rest parameters are supported in eligible templates; simple all/any
-loops over a sole rest parameter lower to `and`/`or` chains. Normal inline requires
-proven safe arguments for these chains; substitution permits effectful arguments.
-Nested expression helpers expand inside arguments and templates, with cycle/depth/size
-checks. General loop expansion and conditional temporary extraction remain deferred.
-
-`debug_tags: true` adds searchable `# optimizer-inline;`, `# optimizer-struct;`,
-`# optimizer-scalar-replacement;`, and `# optimizer-struct-read;` comments beside
-successful transformations. Inline comments record the helper, mode, tag arguments,
-nesting depth, and source site. This defaults off and does not change runtime behavior.
+Structs run before inlining.
+The shared optimizer uses `struct_mode` and `inline_mode` to select tagged definitions,
+automatically discover eligible definitions, or disable each pass. `aggressive` admits
+reference/Variant types and relaxes inline conversions/lifetimes. Struct usage checks remain.
+Scalar replacement and typed-local field reads are included in struct optimization;
+there is no field-read cast strategy. `#! struct; off` and `#! inline; off` exclude definitions.
+Only explicit `#! inline; substitute` permits unchecked effectful arguments.
+See the shared optimizer README for supported syntax and exact eligibility rules.
