@@ -12,7 +12,7 @@ const SplitWrapper = UtilsRemote.SplitWrapper
 const UControl = UtilsRemote.UControl
 const UFile = UtilsRemote.UFile
 
-const FSTreeClasses = preload("res://addons/addon_lib/brohd/alib_editor/file_system/components/tree/fs_tree_classes.gd")
+const FSTreeClasses = preload("res://addons/addon_lib/editor_filesystem/src/components/tree/fs_tree_classes.gd")
 
 const DepGraphPanel = preload("res://addons/addon_lib/brohd/alib_runtime/ui/dep_graph/dep_graph_panel.gd")
 const YAMLHighlighter = preload("res://addons/addon_lib/brohd/alib_runtime/misc/syntax_highlighters/text/types/yaml_highlighter.gd")

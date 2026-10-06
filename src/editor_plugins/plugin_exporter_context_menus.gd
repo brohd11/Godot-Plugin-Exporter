@@ -2,7 +2,7 @@ extends EditorContextMenuPlugin
 
 const SLOT = EditorContextMenuPlugin.CONTEXT_SLOT_SCRIPT_EDITOR_CODE
 
-const Params = PopupWrapper.ItemParams
+const Params = PopupWrapper.ContextPlugin.ItemParams
 
 const UtilsRemote = preload("res://addons/plugin_exporter/src/class/utils_remote.gd")
 const UFile = UtilsRemote.UFile
@@ -25,7 +25,7 @@ func _popup_menu(paths: PackedStringArray) -> void:
 	var script_editor:CodeEdit = Engine.get_main_loop().root.get_node(paths[0]);
 	
 	var valid_items = get_valid_items(script_editor)
-	PopupWrapper.create_context_plugin_items(self, script_editor, valid_items, _on_popup_pressed)
+	PopupWrapper.ContextPlugin.create_items(self, script_editor, valid_items, _on_popup_pressed)
 
 
 func _on_popup_pressed(script_editor, item_name):

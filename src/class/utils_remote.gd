@@ -25,7 +25,7 @@ const SplitWrapper = preload("uid://ceuhswngaxtvo") #! resolve ALibRuntime.UICus
 
 const UControl = preload("uid://brio73mirr5e6") #! resolve ALibRuntime.Utils.UControl
 
-const FSTreeClasses = preload("res://addons/addon_lib/brohd/alib_editor/file_system/components/tree/fs_tree_classes.gd")
+const FSTreeClasses = preload("res://addons/addon_lib/editor_filesystem/src/components/tree/fs_tree_classes.gd")
 
 const Dependencies = preload("uid://dbn0kmkxa7caq") #! resolve ALibRuntime.Utils.UResource.Dependencies
 const GDScriptOptimizer = preload("res://addons/addon_lib/gdscript_optimizer/optimizer.gd")
