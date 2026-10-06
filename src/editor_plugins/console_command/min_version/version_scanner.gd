@@ -8,7 +8,7 @@ extends RefCounted
 ## (`node.method()`) needs real type inference and is deferred to a future
 ## parser-based scan; members missing from the index are assumed user-defined.
 
-const URegex = preload("res://addons/addon_lib/brohd/alib_runtime/utils/u_regex.gd")
+const URegex = preload("res://addons/_lib/brohd/alib_runtime/utils/u_regex.gd")
 const VersionApi = preload("res://addons/plugin_exporter/src/editor_plugins/console_command/min_version/version_api.gd")
 const SyntaxRules = preload("res://addons/plugin_exporter/src/editor_plugins/console_command/min_version/syntax_rules.gd")
 

@@ -8,7 +8,7 @@ The main feature is to get any global classes used in your plugin and remove the
 
 The other aspect of this is that the global class can be outside of the plugin. It would then be copied into your plugin on export. This allows you to keep shared classes in a central folder/submodule, but use the classes as normal.
 
-In the image below, you can see how the exporter itself is exported. The main logic lives in the plugin_exporter folder, it pulls utility classes from addon_lib folder, and then pulls the editor_console plugin as a sub plugin.
+In the image below, you can see how the exporter itself is exported. The main logic lives in the plugin_exporter folder, it pulls utility classes from _lib folder, and then pulls the editor_console plugin as a sub plugin.
 
 
 <img width="1161" height="955" alt="exporter-example-git" src="https://github.com/user-attachments/assets/d391a7b0-84dc-416e-a221-6a5fa798d9ee" />
@@ -49,7 +49,7 @@ explicit `res://` paths, or absolute filesystem paths inside the current project
 For example:
 
 ```text
-plugin_exporter export addon_lib/brohd
+plugin_exporter export _lib/brohd
 plugin_exporter plugin_init res://lib/my_package
 plugin_exporter export res://lib/my_package
 plugin_exporter export --release --local res://lib/my_package

@@ -7,7 +7,7 @@ extends RefCounted
 ## hints (4.2); typed node exports `@export var x: NodeType` (4.2) — needs a type check.
 ## `@export_storage` (4.3) is UNVERIFIED — no 4.3 binary to confirm against.
 
-const URegex = preload("res://addons/addon_lib/brohd/alib_runtime/utils/u_regex.gd")
+const URegex = preload("res://addons/_lib/brohd/alib_runtime/utils/u_regex.gd")
 
 ## Each rule: { name, version, regex:RegEx }, matched against sanitized code.
 const _DEFS := [

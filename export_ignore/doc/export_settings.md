@@ -12,7 +12,7 @@
  - exclude - directories, file_extensions, and files to ignore on export
  - remote_dir - where all out of plugin files will be recreated
  - export_name - package folder under export_root + plugin_folder, zipped as a whole. Defaults to the last segment of plugin_folder
- - export_folder - install path relative to res://, e.g. `addons/addon_lib/my_lib`. Recreated inside the package, so it extracts straight into a project. Any path relative to res:// (no `{{version}}` templates); defaults to source. A path different from source renames the plugin and rewrites its paths to match
+ - export_folder - install path relative to res://, e.g. `addons/_lib/my_lib`. Recreated inside the package, so it extracts straight into a project. Any path relative to res:// (no `{{version}}` templates); defaults to source. A path different from source renames the plugin and rewrites its paths to match
  - other_transfers - other files to transfer into plugin on export
  - ignore_dependencies - do not export any dependencies for the files
  - parser_overide_settings - overide settings per export for the file parser

@@ -52,7 +52,7 @@ static func locate(files:Array, repo_id:String, cfg_value:Callable, repo_id_of:C
 		return {"src": wrapper, "dest": _res(pinned)}
 
 	# 2. An addons/ folder is the canonical layout: its children are the addons, descending into a
-	# child that is only a namespace level (addons/addon_lib/<addon>).
+	# child that is only a namespace level (addons/_lib/<addon>).
 	var base = _shallowest_addons(clean)
 	var candidates:Array[String] = []
 	if base != "":

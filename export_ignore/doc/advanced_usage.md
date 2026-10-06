@@ -262,7 +262,7 @@ place it:
 - a cfg at the package root: the package is the addon, and its cfg must say where it goes with
   `path="addons/..."` (or `dir=`); without it the export fails
 - a whole Godot project: the shallowest `addons/` folder is the anchor, so
-  `addons/addon_lib/yaml_parser` installs at `res://addons/addon_lib/yaml_parser`
+  `addons/_lib/yaml_parser` installs at `res://addons/_lib/yaml_parser`
 - anything else, such as a release zip: the cfg folder's path under the package root (after a single
   wrapper folder is stripped) is its path under `addons/`
 
