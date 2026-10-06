@@ -55,6 +55,7 @@ static func get_export_data(export_config_path:String):
 		var err = parser.parse(config_string)
 		if err != OK:
 			printerr("Plugin Exporter - Error parsing YAML: " , err)
+			printerr(parser.errors)
 			return
 		return parser.data
 

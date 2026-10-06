@@ -177,8 +177,9 @@ static func _locate_yaml(lines:PackedStringArray) -> Dictionary:
 				out.to += 1
 			out.specs = _flow_items(value)
 		elif value != "":
+			value = DepResolver.unquote(value)
 			if value != REQUIRE_REF:
-				out.specs.append(DepResolver.unquote(value))
+				out.specs.append(value)
 		else:
 			var j = out.to
 			while j < lines.size():
