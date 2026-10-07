@@ -44,7 +44,7 @@ var icon = EditorInterface.get_editor_theme().get_icon(&"ActionCopy", &"EditorIc
 var dock_button:Button
 # /DockManager
 
-var right_click_handler:ClickHandlers.RightClickHandler
+var right_click_handler:UtilR.Nodes.PopupMenus.Placer
 
 var main_vbox:VBoxContainer
 var header_hbox:HBoxContainer
@@ -82,7 +82,7 @@ func get_dock_data():
 	return dock_data
 
 func _ready() -> void:
-	right_click_handler = ClickHandlers.RightClickHandler.new()
+	right_click_handler = UtilR.Nodes.PopupMenus.Placer.new()
 	add_child(right_click_handler)
 	
 	#set_anchors_and_offsets_preset(PRESET_FULL_RECT)

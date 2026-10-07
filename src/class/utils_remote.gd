@@ -19,7 +19,7 @@ const TreeHelperBase = preload("res://addons/_lib/brohd/alib_runtime/tree_helper
 const TabBarContainer = preload("uid://b7cxw711vl1jd") #! resolve ALibEditor.UIHelpers.Tab.TabBarContainer
 const EditorIcons = preload("uid://viocyrti6wce") #! resolve ALibEditor.Singleton.EditorIcons
 
-const Options = preload("uid://c61qxuau2v0pb") #! resolve ALibRuntime.Popups.Options
+const Options = preload("uid://dxdxq2n3imf4q") #! resolve UtilR.Nodes.PopupMenus.Options
 
 const SplitWrapper = preload("uid://ceuhswngaxtvo") #! resolve ALibRuntime.UICustom.SplitWrapper
 
