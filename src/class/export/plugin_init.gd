@@ -115,6 +115,38 @@ static func plugin_init(plugin_name:=""):
 	return export_config_path
 
 
+## Turns any folder into a library package: version.cfg, its own git repo, src/, then plugin_init.
+static func package_init(target:String):
+	var package_dir = ExportPaths.resolve_target(target)
+	if package_dir == "":
+		printerr("Invalid package target (expected a path inside this project): " + target)
+		return
+	DirAccess.make_dir_recursive_absolute(package_dir)
+	for cfg in ["plugin.cfg", "version.cfg"]:
+		if FileAccess.file_exists(package_dir.path_join(cfg)):
+			printerr("Already a package, %s exists: %s" % [cfg, package_dir])
+			return
+	
+	var cfg_f = FileAccess.open(package_dir.path_join("version.cfg"), FileAccess.WRITE)
+	cfg_f.store_string(version_cfg_text(package_dir))
+	cfg_f.close()
+	
+	var global_dir = ProjectSettings.globalize_path(package_dir)
+	var git_path = package_dir.path_join(".git")
+	if not DirAccess.dir_exists_absolute(git_path) and not FileAccess.file_exists(git_path): # file form: worktree/submodule
+		var output = []
+		if OS.execute("git", ["-C", global_dir, "init"], output, true) != 0:
+			push_warning("git init failed in %s: %s" % [package_dir, "\n".join(PackedStringArray(output)).strip_edges()])
+	
+	DirAccess.make_dir_recursive_absolute(package_dir.path_join("src"))
+	print("Package init complete: %s" % package_dir)
+	return await plugin_init(package_dir)
+
+static func version_cfg_text(package_dir:String) -> String:
+	var res_path = ProjectSettings.localize_path(package_dir).trim_suffix("/")
+	return _NewPluginText.VERSION_CFG_TEXT % [res_path.get_file(), res_path.trim_prefix("res://")]
+
+
 class _NewPluginText:
 	const PLUGIN_GD_TEXT = \
 '@tool' + \
@@ -150,6 +182,18 @@ description=""
 author=""
 version="0.1.0"
 script="plugin.gd"'
+
+	const VERSION_CFG_TEXT = \
+'[plugin]
+name="%s"
+path="%s"
+version="0.1.0"
+url=""
+require=[]
+
+[namespace]
+path=""
+'
 
 	const PRE_POST_TEMPLATE_TEXT = \
 "@tool" + \

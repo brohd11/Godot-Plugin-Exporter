@@ -34,6 +34,18 @@ static func discover(root:String = "res://addons", filter:int = Filter.VALID) ->
 	return result
 
 
+## Dirs with no plugin.cfg/version.cfg - package_init candidates. Never descends into a package;
+## uncached so a freshly initialized dir drops off at once.
+static func discover_unpackaged(root:String = "res://addons", max_depth:int = 2) -> Dictionary:
+	var paths:Array[String] = []
+	_scan_unpackaged(ProjectSettings.globalize_path(root).simplify_path().trim_suffix("/"), "", max_depth, paths)
+	paths.sort()
+	var result = {}
+	for path in paths:
+		result[path] = {}
+	return result
+
+
 static func clear_cache() -> void:
 	_cache.clear()
 
@@ -64,3 +76,20 @@ static func _scan(root:String, relative:String, paths:Array[String]) -> void:
 		if child.begins_with(".") or ExportIgnore.is_name(child) or access.is_link(child):
 			continue
 		_scan(root, relative.path_join(child), paths)
+
+
+static func _scan_unpackaged(root:String, relative:String, depth_left:int, paths:Array[String]) -> void:
+	if depth_left <= 0:
+		return
+	var access = DirAccess.open(root.path_join(relative))
+	if access == null:
+		return
+	for child in access.get_directories():
+		if child.begins_with(".") or ExportIgnore.is_name(child) or access.is_link(child):
+			continue
+		var child_relative = relative.path_join(child)
+		var child_dir = root.path_join(child_relative)
+		if FileAccess.file_exists(child_dir.path_join("plugin.cfg")) or FileAccess.file_exists(child_dir.path_join("version.cfg")):
+			continue
+		paths.append(child_relative)
+		_scan_unpackaged(root, child_relative, depth_left - 1, paths)

@@ -30,6 +30,9 @@ static func new_plugin(plugin_name:String):
 static func plugin_init(plugin_name:String):
 	PluginInit.plugin_init(plugin_name)
 
+static func package_init(target:String):
+	PluginInit.package_init(target)
+
 static func gui_open(plugin_name:String):
 	var export_file_path = UtilsLocal.ExportFileUtils.get_export_config_path(plugin_name)
 	if not FileAccess.file_exists(export_file_path):
@@ -55,3 +58,6 @@ static func open_export_folder(plugin_name:String):
 
 static func get_addons_dirs(limit_to:=TargetAddons.VALID) -> Dictionary:
 	return PackageDiscovery.discover("res://addons", limit_to)
+
+static func get_unpackaged_dirs() -> Dictionary:
+	return PackageDiscovery.discover_unpackaged("res://addons")
