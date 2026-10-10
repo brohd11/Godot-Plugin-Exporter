@@ -17,7 +17,7 @@ const UEditorTheme = preload("res://addons/_lib/brohd/alib_editor/utils/src/u_ed
 const TreeHelperBase = preload("res://addons/_lib/brohd/alib_runtime/tree_helper/tree_helper_base.gd")
 
 const TabBarContainer = preload("uid://b7cxw711vl1jd") #! resolve ALibEditor.UIHelpers.Tab.TabBarContainer
-const EditorIcons = preload("uid://viocyrti6wce") #! resolve ALibEditor.Singleton.EditorIcons
+const EditorIcons = preload("uid://viocyrti6wce") #! resolve PluginUI.EditorIcons
 
 const Options = preload("uid://dxdxq2n3imf4q") #! resolve UtilR.Nodes.PopupMenus.Options
 
