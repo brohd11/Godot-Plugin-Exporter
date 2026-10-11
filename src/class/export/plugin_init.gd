@@ -3,7 +3,8 @@ const UtilsRemote = preload("res://addons/plugin_exporter/src/class/utils_remote
 const UtilsLocal = preload("res://addons/plugin_exporter/src/class/utils_local.gd")
 
 const UFile = UtilsRemote.UFile
-const ConfirmationDialogHandler = UtilsRemote.ConfirmationDialogHandler
+const Confirmation = UtilsRemote.Confirmation
+const FilePicker = UtilsRemote.FilePicker
 
 const ExportFileUtils = UtilsLocal.ExportFileUtils
 const KeysConfig = ExportFileUtils.KeysConfig
@@ -48,11 +49,12 @@ static func plugin_init(plugin_name:=""):
 			printerr("Plugin directory does not exist: %s" % plugin_dir)
 			return
 	else:
-		var dialog = EditorFileDialogHandler.Dir.new()
+		var dialog = FilePicker.Editor.dir()
 		dialog.dialog.title = "Pick plugin folder..."
-		var handled = await dialog.handled
-		if handled == dialog.cancel_string:
+		var resp = await dialog.get_response()
+		if resp.cancelled:
 			return
+		var handled = resp.payload
 		plugin_dir = ExportPaths.resolve_target(handled)
 		if plugin_dir == "":
 			printerr("Selected package must be inside this project: " + handled)
@@ -66,14 +68,14 @@ static func plugin_init(plugin_name:=""):
 	#var export_config_path = export_ignore_dir.path_join("plugin_export.json")
 	var export_config_path = export_ignore_dir.path_join(ExportIgnore.CONFIG_NAMES[0])
 	if FileAccess.file_exists(export_config_path):
-		var conf = ConfirmationDialogHandler.new("Overwrite: %s?" % export_config_path)
+		var conf = Confirmation.new("Overwrite: %s?" % export_config_path)
 		var conf_handled = await conf.handled
 		if not conf_handled:
 			return
 	
 	var export_pre_post = export_ignore_dir.path_join("pre_post_export.gd")
 	if FileAccess.file_exists(export_pre_post):
-		var conf = ConfirmationDialogHandler.new("Overwrite: %s?" % export_pre_post)
+		var conf = Confirmation.new("Overwrite: %s?" % export_pre_post)
 		var conf_handled = await conf.handled
 		if not conf_handled:
 			return

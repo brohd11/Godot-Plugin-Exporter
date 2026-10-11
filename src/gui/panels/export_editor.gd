@@ -3,7 +3,7 @@ extends VBoxContainer
 const UtilsRemote = preload("res://addons/plugin_exporter/src/class/utils_remote.gd")
 const Options = UtilsRemote.Options
 const UControl = UtilsRemote.UControl
-const Conf = UtilsRemote.Conf
+const Confirmation = UtilsRemote.Confirmation
 
 const JSONHighlighter = UtilsRemote.JSONHighlighter
 const YAMLHighlighter = UtilsRemote.YAMLHighlighter
@@ -53,9 +53,8 @@ func _on_ce_gui_input(input_event:InputEvent):
 			accept_event()
 
 func _save_file():
-	var conf = Conf.new("Save file?")
-	var res = await conf.handled
-	if not res:
+	var conf = await Confirmation.confirm("Save file?")
+	if not conf:
 		return false
 	print("GONAN SAVE")
 	# confirm?

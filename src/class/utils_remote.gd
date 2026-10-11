@@ -7,8 +7,8 @@ const UString = preload("res://addons/_lib/brohd/alib_runtime/utils/u_string.gd"
 const UTree = preload("res://addons/_lib/brohd/alib_runtime/utils/u_tree.gd")
 const URegex = preload("res://addons/_lib/brohd/alib_runtime/utils/u_regex.gd")
 const UClassDetail = preload("res://addons/_lib/brohd/alib_editor/utils/src/u_class_detail.gd")
-const ConfirmationDialogHandler = preload("uid://bccd38qwc47vu").Handlers.Confirmation # dialog.gd
-const Conf = preload("uid://b4rwv7tgks0b5") #! resolve ALibRuntime.Dialog.Handlers.Confirmation
+const Confirmation = preload("uid://dwhlbgevd62gg") #! resolve Dialogs.Handlers.Confirmation
+const FilePicker = preload("uid://bnhku17qy1buh") #! resolve Dialogs.Handlers.FilePicker
 
 const UEditor = preload("res://addons/_lib/brohd/alib_editor/utils/src/u_editor.gd")
 const PopupHelper = preload("res://addons/_lib/brohd/alib_runtime/popup_menu/popup_menu_path_helper.gd")
@@ -16,8 +16,8 @@ const FileSystem = preload("res://addons/_lib/brohd/alib_editor/utils/src/editor
 const UEditorTheme = preload("res://addons/_lib/brohd/alib_editor/utils/src/u_editor_theme.gd")
 const TreeHelperBase = preload("res://addons/_lib/brohd/alib_runtime/tree_helper/tree_helper_base.gd")
 
-const TabBarContainer = preload("uid://b7cxw711vl1jd") #! resolve ALibEditor.UIHelpers.Tab.TabBarContainer
-const EditorIcons = preload("uid://viocyrti6wce") #! resolve PluginUI.EditorIcons
+const TabBarContainer = preload("uid://dhohyyr2xlven") #! resolve UIRuntime.Tabs.TabBarContainer
+const EditorIcons = preload("uid://viocyrti6wce") #! resolve UIPlugin.EditorIcons
 
 const Options = preload("uid://dxdxq2n3imf4q") #! resolve UtilR.Nodes.PopupMenus.Options
 

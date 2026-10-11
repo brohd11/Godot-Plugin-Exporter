@@ -13,7 +13,7 @@ const UClassDetail = UtilsRemote.UClassDetail
 const ScanGD = UtilsRemote.Dependencies.ScanGD
 const DependencyTags = UtilsLocal.DependencyTags
 
-const ConfirmationDialogHandler = UtilsRemote.ConfirmationDialogHandler
+const Confirmation = UtilsRemote.Confirmation
 const ExportIgnore = preload("res://addons/plugin_exporter/src/class/export/export_ignore.gd")
 const ExportPaths = preload("res://addons/plugin_exporter/src/class/export/export_paths.gd")
 
