@@ -268,7 +268,7 @@ func _build_tree():
 	
 	var pre_script = export_data.pre_script
 	if pre_script != "":
-		ExportFileUtils.run_export_script(pre_script, "pre_export")
+		ExportFileUtils.run_export_script(pre_script, "pre_export", export_data)
 	
 	# build tree
 	var root_item:TreeItem

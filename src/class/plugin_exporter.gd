@@ -8,6 +8,7 @@ const UtilsLocal = preload("res://addons/plugin_exporter/src/class/utils_local.g
 const PluginExporterStatic = UtilsLocal.PluginExporterStatic
 const PluginInit = UtilsLocal.PluginInit
 const PackageDiscovery = preload("res://addons/plugin_exporter/src/class/export/package_discovery.gd")
+const ExportScript = preload("res://addons/plugin_exporter/src/class/export/export_script.gd")
 
 enum TargetAddons {
 	ALL,

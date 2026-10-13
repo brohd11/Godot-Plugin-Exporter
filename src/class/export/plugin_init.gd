@@ -73,18 +73,7 @@ static func plugin_init(plugin_name:=""):
 		var conf_handled = await conf.handled
 		if not conf_handled:
 			return
-	
-	var export_pre_post = export_ignore_dir.path_join("pre_post_export.gd")
-	if FileAccess.file_exists(export_pre_post):
-		var conf = Confirmation.new("Overwrite: %s?" % export_pre_post)
-		var conf_handled = await conf.handled
-		if not conf_handled:
-			return
-	
-	var pre_post_f = FileAccess.open(export_pre_post, FileAccess.WRITE)
-	pre_post_f.store_string(_NewPluginText.PRE_POST_TEMPLATE_TEXT)
-	pre_post_f.close()
-	
+
 	var export_dir_name = export_dir.trim_suffix("/").get_file()
 	var template_data = PluginExportJSON.get_body_data()
 	template_data[KeysConfig.EXPORT_ROOT] = export_ignore_dir.path_join("exports")
@@ -102,9 +91,7 @@ static func plugin_init(plugin_name:=""):
 	exclude[KeysConfig.Export.Exclude.DIRECTORIES] = [export_ignore_dir]
 	
 	template_data[KeysConfig.EXPORTS].append(export)
-	template_data[KeysConfig.PRE_SCRIPT] = export_pre_post
-	template_data[KeysConfig.POST_SCRIPT] = export_pre_post
-	
+
 	#UFile.write_to_json(template_data, export_config_path)
 	YAMLParser.dump_to_file(template_data, export_config_path)
 	
@@ -201,18 +188,6 @@ require=[]
 [namespace]
 path=""
 '
-
-	const PRE_POST_TEMPLATE_TEXT = \
-"@tool" + \
-"\nextends Node" + \
-"
-func pre_export():
-	pass
-
-func post_export():
-	pass
-
-"
 
 
 class PluginExportJSON:

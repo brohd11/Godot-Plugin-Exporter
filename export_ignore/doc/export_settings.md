@@ -2,8 +2,8 @@
 ## Main Settings
  - export_root - root of export can be local or global scope, inside or outside project
  - plugin_folder - appended to export_root, by default it uses the plugin version, so all different version exports can exist in this folder
- - pre_script - script called pre export
- - post_script - script called post export
+ - pre_script - optional script whose `pre_export()` runs before export; `""` skips it
+ - post_script - optional script whose `post_export()` runs after export; `""` skips it. Both should `extends PluginExporterAPI.ExportScript`, whose `_configure(export_data)` runs first and can be overridden to read more of the export
  - exports - array of export objects dictionaries
  - options - dictionary of options
 

@@ -64,7 +64,7 @@ static func export_plugin(export_config_path:String, include_uid_overide=null, i
 	if export_data.pre_script != "":
 		if not ExportFileUtils.check_export_script_valid(export_data.pre_script, "pre_export"):
 			return false
-		ExportFileUtils.run_export_script(export_data.pre_script, "pre_export")
+		ExportFileUtils.run_export_script(export_data.pre_script, "pre_export", export_data)
 	
 	var full_export_path = export_data.full_export_path
 	
@@ -109,7 +109,7 @@ static func export_plugin(export_config_path:String, include_uid_overide=null, i
 		count += 1
 	
 	if export_data.post_script != "":
-		ExportFileUtils.run_export_script(export_data.post_script, "post_export")
+		ExportFileUtils.run_export_script(export_data.post_script, "post_export", export_data)
 	
 	var exported_dirs = DirAccess.get_directories_at(full_export_path)
 	for dir in exported_dirs:

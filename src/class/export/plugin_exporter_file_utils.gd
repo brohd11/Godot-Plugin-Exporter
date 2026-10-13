@@ -182,10 +182,10 @@ static func get_export_folder(export_entry:Dictionary, _export_config_path = nul
 	return folder + "/" if folder != "" else ""
 
 
-static func run_export_script(script_path, func_name):
+static func run_export_script(script_path, func_name, export_data):
 	if not check_export_script_valid(script_path, func_name):
 		return
-	_run_export_script(script_path, func_name)
+	_run_export_script(script_path, func_name, export_data)
 
 static func check_export_script_valid(script_path, func_name):
 	if not FileAccess.file_exists(script_path):
@@ -196,14 +196,16 @@ static func check_export_script_valid(script_path, func_name):
 	var script_valid = script_ins.has_method(func_name)
 	script_ins.queue_free()
 	if not script_valid:
-		UEditor.push_toast("%s script does not have method: post_export." % func_name, 2)
+		UEditor.push_toast("Export script does not have method: %s." % func_name, 2)
 		return false
 	return true
 
-static func _run_export_script(script_path, func_name):
+static func _run_export_script(script_path, func_name, export_data):
 	var script = load(script_path)
 	var script_ins = script.new()
 	EditorInterface.get_base_control().add_child(script_ins)
+	if script_ins.has_method("_configure"): # duck-typed: plain Node scripts predate ExportScript
+		script_ins._configure(export_data)
 	await script_ins.call(func_name)
 	script_ins.queue_free()
 
