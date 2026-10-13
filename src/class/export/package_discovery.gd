@@ -3,6 +3,7 @@ extends RefCounted
 ## Package snapshots are rebuilt on demand after editor filesystem changes.
 
 const ExportIgnore = preload("res://addons/plugin_exporter/src/class/export/export_ignore.gd")
+const PackageCfg = preload("res://addons/plugin_exporter/src/class/export/package_cfg.gd")
 
 enum Filter { ALL, VALID, NOT_VALID }
 
@@ -34,7 +35,7 @@ static func discover(root:String = "res://addons", filter:int = Filter.VALID) ->
 	return result
 
 
-## Dirs with no plugin.cfg/version.cfg - package_init candidates. Never descends into a package;
+## Dirs with no package cfg (PackageCfg.NAMES) - package_init candidates. Never descends into a package;
 ## uncached so a freshly initialized dir drops off at once.
 static func discover_unpackaged(root:String = "res://addons", max_depth:int = 2) -> Dictionary:
 	var paths:Array[String] = []
@@ -70,7 +71,7 @@ static func _scan(root:String, relative:String, paths:Array[String]) -> void:
 	var access = DirAccess.open(dir)
 	if access == null:
 		return
-	if relative != "" and (access.file_exists("plugin.cfg") or access.file_exists("version.cfg")):
+	if relative != "" and PackageCfg.NAMES.any(access.file_exists):
 		paths.append(relative)
 	for child in access.get_directories():
 		if child.begins_with(".") or ExportIgnore.is_name(child) or access.is_link(child):
@@ -89,7 +90,7 @@ static func _scan_unpackaged(root:String, relative:String, depth_left:int, paths
 			continue
 		var child_relative = relative.path_join(child)
 		var child_dir = root.path_join(child_relative)
-		if FileAccess.file_exists(child_dir.path_join("plugin.cfg")) or FileAccess.file_exists(child_dir.path_join("version.cfg")):
+		if PackageCfg.has_cfg(child_dir):
 			continue
 		paths.append(child_relative)
 		_scan_unpackaged(root, child_relative, depth_left - 1, paths)

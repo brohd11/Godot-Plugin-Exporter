@@ -8,7 +8,7 @@ const _HELP = \
 "Write the packages the crawl found into the target's own build_require, in its _export_ignore (or
 export_ignore) plugin_export config. Each tag is the required package's cfg version=, and a version
 that isn't tagged in its checkout yet only warns. A \"@require\" in build_require is dropped rather
-than expanded: plugin.cfg's require= is gdaddon's install-time list and may name optional deps.
+than expanded: the cfg's require= is gdaddon's install-time list and may name optional deps.
 Only the target is written; other packages stay reported by `require`.
 Usage: plugin_exporter require update <plugin_name>"
 
@@ -47,7 +47,7 @@ func _execute(ctx:Context):
 	for w in result.warnings:
 		lines.append("warning: " + w)
 	for dir in report.loose:
-		lines.append("warning: %s is in no plugin.cfg/version.cfg package, so it can't be required" % dir)
+		lines.append("warning: %s is in no plugin.cfg/addon.cfg/version.cfg package, so it can't be required" % dir)
 	if not result.errors.is_empty():
 		ctx.append_output("\n".join(lines))
 		for e in result.errors:

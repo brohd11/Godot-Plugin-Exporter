@@ -30,8 +30,8 @@ static func new_plugin(plugin_name:String):
 static func plugin_init(plugin_name:String):
 	PluginInit.plugin_init(plugin_name)
 
-static func package_init(target:String):
-	PluginInit.package_init(target)
+static func package_init(target:String, cfg_name:String = "addon.cfg"):
+	PluginInit.package_init(target, cfg_name)
 
 static func gui_open(plugin_name:String):
 	var export_file_path = UtilsLocal.ExportFileUtils.get_export_config_path(plugin_name)

@@ -18,6 +18,7 @@ const _FileParser = _UtilsLocal.FileParser
 const _UClassDetail = _UtilsRemote.UClassDetail
 const _UFile = _UtilsRemote.UFile
 const _GetFiles = _UtilsRemote.GetFiles
+const _PackageCfg = preload("res://addons/plugin_exporter/src/class/export/package_cfg.gd")
 const _VersionScanner = preload("res://addons/plugin_exporter/src/editor_plugins/console_command/min_version/version_scanner.gd")
 
 var export_data: _ExportData
@@ -430,13 +431,10 @@ func get_singleton_modules():
 			version = "0.0.0"
 			var base_dir = file_path.get_base_dir()
 			while base_dir != "res://":
-				var config_path = base_dir.path_join("plugin.cfg")
-				if not FileAccess.file_exists(config_path):
-					config_path = base_dir.path_join("version.cfg")
-				if not FileAccess.file_exists(config_path):
+				if not _PackageCfg.has_cfg(base_dir):
 					base_dir = base_dir.get_base_dir()
 				else:
-					version = _UtilsRemote.UConfig.load_val_from_config("plugin", "version", "0.0.0", config_path)
+					version = _PackageCfg.dir_value(base_dir, "version", "0.0.0")
 					break
 		
 		
@@ -458,12 +456,9 @@ func write_export_data_file():
 	_UtilsRemote.UFile.write_to_json(export_file_data, all_data_path)
 
 func update_plugin_cfg():
-	var plugin_cfg_path = export_dir_path.path_join("plugin.cfg")
-	var version_cfg_path = export_dir_path.path_join("version.cfg")
-	if not FileAccess.file_exists(plugin_cfg_path):
-		if not FileAccess.file_exists(version_cfg_path):
-			return
-		plugin_cfg_path = version_cfg_path
+	var plugin_cfg_path = _PackageCfg.find(export_dir_path)
+	if plugin_cfg_path == "":
+		return
 	
 	_update_deps(plugin_cfg_path)
 	
@@ -474,13 +469,14 @@ func update_plugin_cfg():
 	
 	var as_string = FileAccess.get_file_as_string(plugin_cfg_path)
 	var lines = as_string.split("\n")
+	var section = _PackageCfg.key_section(as_string, "version") # minimum_version sits beside version
 	if use_tag:
 		var rev_parse_result = _ExportFileUtils.run_git_exec(source, ["rev-parse", "--show-toplevel"])
 		if rev_parse_result.exit == 0:
 			var os_repo_dir = rev_parse_result.output[0].strip_edges()
 			var describe = _ExportFileUtils.run_git_describe(os_repo_dir)
 			if describe.exit == 0:
-				for i in range(lines.size()):
+				for i in _section_lines(lines, section):
 					var line = lines[i]
 					if not line.begins_with("version="):
 						continue
@@ -510,10 +506,12 @@ func update_plugin_cfg():
 			# Scans only this export's files, so variants can differ.
 			var min_version = scanner.scan_files(files_to_copy.keys())["min_version"]
 			var min_msg = 'minimum_version="%s"' % min_version
-			for i in range(lines.size() - 1, -1, -1):
-				var l = lines[i]
-				if l.strip_edges() != "":
-					lines.insert(i + 1, min_msg)
+			var section_lines = _section_lines(lines, section)
+			if section_lines.is_empty():
+				section_lines = range(lines.size())
+			for i in range(section_lines.size() - 1, -1, -1):
+				if lines[section_lines[i]].strip_edges() != "":
+					lines.insert(section_lines[i] + 1, min_msg)
 					break
 		else:
 			printerr("No min_version API index found, minimum_version not written: %s" % plugin_cfg_path)
@@ -531,10 +529,23 @@ func _update_deps(plugin_cfg_path:String):
 	if err != OK:
 		printerr("Could not load config: ", plugin_cfg_path)
 		return
-	if not cfg.has_section_key("plugin", "deps"):
-		return
-	cfg.set_value("plugin", "deps", exported_deps)
-	cfg.save(plugin_cfg_path)
+	for section in _PackageCfg.SECTIONS:
+		if cfg.has_section_key(section, "deps"):
+			cfg.set_value(section, "deps", exported_deps)
+			cfg.save(plugin_cfg_path)
+			return
+
+## Line indexes inside cfg `section`, header excluded; empty when the section is missing.
+static func _section_lines(lines:PackedStringArray, section:String) -> Array:
+	var out = []
+	var inside = false
+	for i in lines.size():
+		var stripped = lines[i].strip_edges()
+		if stripped.begins_with("["):
+			inside = stripped == "[%s]" % section
+		elif inside:
+			out.append(i)
+	return out
 
 ## Set of licenses that own at least one of file_paths, each file going to the closest license dir
 ## above it. Domains are walked deepest-first so the first containing one is the nearest ancestor -

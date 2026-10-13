@@ -16,6 +16,7 @@ const DependencyTags = UtilsLocal.DependencyTags
 const Confirmation = UtilsRemote.Confirmation
 const ExportIgnore = preload("res://addons/plugin_exporter/src/class/export/export_ignore.gd")
 const ExportPaths = preload("res://addons/plugin_exporter/src/class/export/export_paths.gd")
+const PackageCfg = preload("res://addons/plugin_exporter/src/class/export/package_cfg.gd")
 
 const VALID_FILE_NAMES = ExportIgnore.CONFIG_NAMES
 
@@ -91,23 +92,22 @@ static func get_file_export_path(file_path:String, export_config_path:String, de
 
 static func get_version(folder, export_config_file):
 	var target_folder = ExportPaths.resolve_target(folder)
-	var plugin_cfg_path = target_folder.path_join("plugin.cfg")
-	if not FileAccess.file_exists(plugin_cfg_path):
-		plugin_cfg_path = target_folder.path_join("version.cfg")
-	if not FileAccess.file_exists(plugin_cfg_path):
-		plugin_cfg_path = export_config_file.get_base_dir().path_join("version.cfg")
-	if not FileAccess.file_exists(plugin_cfg_path):
-		plugin_cfg_path = export_config_file.get_base_dir().get_base_dir().path_join("version.cfg")
+	var config_dir = export_config_file.get_base_dir()
+	var plugin_cfg_path = ""
+	for dir in [target_folder, config_dir, config_dir.get_base_dir()]:
+		plugin_cfg_path = PackageCfg.find(dir)
+		if plugin_cfg_path != "":
+			break
 	
-	if not FileAccess.file_exists(plugin_cfg_path):
-		UEditor.push_toast("Plugin or version file not present: " + plugin_cfg_path + ", Aborting.", 2)
+	if plugin_cfg_path == "":
+		UEditor.push_toast("No package cfg (%s) in %s, Aborting." % ["/".join(PackageCfg.NAMES), target_folder], 2)
 		return
 	
 	var plugin_data = UConfig.load_config_data(plugin_cfg_path)
 	if not plugin_data:
 		UEditor.push_toast("Issue getting plugin data. Aborting.", 2)
 		return 
-	return plugin_data.get_value("plugin", "version", "No version")
+	return PackageCfg.get_value(plugin_data, "version", "No version")
 
 
 static func replace_version(input_text: String, export_config_file) -> String:

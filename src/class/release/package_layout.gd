@@ -6,7 +6,7 @@ extends RefCounted
 ## Differs from gdaddon in two deliberate ways: a root cfg without path= fails instead of defaulting
 ## to addons/<name>, and a bundle yields only the folder whose url= names the repo.
 
-const CFG_NAMES = ["plugin.cfg", "version.cfg"]
+const CFG_NAMES = preload("res://addons/plugin_exporter/src/class/export/package_cfg.gd").NAMES
 const JUNK_FILES = [".DS_Store", "Thumbs.db", "desktop.ini", "ehthumbs.db"]
 
 
@@ -17,7 +17,7 @@ static func is_junk(rel_path:String) -> bool:
 
 ## {src, dest} for the dep's addon, or {error}. `files` are paths relative to the package root (a
 ## tag's tree or an extracted zip) and `src` is relative to that same root, wrapper included.
-## `cfg_value.call(dir, key)` reads a [plugin] key from the cfg in `dir`; `repo_id_of.call(url)`
+## `cfg_value.call(dir, key)` reads a package key from the cfg in `dir`; `repo_id_of.call(url)`
 ## normalizes a url= for comparison with `repo_id`. `root_default` (a res:// dir) stands in for a
 ## missing path= on a root cfg - only the export target passes one, since its dir is already known.
 static func locate(files:Array, repo_id:String, cfg_value:Callable, repo_id_of:Callable, root_default:String = "") -> Dictionary:
@@ -72,7 +72,7 @@ static func locate(files:Array, repo_id:String, cfg_value:Callable, repo_id_of:C
 		base = ""
 		candidates = _top_cfg_dirs(cfg_dirs, "")
 	if candidates.is_empty():
-		return {"error": "no plugin.cfg or version.cfg anywhere in the package"}
+		return {"error": "no %s anywhere in the package" % "/".join(CFG_NAMES)}
 
 	var with_cfg = candidates.filter(func(c): return cfg_dirs.has(c))
 	var matching = with_cfg.filter(func(c):

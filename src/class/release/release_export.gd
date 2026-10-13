@@ -50,7 +50,7 @@ static func _export_release(plugin_name:String, refresh:bool, local:bool) -> boo
 		return _fail("no export config at " + config_path)
 	var version = _cfg_version(dev_dir)
 	if version == "":
-		return _fail("no version= in %s plugin.cfg/version.cfg" % dev_dir)
+		return _fail("no version= in %s package cfg" % dev_dir)
 	var url = DepResolver.origin_url(dev_dir)
 	if url == "":
 		return _fail("%s has no origin remote; release exports fetch the target by tag from it" % dev_dir)
@@ -203,11 +203,7 @@ static func _mark_unverified(full_export_path:String) -> void:
 
 
 static func _cfg_version(dir:String) -> String:
-	for nm in ["plugin.cfg", "version.cfg"]:
-		var cfg = ConfigFile.new()
-		if cfg.load(dir.path_join(nm)) == OK:
-			return str(cfg.get_value("plugin", "version", ""))
-	return ""
+	return str(DepResolver.PackageCfg.dir_value(dir, "version", ""))
 
 
 static func _print_lock(lock:Dictionary) -> void:

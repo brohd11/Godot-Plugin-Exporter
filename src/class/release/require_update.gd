@@ -2,7 +2,7 @@
 extends RefCounted
 ## Writes what the crawl found into a plugin's own build_require, in place. A tag comes from the
 ## required package's cfg version=, checked against its checkout's tags - a version nobody tagged yet
-## is a warning, since tagging comes after the update. plugin.cfg's require= is never read or
+## is a warning, since tagging comes after the update. The cfg's require= is never read or
 ## written: it is gdaddon's install-time list and may name optional deps that were never built
 ## against, so a "@require" in build_require is dropped rather than expanded.
 ## Only DepResolver is imported - reaching for the export pipeline here would break headless callers.
@@ -21,7 +21,7 @@ static func resolve_target(report:Dictionary) -> Dictionary:
 	var out = {"specs": [], "warnings": [], "errors": []}
 	var target = report.get("target", "")
 	if target == "":
-		out.errors.append("%s has no plugin.cfg or version.cfg" % report.get("plugin_name", ""))
+		out.errors.append("%s has no package cfg (%s)" % [report.get("plugin_name", ""), "/".join(CFG_NAMES)])
 		return out
 	for row in report.get("groups", {}).get(target, {}).get("rows", []):
 		if row.id == "":
@@ -130,13 +130,12 @@ static func short_id(repo_id:String) -> String:
 	return repo_id.trim_prefix("%s/" % DepResolver.DEFAULT_HOST)
 
 
-## A package cfg's [plugin] value, read by hand for the reason plugin_section() gives.
+## A package cfg's value, read by hand for the reason PackageCfg.section() gives.
 static func cfg_value(dir:String, key:String) -> String:
-	for nm in CFG_NAMES:
-		var path = dir.path_join(nm)
-		if FileAccess.file_exists(path):
-			return DepResolver.unquote(DepResolver.plugin_section(FileAccess.get_file_as_string(path)).get(key, ""))
-	return ""
+	var path = DepResolver.PackageCfg.find(dir)
+	if path == "":
+		return ""
+	return DepResolver.unquote(DepResolver.PackageCfg.section(FileAccess.get_file_as_string(path)).get(key, ""))
 
 
 #region Config text

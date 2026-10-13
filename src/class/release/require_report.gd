@@ -1,7 +1,7 @@
 @tool
 extends RefCounted
 ## What a plugin's build requirements need to say: scans everything the plugin exports and maps
-## each reference to the package it lands in - the nearest dir with a plugin.cfg or version.cfg -
+## each reference to the package it lands in - the nearest dir with a package cfg (PackageCfg) -
 ## so 50 files of one release come back as one package. Packages are grouped by the package making
 ## the reference, since that one's export_ignore/plugin_export.* is where `build_require` belongs.
 ## Its own graph keeps every dependent, so cross-package references cannot overwrite each other.
@@ -15,7 +15,7 @@ const Dependencies = UtilsRemote.Dependencies
 const DepEdge = Dependencies.DepEdge
 const DepResolver = preload("res://addons/plugin_exporter/src/class/release/dep_resolver.gd")
 
-const CFG_NAMES = ["plugin.cfg", "version.cfg"]
+const CFG_NAMES = DepResolver.CFG_NAMES
 
 
 ## {target, plugin_name, config_path, groups: {from_package: {config, rows: [{dir, id, via, files,
@@ -134,7 +134,7 @@ static func format(report:Dictionary) -> String:
 				r.dir, "  [url=]" if r.via == "url=" else ""])
 
 	if not report.loose.is_empty():
-		lines.append("Files outside any plugin.cfg/version.cfg package:")
+		lines.append("Files outside any %s package:" % "/".join(CFG_NAMES))
 		var dirs = report.loose.keys()
 		dirs.sort()
 		for dir in dirs:
@@ -151,7 +151,7 @@ static func format(report:Dictionary) -> String:
 	return "\n".join(lines)
 
 
-## Nearest ancestor dir holding a plugin.cfg or version.cfg; "" when none does. Memoized per
+## Nearest ancestor dir holding a package cfg; "" when none does. Memoized per
 ## directory - a crawl visits the same few dirs hundreds of times.
 static func _package_dir(path:String, cache:Dictionary) -> String:
 	var dir = path.get_base_dir()
@@ -162,7 +162,7 @@ static func _package_dir(path:String, cache:Dictionary) -> String:
 			found = cache[dir]
 			break
 		walked.append(dir)
-		if CFG_NAMES.any(func(nm): return FileAccess.file_exists(dir.path_join(nm))):
+		if DepResolver.PackageCfg.has_cfg(dir):
 			found = dir
 			break
 		if dir == "res://":
@@ -202,13 +202,9 @@ static func _declared(dir:String) -> Dictionary:
 
 
 static func _cfg_value(dir:String, key:String) -> String:
-	return DepResolver.unquote(DepResolver.plugin_section(_cfg_text(dir)).get(key, ""))
+	return DepResolver.unquote(DepResolver.PackageCfg.section(_cfg_text(dir)).get(key, ""))
 
 
 static func _cfg_text(dir:String) -> String:
-	if dir == "":
-		return ""
-	for nm in CFG_NAMES:
-		if FileAccess.file_exists(dir.path_join(nm)):
-			return FileAccess.get_file_as_string(dir.path_join(nm))
-	return ""
+	var path = DepResolver.PackageCfg.find(dir) if dir != "" else ""
+	return FileAccess.get_file_as_string(path) if path != "" else ""

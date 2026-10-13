@@ -239,8 +239,8 @@ compile_require:
 - `compile_require`: also installed beside the exported plugin when it is verified, for extensions
   or plugins yours is meant to run with. A repo in both lists counts as `compile_require`.
 - Each key takes a list of specs or a single spec.
-- `"@require"` in `build_require` stands for the package's own `plugin.cfg`/`version.cfg`
-  `require=` list, so it isn't written twice. It can sit in a list beside explicit specs, and is the
+- `"@require"` in `build_require` stands for the package cfg's own `require=` list (`[addon]`
+  over `[plugin]`), so it isn't written twice. It can sit in a list beside explicit specs, and is the
   default for a new plugin. Not valid in `compile_require`. `require update` (below) drops it rather
   than expanding it: `require=` is gdaddon's install-time list and may name optional deps that were
   never built against, such as a plugin that adds functionality when present.
@@ -271,7 +271,7 @@ A `path=`/`dir=` in the chosen cfg always wins over the derived location.
 
 To find out what to require, run `plugin_exporter require my_plugin`. It runs the export crawl
 without writing anything and lists the packages the export pulls in (no tags). A package is the
-nearest folder with a `plugin.cfg` or `version.cfg`, so every file of one release counts once. Its
+nearest folder with a `plugin.cfg`, `addon.cfg` or `version.cfg`, so every file of one release counts once. Its
 identity is the git `origin` when the folder is a checkout, or the cfg `url=` for a package installed
 from a release zip. Packages are grouped by the package whose export config should list them, and
 each is marked `declared (build)`, `declared (compile)` or `MISSING`. A package with no export

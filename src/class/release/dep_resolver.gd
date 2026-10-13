@@ -1,7 +1,7 @@
 @tool
 extends RefCounted
 ## Resolves an addon's build dependency graph to pinned tags for a release export. Requirements are
-## `build_require` / `compile_require` in each package's export_ignore/plugin_export.* - plugin.cfg's
+## `build_require` / `compile_require` in each package's export_ignore/plugin_export.* - the package cfg's
 ## `require` is install-time only (gdaddon's) unless build_require names `@require`. Versions are
 ## picked Go-MVS style: each repo gets the
 ## highest tag any reachable requirement names. Repo access goes through `fetcher` (PackageFetcher,
@@ -9,9 +9,10 @@ extends RefCounted
 
 const PackageLayout = preload("res://addons/plugin_exporter/src/class/release/package_layout.gd")
 const ExportIgnore = preload("res://addons/plugin_exporter/src/class/export/export_ignore.gd")
+const PackageCfg = preload("res://addons/plugin_exporter/src/class/export/package_cfg.gd")
 
 const DEFAULT_HOST = "github.com"
-const CFG_NAMES = ["plugin.cfg", "version.cfg"]
+const CFG_NAMES = PackageCfg.NAMES
 const CONFIG_NAMES = ExportIgnore.CONFIG_NAMES
 const BUILD_KEY = "build_require"
 const COMPILE_KEY = "compile_require"
@@ -82,7 +83,7 @@ static func parse_dep(item:String) -> Dep:
 ## {requires: [{dep, compile}], error} from export config text. Each key holds a list of specs or a
 ## single spec; malformed specs are skipped. A repo in both keys yields both entries, and the
 ## compile one wins when verify flags are worked out. `@require` under build_require expands to
-## `cfg_text`'s require list - the package's own plugin.cfg/version.cfg.
+## `cfg_text`'s require list - the package's own cfg (PackageCfg).
 static func requires_in_export_config(text:String, ext:String, cfg_text:String = "") -> Dictionary:
 	var data = null
 	if ext == "json":
@@ -112,7 +113,7 @@ static func requires_in_export_config(text:String, ext:String, cfg_text:String =
 			elif key == COMPILE_KEY:
 				errors.append("%s is only valid under %s" % [REQUIRE_REF, BUILD_KEY])
 			elif cfg_text == "":
-				errors.append("%s needs the package's plugin.cfg or version.cfg" % REQUIRE_REF)
+				errors.append("%s needs the package's cfg (%s)" % [REQUIRE_REF, "/".join(CFG_NAMES)])
 			else:
 				specs.append_array(cfg_require(cfg_text))
 		for spec in specs:
@@ -122,46 +123,36 @@ static func requires_in_export_config(text:String, ext:String, cfg_text:String =
 	return {"requires": out, "error": "; ".join(errors)}
 
 
-## Specs in the [plugin] section's `require` array, as gdaddon writes it: one line or several, with
-## a trailing comma allowed. Collected up to the closing bracket, so plugin_section() can't read it.
+## Specs in the package cfg's `require` array, as gdaddon writes it: one line or several, with a
+## trailing comma allowed. [addon]'s list wins over [plugin]'s, as in PackageCfg.section(), which
+## can't read it - the array is collected up to its closing bracket.
 static func cfg_require(cfg_text:String) -> Array[String]:
-	var out:Array[String] = []
-	var in_plugin = false
-	var array_text = ""
+	var arrays = {} # section -> raw array text
+	var current = ""
 	var collecting = false
 	for line in cfg_text.split("\n"):
 		var stripped = line.strip_edges()
 		if collecting:
 			if not stripped.begins_with(";"):
-				array_text += "\n" + stripped
+				arrays[current] += "\n" + stripped
 		elif stripped.begins_with("["):
-			in_plugin = stripped == "[plugin]"
+			current = stripped.trim_prefix("[").trim_suffix("]").strip_edges()
 			continue
-		elif in_plugin and "=" in stripped and stripped.get_slice("=", 0).strip_edges() == "require":
+		elif current in PackageCfg.SECTIONS and "=" in stripped and stripped.get_slice("=", 0).strip_edges() == "require":
 			collecting = true
-			array_text = stripped.substr(stripped.find("=") + 1)
-		if collecting and "]" in array_text:
+			arrays[current] = stripped.substr(stripped.find("=") + 1)
+		if collecting and "]" in arrays[current]:
+			collecting = false
+	var array_text = ""
+	for section in PackageCfg.SECTIONS:
+		if arrays.has(section):
+			array_text = arrays[section]
 			break
+	var out:Array[String] = []
 	for m in RegEx.create_from_string('"([^"]*)"').search_all(array_text):
 		if m.get_string(1).strip_edges() != "":
 			out.append(m.get_string(1).strip_edges())
 	return out
-
-
-## Raw `key=value` strings of a cfg's [plugin] section. Hand-read rather than ConfigFile, which
-## rejects values gdaddon's ini reader accepts.
-static func plugin_section(text:String) -> Dictionary:
-	var keys = {}
-	var in_plugin = false
-	for line in text.split("\n"):
-		line = line.strip_edges()
-		if line.begins_with("["):
-			in_plugin = line == "[plugin]"
-			continue
-		if not in_plugin or line == "" or line.begins_with(";") or not "=" in line:
-			continue
-		keys[line.get_slice("=", 0).strip_edges()] = line.substr(line.find("=") + 1).strip_edges()
-	return keys
 
 
 static func unquote(value:String) -> String:
@@ -407,7 +398,7 @@ func _package(id:String, url:String, tag:String, kind:String, canonical:String, 
 		result = {"error": "could not be fetched%s" % _fetch_note()}
 	else:
 		var cfg_value = func(dir:String, cfg_key:String) -> String:
-			return unquote(plugin_section(_cfg_text(info, dir)).get(cfg_key, ""))
+			return unquote(PackageCfg.section(_cfg_text(info, dir)).get(cfg_key, ""))
 		var located = PackageLayout.locate(fetcher.files(info), id, cfg_value, repo_id_from_url, default_dest)
 		result = located if located.has("error") else {"info": info, "src": located.src, "dest": located.dest}
 	_packages[key] = result

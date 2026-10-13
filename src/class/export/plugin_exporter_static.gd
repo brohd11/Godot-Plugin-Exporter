@@ -265,12 +265,11 @@ static func _get_git_data(dir, git_file_lines, repo_type="Submodule"):
 	var describe_str = describe.output[0] if describe.exit == 0 else ""
 	
 	var plugin_version
-	var plugin_cfg = dir.path_join("plugin.cfg")
-	if not FileAccess.file_exists(plugin_cfg):
-		plugin_cfg = dir.path_join("version.cfg")
-	if FileAccess.file_exists(plugin_cfg):
+	var plugin_cfg = ExportFileUtils.PackageCfg.find(dir)
+	if plugin_cfg != "":
 		var plugin_data = UtilsRemote.UConfig.load_config_data(plugin_cfg)
-		plugin_version = plugin_data.get_value("plugin", "version", "Could not get version")
+		if plugin_data:
+			plugin_version = ExportFileUtils.PackageCfg.get_value(plugin_data, "version", "Could not get version")
 	
 	var lines = [
 		repo_line,

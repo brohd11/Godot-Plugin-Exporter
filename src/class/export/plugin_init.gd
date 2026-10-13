@@ -10,6 +10,7 @@ const ExportFileUtils = UtilsLocal.ExportFileUtils
 const KeysConfig = ExportFileUtils.KeysConfig
 const ExportIgnore = ExportFileUtils.ExportIgnore
 const ExportPaths = ExportFileUtils.ExportPaths
+const PackageCfg = ExportFileUtils.PackageCfg
 
 static func new_plugin(plugin_dir_name, create_export:=true):
 	var new_plugin_path = "res://addons/%s" % plugin_dir_name
@@ -117,20 +118,24 @@ static func plugin_init(plugin_name:=""):
 	return export_config_path
 
 
-## Turns any folder into a library package: version.cfg, its own git repo, src/, then plugin_init.
-static func package_init(target:String):
+## Turns any folder into a library package: a package cfg (`cfg_name`, one of PackageCfg.NAMES),
+## its own git repo, src/, then plugin_init.
+static func package_init(target:String, cfg_name:String = "addon.cfg"):
+	if not cfg_name in PackageCfg.NAMES:
+		printerr("Invalid cfg name %s, expected one of: %s" % [cfg_name, ", ".join(PackageCfg.NAMES)])
+		return
 	var package_dir = ExportPaths.resolve_target(target)
 	if package_dir == "":
 		printerr("Invalid package target (expected a path inside this project): " + target)
 		return
 	DirAccess.make_dir_recursive_absolute(package_dir)
-	for cfg in ["plugin.cfg", "version.cfg"]:
-		if FileAccess.file_exists(package_dir.path_join(cfg)):
-			printerr("Already a package, %s exists: %s" % [cfg, package_dir])
-			return
+	var existing = PackageCfg.find(package_dir)
+	if existing != "":
+		printerr("Already a package, %s exists: %s" % [existing.get_file(), package_dir])
+		return
 	
-	var cfg_f = FileAccess.open(package_dir.path_join("version.cfg"), FileAccess.WRITE)
-	cfg_f.store_string(version_cfg_text(package_dir))
+	var cfg_f = FileAccess.open(package_dir.path_join(cfg_name), FileAccess.WRITE)
+	cfg_f.store_string(package_cfg_text(package_dir))
 	cfg_f.close()
 	
 	var global_dir = ProjectSettings.globalize_path(package_dir)
@@ -144,9 +149,9 @@ static func package_init(target:String):
 	print("Package init complete: %s" % package_dir)
 	return await plugin_init(package_dir)
 
-static func version_cfg_text(package_dir:String) -> String:
+static func package_cfg_text(package_dir:String) -> String:
 	var res_path = ProjectSettings.localize_path(package_dir).trim_suffix("/")
-	return _NewPluginText.VERSION_CFG_TEXT % [res_path.get_file(), res_path.trim_prefix("res://")]
+	return _NewPluginText.PACKAGE_CFG_TEXT % [res_path.get_file(), res_path.trim_prefix("res://")]
 
 
 class _NewPluginText:
@@ -185,7 +190,7 @@ author=""
 version="0.1.0"
 script="plugin.gd"'
 
-	const VERSION_CFG_TEXT = \
+	const PACKAGE_CFG_TEXT = \
 '[plugin]
 name="%s"
 path="%s"

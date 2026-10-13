@@ -128,10 +128,7 @@ static func _repo_url() -> String:
 
 
 static func _cfg_version(dir:String) -> String:
-	var cfg = ConfigFile.new()
-	if cfg.load(dir.path_join("plugin.cfg")) != OK:
-		return ""
-	return str(cfg.get_value("plugin", "version", ""))
+	return str(DepResolver.PackageCfg.dir_value(dir, "version", ""))
 
 
 static func _walk(dir:String) -> Array[String]:
