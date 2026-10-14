@@ -31,5 +31,5 @@ options:
     parse_tscn: {}
     parse_tres: {}
 plugin_folder: "PluginExporter/PluginExporter{{version=plugin_exporter}}"
-post_script: "res://addons/plugin_exporter/export_ignore/pre_post_export.gd"
-pre_script: "res://addons/plugin_exporter/export_ignore/pre_post_export.gd"
+post_script: ""
+pre_script: ""
