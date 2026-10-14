@@ -15,7 +15,7 @@ const UFile = UtilsRemote.UFile
 const FSTreeClasses = preload("res://addons/_lib/editor_filesystem/src/components/tree/fs_tree_classes.gd")
 
 const DepGraphPanel = preload("res://addons/_lib/brohd/src/alib_runtime/ui/dep_graph/dep_graph_panel.gd")
-const YAMLHighlighter = preload("res://addons/_lib/brohd/src/alib_runtime/misc/syntax_highlighters/text/types/yaml_highlighter.gd")
+const YAMLHighlighter = preload("uid://com2gj0t82d8f") #! resolve SyntaxHighlighters.Text.Yaml
 
 const Summary = preload("res://addons/plugin_exporter/src/gui/panels/summary.gd")
 const DependencyView = preload("res://addons/plugin_exporter/src/gui/panels/dep_view.gd")

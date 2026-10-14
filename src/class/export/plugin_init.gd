@@ -65,6 +65,8 @@ static func plugin_init(plugin_name:=""):
 	var export_ignore_dir = ExportIgnore.dir_or_default(export_dir) # keeps an existing folder's name
 	if not DirAccess.dir_exists_absolute(export_ignore_dir):
 		DirAccess.make_dir_recursive_absolute(export_ignore_dir)
+	for sub in ExportIgnore.SUB_DIRS:
+		DirAccess.make_dir_recursive_absolute(export_ignore_dir.path_join(sub))
 	
 	#var export_config_path = export_ignore_dir.path_join("plugin_export.json")
 	var export_config_path = export_ignore_dir.path_join(ExportIgnore.CONFIG_NAMES[0])

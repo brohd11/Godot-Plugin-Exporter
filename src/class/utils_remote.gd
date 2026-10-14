@@ -3,18 +3,18 @@
 const UConfig = preload("res://addons/_lib/brohd/src/alib_runtime/utils/u_config.gd")
 const UFile = preload("uid://bqfy5cvhth0m1") #! resolve UtilR.Files.UFile
 const GetFiles = preload("uid://2kt1rv8kqr3u") #! resolve UtilR.Files.GetFiles
-const UString = preload("res://addons/_lib/brohd/src/alib_runtime/utils/u_string.gd")
-const UTree = preload("res://addons/_lib/brohd/src/alib_runtime/utils/u_tree.gd")
-const URegex = preload("res://addons/_lib/brohd/src/alib_runtime/utils/u_regex.gd")
-const UClassDetail = preload("res://addons/_lib/brohd/src/alib_editor/utils/src/u_class_detail.gd")
+const UString = preload("uid://dce8d0wuh35gs") #! resolve UtilR.Strings.UString
+const UTree = preload("uid://1gwputufojp6") #! resolve UtilR.Nodes.Trees.UTree
+const URegex = preload("uid://d0rbf4as6kpns") #! resolve UtilR.Strings.URegex
+const UClassDetail = preload("uid://0a4i0eyxcij7") #! resolve UtilR.Objects.UClassDetail
 const Confirmation = preload("uid://dwhlbgevd62gg") #! resolve Dialogs.Handlers.Confirmation
 const FilePicker = preload("uid://bnhku17qy1buh") #! resolve Dialogs.Handlers.FilePicker
 
-const UEditor = preload("res://addons/_lib/brohd/src/alib_editor/utils/src/u_editor.gd")
-const PopupHelper = preload("res://addons/_lib/brohd/src/alib_runtime/popup_menu/popup_menu_path_helper.gd")
-const FileSystem = preload("res://addons/_lib/brohd/src/alib_editor/utils/src/editor_nodes/filesystem.gd")
-const UEditorTheme = preload("res://addons/_lib/brohd/src/alib_editor/utils/src/u_editor_theme.gd")
-const TreeHelperBase = preload("res://addons/_lib/brohd/src/alib_runtime/tree_helper/tree_helper_base.gd")
+const UEditor = preload("uid://csg0d63aj8d0h") #! resolve UtilE.UEditor
+const PopupHelper = preload("uid://ba5x2r7gyvmej") #! resolve UtilR.Nodes.PopupMenus.PathHelper
+const FileSystem = preload("uid://ckkcgqmrbp57n") #! resolve EditorNodes.Refs.FileSystem
+const UEditorTheme = preload("uid://skhivjtt6r3b") #! resolve UtilE.UEditorTheme
+const TreeHelperBase = preload("uid://bma4204fvtvtx") #! resolve UtilR.Nodes.Trees.FileTreeHelperBase
 
 const TabBarContainer = preload("uid://dhohyyr2xlven") #! resolve UIRuntime.Tabs.TabBarContainer
 const EditorIcons = preload("uid://viocyrti6wce") #! resolve UIPlugin.EditorIcons
@@ -31,5 +31,5 @@ const Dependencies = preload("uid://dbn0kmkxa7caq") #! resolve ALibRuntime.Utils
 const GDScriptOptimizer = preload("res://addons/_lib/gdscript_optimizer/src/optimizer.gd")
 const DepGraphPanel = preload("res://addons/_lib/brohd/src/alib_runtime/ui/dep_graph/dep_graph_panel.gd")
 
-const JSONHighlighter = preload("res://addons/_lib/brohd/src/alib_runtime/misc/syntax_highlighters/text/types/json_highlighter.gd")
-const YAMLHighlighter = preload("res://addons/_lib/brohd/src/alib_runtime/misc/syntax_highlighters/text/types/yaml_highlighter.gd")
+const JSONHighlighter = preload("uid://b1cjxhrucdnbo") #! resolve SyntaxHighlighters.Text.Json
+const YAMLHighlighter = preload("uid://com2gj0t82d8f") #! resolve SyntaxHighlighters.Text.Yaml

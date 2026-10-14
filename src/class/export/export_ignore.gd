@@ -7,6 +7,7 @@ extends RefCounted
 const NAMES = ["_export_ignore", "export_ignore"] # preference order
 const DEFAULT_NAME = "_export_ignore"
 const CONFIG_NAMES = ["export.yml", "plugin_export.yml", "plugin_export.yaml", "plugin_export.json"]
+const SUB_DIRS = ["doc", "test"] # scaffolded by plugin_init: auto docs, editor console `test`
 
 
 ## Searches both folder spellings; a missing config returns its default creation path.
