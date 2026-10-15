@@ -1,0 +1,63 @@
+# Reusable test CI for a PackageExporter package (callers come from add_test_workflow). Runs the
+# package's suites as checked out against its requires at their tags, on each Godot listed, with
+# a released package_exporter as toolchain.
+name: package-test
+
+on:
+  workflow_call:
+    inputs:
+      godot-versions:
+        description: JSON list of Godot builds to test on, e.g. ["4.6.3-stable", "4.7"]; a bare 4.7 means 4.7-stable.
+        type: string
+        default: '["4.6.3-stable"]'
+      toolchain-version:
+        description: package_exporter release to test with; empty means its latest release.
+        type: string
+        default: ""
+      install-path:
+        description: Where the package installs (addons/...); empty reads path= from its cfg, then export_folder from its export config.
+        type: string
+        default: ""
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        godot: ${{ fromJSON(inputs.godot-versions) }}
+    name: test (${{ matrix.godot }})
+    env:
+      GH_TOKEN: ${{ github.token }}
+      WS: ${{ github.workspace }}/ws
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: pkg
+          fetch-depth: 0
+
+      # Pinned with the workflow: callers use @main, so both move together.
+      - uses: brohd11/godot-package-exporter/.github/actions/setup@main
+        id: pkg
+        with:
+          godot-version: ${{ matrix.godot }}
+          toolchain-version: ${{ inputs.toolchain-version }}
+          install-path: ${{ inputs.install-path }}
+
+      # The checkout stays outside $WS (--tree): package_exporter's own install path holds the toolchain.
+      - name: Test
+        shell: bash
+        env:
+          PKG_PATH: ${{ steps.pkg.outputs.path }}
+        run: |
+          set -euo pipefail
+          godot --headless --path "$WS" --script res://addons/package_exporter/src/class/release/test_cli.gd -- "$PKG_PATH" --tree "$GITHUB_WORKSPACE/pkg" \
+            2>&1 | tee "$RUNNER_TEMP/test.log"
+
+      - name: Upload test log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-log-${{ steps.pkg.outputs.godot }}
+          path: ${{ runner.temp }}/test.log
+          if-no-files-found: ignore

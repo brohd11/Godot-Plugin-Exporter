@@ -18,6 +18,7 @@ static func run_tests() -> Dictionary:
 	_test_unpackaged()
 	_test_release_workflow()
 	_test_godot_build_name()
+	_test_test_workflow()
 	var output:Array[String] = ["package_init: %d passed, %d failed" % [_passed, _failures.size()]]
 	for failure in _failures:
 		output.append("  FAIL  " + failure)
@@ -78,7 +79,23 @@ static func _test_release_workflow() -> void:
 	FileAccess.open(path, FileAccess.WRITE).store_string("edited")
 	notes.clear()
 	_check("existing not overwritten", [PluginInit.write_release_workflow(dir, notes), FileAccess.get_file_as_string(path)], ["", "edited"])
-	_check("existing says why", notes.size() == 1 and notes[0].begins_with("Release workflow already exists"), true)
+	_check("existing says why", notes.size() == 1 and notes[0].begins_with("Workflow already exists"), true)
+	Runner.remove_dir(ProjectSettings.globalize_path(dir))
+
+
+## Its own file beside the release workflow, every push, a JSON list of Godot builds.
+static func _test_test_workflow() -> void:
+	var dir = "res://addons/package_exporter/export_ignore/test/fixtures/_test_workflow_%d" % Time.get_ticks_usec()
+	DirAccess.make_dir_recursive_absolute(dir)
+	FileAccess.open(dir.path_join("version.cfg"), FileAccess.WRITE).store_string('[plugin]\nversion="0.1.0"\n')
+	var notes:Array[String] = []
+	var path = PluginInit.write_test_workflow(dir, notes)
+	_check("test workflow path", path, dir.path_join(".github/workflows/test.yml"))
+	var text = FileAccess.get_file_as_string(path)
+	_check("test workflow parses as a caller", ["package-test.yml@%s" % PluginInit.RELEASE_WORKFLOW_REF in text, "branches: [\"**\"]" in text],
+		[true, true])
+	_check("test workflow lists the editor's Godot", "godot-versions: '[\"%s\"]'" % PluginInit.godot_build_name() in text, true)
+	_check("release workflow still separate", PluginInit.write_release_workflow(dir, notes).ends_with("release.yml"), true)
 	Runner.remove_dir(ProjectSettings.globalize_path(dir))
 
 

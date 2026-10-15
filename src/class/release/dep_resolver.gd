@@ -22,6 +22,7 @@ const TAGS_INCOMPARABLE = -99
 const KIND_SOURCE = "source"
 const KIND_RELEASE = "release"
 const CLONE_PREFIX = "clone:"
+const TREE_TAG = "worktree" # the target's "tag" in resolve_tree: whatever is on disk
 
 class Dep:
 	var host:String
@@ -270,13 +271,58 @@ func resolve(target_url:String, version:String, target_path:String) -> Dictionar
 	if root_requires.error != "":
 		_error("%s@%s: %s" % [root_id, root_tag, root_requires.error])
 		return {}
+	var deps = _resolve_deps(root, target_path)
+	if deps == null:
+		return {}
+	return {"target": _entry(root_id, root_pkg, false), "deps": deps}
 
+
+## Lock for the target as it is on disk at `tree_dir`, uncommitted changes included, against its
+## requires at their tags: what test CI runs. Deps resolve exactly as in resolve(). The target
+## entry has tag TREE_TAG, source "tree" and no sha; the caller knows the checkout's HEAD.
+func resolve_tree(target_url:String, tree_dir:String, target_path:String) -> Dictionary:
+	errors.clear()
+	_packages.clear()
+	_requires_cache.clear()
+	var root_id = repo_id_from_url(target_url)
+	var cfg_text = ""
+	for nm in CFG_NAMES:
+		if FileAccess.file_exists(tree_dir.path_join(nm)):
+			cfg_text = FileAccess.get_file_as_string(tree_dir.path_join(nm))
+			break
+	if cfg_text == "":
+		_error("%s: no %s in %s" % [root_id, " / ".join(CFG_NAMES), tree_dir])
+		return {}
+	var requires = {"requires": [], "error": ""}
+	for path in ExportIgnore.candidates(tree_dir, CONFIG_NAMES):
+		if FileAccess.file_exists(path):
+			requires = requires_in_export_config(FileAccess.get_file_as_string(path), path.get_extension(), cfg_text)
+			if requires.error != "":
+				_error("%s: %s" % [path, requires.error])
+				return {}
+			break
+
+	# Seeded so _explore/_prune treat the tree like any fetched root.
+	var info = {"id": "", "url": target_url, "tag": TREE_TAG, "kind": KIND_SOURCE}
+	var root_pkg = {"info": info, "src": "", "dest": target_path}
+	_packages["%s|%s|%s" % [KIND_SOURCE, target_url, TREE_TAG]] = root_pkg
+	_requires_cache["|"] = requires
+	var deps = _resolve_deps([root_id, target_url, TREE_TAG, KIND_SOURCE, target_url], target_path)
+	if deps == null:
+		return {}
+	var target = _entry(root_id, root_pkg, false)
+	target.source = "tree"
+	return {"target": target, "deps": deps}
+
+
+## Sorted dep entries for a root whose own package is already known, or null with `errors` filled.
+func _resolve_deps(root:Array, target_path:String):
 	var required = _explore(root, target_path)
 	if not errors.is_empty():
-		return {}
+		return null
 	var pruned = _prune(root, target_path, required)
 	if not errors.is_empty():
-		return {}
+		return null
 
 	var deps = []
 	for id in pruned.selected:
@@ -291,9 +337,9 @@ func resolve(target_url:String, version:String, target_path:String) -> Dictionar
 			continue
 		deps.append(_entry(id, pkg, pruned.verify.has(id)))
 	if not errors.is_empty():
-		return {}
+		return null
 	deps.sort_custom(func(a, b): return a.repo_id < b.repo_id)
-	return {"target": _entry(root_id, root_pkg, false), "deps": deps}
+	return deps
 
 
 ## Walks every version any reachable config names, recording the highest per repo. Versions that

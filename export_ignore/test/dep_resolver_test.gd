@@ -73,6 +73,7 @@ static func run_tests() -> Dictionary:
 	_test_verify()
 	_test_kinds()
 	_test_library_from_source()
+	_test_resolve_tree()
 	_test_target_layout()
 	_test_export_ignore_names()
 
@@ -422,6 +423,44 @@ static func _test_library_from_source() -> void:
 	_check("library: resolved " + str(r.errors), lock.is_empty(), false)
 	_check("library: one U at the highest minimum, all source", lock.get("deps", []).map(func(e): return [e.repo_id, e.tag, e.kind]),
 		[["github.com/me/l", "v1.0.0", "source"], ["github.com/me/u", "v1.2.0", "source"]])
+
+
+## Test CI: the target's requires come from its working tree, not a tag; deps resolve as usual.
+static func _test_resolve_tree() -> void:
+	var dir = ProjectSettings.globalize_path("user://pe_resolve_tree_test")
+	DirAccess.make_dir_recursive_absolute(dir.path_join(EX).get_base_dir())
+	FileAccess.open(dir.path_join("version.cfg"), FileAccess.WRITE).store_string('[plugin]\npath="addons/_lib/t"\n')
+	FileAccess.open(dir.path_join(EX), FileAccess.WRITE).store_string(_ex(["me/l@v1.0.0", "me/u@v1.2.0"]))
+	var f = FakeFetcher.new()
+	# The tagged target asks for an older U: the tree must win, and the target needs no tag at all.
+	var t = f.add("me/t", "v1", {"version.cfg": '[plugin]\n', EX: _ex(["me/u@v1.0.0"])})
+	f.add("me/l", "v1.0.0", {"version.cfg": '[plugin]\npath="addons/_lib/l"\n', EX: _ex(["me/u@v1.1.0", "me/t@v1"])})
+	f.add("me/u", "v1.0.0", {"version.cfg": '[plugin]\npath="addons/_lib/u"\n'})
+	f.add("me/u", "v1.1.0", {"version.cfg": '[plugin]\npath="addons/_lib/u"\n'})
+	f.add("me/u", "v1.2.0", {"version.cfg": '[plugin]\npath="addons/_lib/u"\n'})
+	var r = DepResolver.new(f)
+	var lock = r.resolve_tree(t, dir, "res://addons/_lib/t")
+	_check("tree: resolved " + str(r.errors), lock.is_empty(), false)
+	_check("tree: target from the tree", [lock.get("target", {}).get("tag"), lock.get("target", {}).get("source"), lock.get("target", {}).get("path")],
+		[DepResolver.TREE_TAG, "tree", "res://addons/_lib/t"])
+	_check("tree: deps from the tree's requires, MVS as usual", lock.get("deps", []).map(func(e): return [e.repo_id, e.tag]),
+		[["github.com/me/l", "v1.0.0"], ["github.com/me/u", "v1.2.0"]])
+
+	FileAccess.open(dir.path_join(EX), FileAccess.WRITE).store_string(_ex(["me/u@v1.0.0", "me/l@v1.0.0", "me/x@v2.0.0"]))
+	f.add("me/x", "v2.0.0", {"version.cfg": '[plugin]\npath="addons/_lib/x"\n', EX: _ex(["me/u@v2.0.0"])})
+	f.add("me/u", "v2.0.0", {"version.cfg": '[plugin]\npath="addons/_lib/u"\n'})
+	r = DepResolver.new(f)
+	_check("tree: major lines still checked", r.resolve_tree(t, dir, "res://addons/_lib/t").is_empty() and "major line" in "".join(r.errors), true)
+
+	DirAccess.remove_absolute(dir.path_join(EX))
+	r = DepResolver.new(f)
+	lock = r.resolve_tree(t, dir, "res://addons/_lib/t")
+	_check("tree: no export config, no deps " + str(r.errors), lock.get("deps", null), [])
+	DirAccess.remove_absolute(dir.path_join(EX).get_base_dir())
+	DirAccess.remove_absolute(dir.path_join("version.cfg"))
+	r = DepResolver.new(f)
+	_check("tree: no package cfg refused", r.resolve_tree(t, dir, "res://addons/_lib/t").is_empty() and "no " in "".join(r.errors), true)
+	DirAccess.remove_absolute(dir)
 
 
 ## The target goes through the same placement, and has to land where this project keeps it.

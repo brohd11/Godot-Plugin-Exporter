@@ -1,6 +1,7 @@
 @tool
 extends EditorScript
-## The runner passes the selected config directly, even with an older name-only toolchain.
+## The runner passes the selected config directly, even with an older name-only toolchain, and runs
+## test jobs to a result or their deadline.
 
 const Runner = preload("res://addons/package_exporter/src/class/release/release_runner.gd")
 const ROOT = "user://pe_release_runner_tests"
@@ -38,6 +39,17 @@ static func run_tests() -> Dictionary:
 		failures.append("selected config failed: " + run.output)
 	elif run.result.exports[0].install_path != "res://lib/pkg":
 		failures.append("runner lost the non-addon install path")
+
+	# Test jobs may await frames, and still can't hang the parent: a deadline replaces the one-frame rule.
+	var job = root.path_join(Runner.TEST_JOB.trim_prefix("res://"))
+	_write(job, 'extends RefCounted\nstatic func run(dir):\n\tawait Engine.get_main_loop().process_frame\n\treturn {"suites": [{"path": dir, "passed": true, "output": []}], "failed": 0, "invalid": []}\n')
+	var tests = Runner.run_tests(root, "res://lib/pkg/_export_ignore/test")
+	if tests.exit != 0 or not tests.result.get("ok", false) or tests.result.get("report", {}).get("suites", [{}])[0].get("path") != "res://lib/pkg/_export_ignore/test":
+		failures.append("test job failed: " + tests.output.right(1500))
+	_write(job, 'extends RefCounted\nstatic func run(_dir):\n\tawait Engine.get_main_loop().create_timer(60).timeout\n\treturn {}\n')
+	var hung = Runner.run_tests(root, "res://lib/pkg/_export_ignore/test", 2)
+	if hung.exit != 3 or "timed out" not in str(hung.result.get("error", "")):
+		failures.append("hung test job not stopped at its deadline: " + hung.output.right(1500))
 	Runner.remove_dir(root)
 	var output:Array[String] = ["release_runner: %d failed" % failures.size()]
 	output.append_array(failures)

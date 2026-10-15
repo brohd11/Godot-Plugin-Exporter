@@ -144,7 +144,8 @@ static func package_cfg_text(package_dir:String) -> String:
 
 
 const RELEASE_WORKFLOW_PATH = ".github/workflows/release.yml"
-## Ref of PackageExporter's reusable workflow that callers pin. Not a version tag: the resolver reads
+const TEST_WORKFLOW_PATH = ".github/workflows/test.yml"
+## Ref of PackageExporter's reusable workflows that callers pin. Not a version tag: the resolver reads
 ## every v* tag here as a package_exporter release, so a moving `v1` would outrank them all.
 const RELEASE_WORKFLOW_REF = "main"
 
@@ -152,28 +153,47 @@ const RELEASE_WORKFLOW_REF = "main"
 ## one on version tags. Separate from package_init so publishing stays a choice; never overwrites.
 ## Returns the path written, or "".
 static func add_release_workflow(target:String) -> String:
+	return _report_workflow("Release", write_release_workflow, target)
+
+
+## Opts a package into test CI: on every push and pull request, its suites run against its requires
+## at their tags. Never overwrites. Returns the path written, or "".
+static func add_test_workflow(target:String) -> String:
+	return _report_workflow("Test", write_test_workflow, target)
+
+
+## add_release_workflow without console output: a refusal ("" returned) or a warning about a
+## written file goes into `notes`, so tests can assert on it.
+static func write_release_workflow(target:String, notes:Array[String]) -> String:
+	return _write_workflow(target, RELEASE_WORKFLOW_PATH, _NewPluginText.RELEASE_WORKFLOW_TEXT, notes)
+
+
+static func write_test_workflow(target:String, notes:Array[String]) -> String:
+	return _write_workflow(target, TEST_WORKFLOW_PATH, _NewPluginText.TEST_WORKFLOW_TEXT, notes)
+
+
+static func _report_workflow(kind:String, write:Callable, target:String) -> String:
 	var notes:Array[String] = []
-	var path = write_release_workflow(target, notes)
+	var path = write.call(target, notes)
 	for note in notes:
 		if path == "":
 			printerr(note)
 		else:
 			push_warning(note)
 	if path != "":
-		print("Release workflow added: %s" % path)
+		print("%s workflow added: %s" % [kind, path])
 	return path
 
 
-## add_release_workflow without console output: a refusal ("" returned) or a warning about a
-## written file goes into `notes`, so tests can assert on it.
-static func write_release_workflow(target:String, notes:Array[String]) -> String:
+## `text` takes the ref and the Godot version, the editor's own unless it's a custom build.
+static func _write_workflow(target:String, rel_path:String, text:String, notes:Array[String]) -> String:
 	var package_dir = ExportPaths.resolve_target(target)
 	if package_dir == "" or PackageCfg.find(package_dir) == "":
 		notes.append("Not a package (no %s): %s" % [" / ".join(PackageCfg.NAMES), target])
 		return ""
-	var path = package_dir.path_join(RELEASE_WORKFLOW_PATH)
+	var path = package_dir.path_join(rel_path)
 	if FileAccess.file_exists(path):
-		notes.append("Release workflow already exists: " + path)
+		notes.append("Workflow already exists: " + path)
 		return ""
 	if not DirAccess.dir_exists_absolute(package_dir.path_join(".git")):
 		notes.append("%s has no .git dir; the workflow only runs from the package's own repo root" % package_dir)
@@ -186,8 +206,8 @@ static func write_release_workflow(target:String, notes:Array[String]) -> String
 	if godot.is_empty():
 		var info = Engine.get_version_info()
 		godot = "%d.%d-stable" % [info.major, info.minor]
-		notes.append("%s isn't an official Godot build; the workflow builds on %s, edit godot-version to change it" % [info.string, godot])
-	file.store_string(_NewPluginText.RELEASE_WORKFLOW_TEXT % [RELEASE_WORKFLOW_REF, godot])
+		notes.append("%s isn't an official Godot build; the workflow uses %s, edit godot-version to change it" % [info.string, godot])
+	file.store_string(text % [RELEASE_WORKFLOW_REF, godot])
 	file.close()
 	return path
 
@@ -224,6 +244,22 @@ jobs:
       publish: ${{ github.event_name == \'push\' }}
     permissions:
       contents: write
+'
+
+	const TEST_WORKFLOW_TEXT = \
+'# Tests this package with PackageExporter: its suites, as pushed, against its requires at their
+# tags - so a pass means the declared requires are enough. Add Godot builds to test on more.
+name: test
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+jobs:
+  test:
+    uses: brohd11/godot-package-exporter/.github/workflows/package-test.yml@%s
+    with:
+      godot-versions: \'["%s"]\'
 '
 
 	const PLUGIN_GD_TEXT = \

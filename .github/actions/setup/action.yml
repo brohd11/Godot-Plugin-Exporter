@@ -1,0 +1,158 @@
+# Shared setup for PackageExporter's reusable workflows: reads the package cfg checked out at pkg/,
+# installs Godot, restores the caches, and assembles a project in $WS around a released
+# package_exporter. Callers check out to pkg/ and set WS and GH_TOKEN on the job.
+name: package-exporter-setup
+description: Godot + a released package_exporter in $WS, for a package checked out at pkg/.
+
+inputs:
+  godot-version:
+    description: A godot-builds release name (4.6.3-stable, 4.8-beta1); a bare 4.7 means 4.7-stable.
+    required: true
+  toolchain-version:
+    description: package_exporter release to use; empty means its latest release.
+    default: ""
+  install-path:
+    description: Where the package installs; empty reads path= from its cfg, then export_folder from its export config.
+    default: ""
+  release:
+    description: "true: a release build - the tag must match version=, and pkg/ moves into $WS at its install path."
+    default: "false"
+  publish:
+    description: With release, publishing requires a tag push.
+    default: "false"
+
+outputs:
+  version:
+    value: ${{ steps.pkg.outputs.version }}
+  path:
+    description: The install path, e.g. addons/_lib/x.
+    value: ${{ steps.pkg.outputs.path }}
+  godot:
+    description: The normalised godot-builds name.
+    value: ${{ steps.pkg.outputs.godot }}
+
+runs:
+  using: composite
+  steps:
+    - name: Read package cfg
+      id: pkg
+      shell: bash
+      env:
+        INSTALL_PATH: ${{ inputs.install-path }}
+        RELEASE: ${{ inputs.release }}
+        PUBLISH: ${{ inputs.publish }}
+        GODOT_VERSION: ${{ inputs.godot-version }}
+        # Oldest Godot package_exporter itself runs on.
+        GODOT_FLOOR: "4.6"
+      run: |
+        set -euo pipefail
+        godot="$GODOT_VERSION"
+        case "$godot" in *-*) ;; *) godot="$godot-stable" ;; esac
+        IFS=. read -r major minor _ <<< "${godot%%-*}"
+        IFS=. read -r fmajor fminor <<< "$GODOT_FLOOR"
+        if ! [[ "$major" =~ ^[0-9]+$ && "$minor" =~ ^[0-9]+$ ]]; then
+          echo "::error::godot-version \"$GODOT_VERSION\" isn't a Godot version"; exit 1
+        fi
+        if (( major * 1000 + minor < fmajor * 1000 + fminor )); then
+          echo "::error::godot-version $godot is too old: package_exporter runs on Godot $GODOT_FLOOR+"; exit 1
+        fi
+        echo "godot=$godot" >> "$GITHUB_OUTPUT"
+
+        cfg=""
+        for name in plugin.cfg version.cfg addon.cfg; do
+          if [ -f "pkg/$name" ]; then cfg="pkg/$name"; break; fi
+        done
+        [ -n "$cfg" ] || { echo "::error::no plugin.cfg / version.cfg / addon.cfg at the repo root"; exit 1; }
+        # First `key="value"` line; a missing key is "", not a pipefail exit.
+        value() { grep -m1 -E "^$1[[:space:]]*=" "$cfg" | sed -E 's/^[^=]*=[[:space:]]*"?([^"]*)"?[[:space:]]*$/\1/' || true; }
+
+        version=$(value version)
+        [ -n "$version" ] || { echo "::error::no version= in $cfg"; exit 1; }
+        if [ "$RELEASE" = "true" ]; then
+          # export_release builds whatever tag matches version=, so a mismatched push would ship another tag.
+          if [ "$GITHUB_REF_TYPE" = "tag" ]; then
+            if [ "$GITHUB_REF_NAME" != "v$version" ] && [ "$GITHUB_REF_NAME" != "$version" ]; then
+              echo "::error::tag $GITHUB_REF_NAME doesn't match version=\"$version\" in $cfg"; exit 1
+            fi
+          elif [ "$PUBLISH" = "true" ]; then
+            echo "::error::publishing needs a tag push; run with publish: false to only build"; exit 1
+          fi
+        fi
+
+        path="$INSTALL_PATH"
+        [ -n "$path" ] || path=$(value path)
+        if [ -z "$path" ]; then
+          # Packages have one of the two dirs, so an unmatched glob is expected.
+          path=$(grep -h -m1 -E '^[[:space:]]*export_folder:' pkg/_export_ignore/*.yml pkg/export_ignore/*.yml 2>/dev/null \
+            | head -1 | sed -E 's/^[[:space:]]*export_folder:[[:space:]]*"?([^"]*)"?[[:space:]]*$/\1/') || true
+        fi
+        case "$path" in
+          ""|*"{{"*) echo "::error::can't tell where the package installs: set path= in $cfg or pass install-path"; exit 1 ;;
+        esac
+        path="${path%/}"
+        if [ "$RELEASE" = "true" ] && [ "$path" = "addons/package_exporter" ]; then
+          echo "::error::package_exporter installs where the toolchain lives; release it from the editor"; exit 1
+        fi
+        echo "version=$version" >> "$GITHUB_OUTPUT"
+        echo "path=$path" >> "$GITHUB_OUTPUT"
+
+    - name: Cache Godot
+      id: godot-cache
+      uses: actions/cache@v4
+      with:
+        path: ~/godot
+        key: godot-${{ steps.pkg.outputs.godot }}-linux
+
+    - name: Install Godot
+      if: steps.godot-cache.outputs.cache-hit != 'true'
+      shell: bash
+      env:
+        GODOT_VERSION: ${{ steps.pkg.outputs.godot }}
+      run: |
+        set -euo pipefail
+        mkdir -p ~/godot && cd ~/godot
+        name="Godot_v${GODOT_VERSION}_linux.x86_64"
+        curl -fsSL -o godot.zip "https://github.com/godotengine/godot-builds/releases/download/${GODOT_VERSION}/${name}.zip"
+        unzip -q godot.zip && rm godot.zip && mv "$name" godot
+
+    - shell: bash
+      run: echo "$HOME/godot" >> "$GITHUB_PATH"
+
+    # Tag mirrors, release zips, toolchains and workspaces; tags are trusted as immutable.
+    - uses: actions/cache@v4
+      with:
+        path: ~/.cache/package_exporter
+        key: package-exporter-${{ github.repository }}-${{ steps.pkg.outputs.godot }}-${{ hashFiles('pkg/*.cfg', 'pkg/_export_ignore/*', 'pkg/export_ignore/*.yml') }}
+        restore-keys: package-exporter-${{ github.repository }}-${{ steps.pkg.outputs.godot }}-
+
+    - name: Assemble project
+      shell: bash
+      env:
+        TOOLCHAIN_REPO: brohd11/godot-package-exporter
+        TOOLCHAIN_VERSION: ${{ inputs.toolchain-version }}
+        GODOT_VERSION: ${{ steps.pkg.outputs.godot }}
+        PKG_PATH: ${{ steps.pkg.outputs.path }}
+        RELEASE: ${{ inputs.release }}
+      run: |
+        set -euo pipefail
+        v="$TOOLCHAIN_VERSION"
+        [ -n "$v" ] || v=$(gh release view -R "$TOOLCHAIN_REPO" --json tagName -q .tagName)
+        v="${v#v}"
+        gh release download "v$v" -R "$TOOLCHAIN_REPO" -p "package-exporter-$v.zip" -D "$RUNNER_TEMP" \
+          || gh release download "$v" -R "$TOOLCHAIN_REPO" -p "package-exporter-$v.zip" -D "$RUNNER_TEMP"
+        echo "toolchain package_exporter $v"
+
+        # The toolchain zip carries its install layout (addons/package_exporter).
+        mkdir -p "$WS"
+        unzip -q "$RUNNER_TEMP/package-exporter-$v.zip" -d "$WS"
+        if [ "$RELEASE" = "true" ]; then
+          # Joins at its install path, .git included - the export fetches it by tag from origin.
+          mkdir -p "$WS/$(dirname "$PKG_PATH")"
+          mv pkg "$WS/$PKG_PATH"
+        fi
+        # The same header ReleaseRunner.project_godot writes for its workspaces.
+        features=$(echo "${GODOT_VERSION%%-*}" | cut -d. -f1,2)
+        printf 'config_version=5\n\n[application]\n\nconfig/name="PE CI"\nconfig/features=PackedStringArray("%s")\n' "$features" > "$WS/project.godot"
+        # Builds the class cache the toolchain needs. The package's deps aren't installed here, so
+        # its scripts may log errors; only the toolchain's have to load.
+        godot --headless --path "$WS" --import || true

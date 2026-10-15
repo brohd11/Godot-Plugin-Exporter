@@ -20,11 +20,15 @@ func _init(package_fetcher) -> void:
 	fetcher = package_fetcher
 
 
-func workspace_dir(target_name:String, lock:Dictionary) -> String:
+const WORKSPACES = "workspaces"
+const TEST_WORKSPACES = "test_workspaces" # apart from WORKSPACES: each prunes its own
+
+
+func workspace_dir(target_name:String, lock:Dictionary, kind:String = WORKSPACES) -> String:
 	var key = ExportPaths.workspace_key(target_name)
 	if key == "":
 		return ""
-	return fetcher.root.path_join("workspaces").path_join("%s-%s" % [key, DepResolver.lock_hash(lock)])
+	return fetcher.root.path_join(kind).path_join("%s-%s" % [key, DepResolver.lock_hash(lock)])
 
 
 ## Builds (or reuses) the workspace and points its export at export_root_abs. `toolchain_dir` may be
@@ -32,7 +36,45 @@ func workspace_dir(target_name:String, lock:Dictionary) -> String:
 ## Returns the absolute workspace dir, or "" with `errors` filled.
 func build(lock:Dictionary, target_name:String, toolchain_dir:String, export_root_abs:String, debug_section:String) -> String:
 	errors.clear()
-	var ws = workspace_dir(target_name, lock)
+	var ws = _prepare(lock, target_name, toolchain_dir, debug_section, WORKSPACES)
+	if ws == "" or not _point_export_root(ws.path_join(lock.target.path.trim_prefix("res://")), export_root_abs):
+		return ""
+	return ws
+
+
+## The workspace test CI runs in: deps from the lock as in build(), the target copied from
+## `tree_dir` (resolve_tree's lock) on every run, since the tree changes without the lock noticing.
+func build_tests(lock:Dictionary, target_name:String, toolchain_dir:String, tree_dir:String, debug_section:String) -> String:
+	errors.clear()
+	var ws = _prepare(lock, target_name, toolchain_dir, debug_section, TEST_WORKSPACES)
+	if ws == "":
+		return ""
+	var target_dir = ws.path_join(lock.target.path.trim_prefix("res://"))
+	ReleaseRunner.remove_dir(target_dir)
+	if not _copy_tree(ProjectSettings.globalize_path(tree_dir), target_dir):
+		errors.append("could not copy %s into the workspace" % tree_dir)
+		return ""
+	return ws
+
+
+## Tracked and untracked files minus ignored ones (old exports, caches), so a local run sees what
+## a CI checkout would. Not a repo: everything but .git.
+static func _copy_tree(from_dir:String, to_dir:String) -> bool:
+	var output = []
+	if OS.execute("git", ["-C", from_dir, "ls-files", "-co", "--exclude-standard", "-z"], output) != 0:
+		return ReleaseRunner.copy_dir(from_dir, to_dir, [".git"])
+	for rel in "".join(output).split(char(0), false):
+		var dest = to_dir.path_join(rel)
+		if not FileAccess.file_exists(from_dir.path_join(rel)):
+			continue # deleted, not yet staged
+		DirAccess.make_dir_recursive_absolute(dest.get_base_dir())
+		if DirAccess.copy_absolute(from_dir.path_join(rel), dest) != OK:
+			return false
+	return true
+
+
+func _prepare(lock:Dictionary, target_name:String, toolchain_dir:String, debug_section:String, kind:String) -> String:
+	var ws = workspace_dir(target_name, lock, kind)
 	if ws == "":
 		errors.append("invalid workspace target: " + target_name)
 		return ""
@@ -50,14 +92,14 @@ func build(lock:Dictionary, target_name:String, toolchain_dir:String, export_roo
 	if not ReleaseRunner.write_export_autorun(ws):
 		errors.append("could not write the autorun plugin into " + ws)
 		return ""
-	if not _point_export_root(ws.path_join(lock.target.path.trim_prefix("res://")), export_root_abs):
-		return ""
 	return ws
 
 
 func _populate(ws:String, lock:Dictionary, toolchain_dir:String) -> bool:
 	var installed = {} # res:// path -> repo_id
 	for entry in [lock.target] + lock.deps:
+		if entry == lock.target and entry.get("source") == "tree":
+			continue # copied by build_tests
 		if entry != lock.target and entry.path == TOOLCHAIN_PATH:
 			errors.append("%s installs at %s, where the toolchain has to live" % [entry.repo_id, TOOLCHAIN_PATH])
 			return false

@@ -15,24 +15,33 @@ const _ERROR_PATTERNS = [
 	r"ERROR: .*[Pp]arse [Ee]rror.*",
 ]
 
+const TEST_JOB = "res://addons/package_exporter/src/class/release/test_job.gd"
+const TEST_TIMEOUT_SEC = 600
+
 const _EXPORT_AUTORUN = """@tool
 extends EditorPlugin
-# Written by PackageExporter's release export: runs one export once the editor has scanned, prints
-# the result for the parent process, then quits. Loaded lazily so a pinned exporter can resolve
-# its global classes first.
+# Written by PackageExporter's release export and test CI: runs one job (an export, or a package's
+# test suites) once the editor has scanned, prints the result for the parent process, then quits.
+# Loaded lazily so a pinned exporter can resolve its global classes first.
 
 var _started := false
 var _done := false
+var _deadline := 0 # msec; 0 = the job runs within one frame
 
 func _enter_tree() -> void:
 	set_process(true)
 	_run.call_deferred()
 
 # A script error stops _run without quitting, and the parent editor would wait on this process
-# forever. Everything after the scan wait runs within one frame, so unfinished by the next it died.
+# forever. An export runs within one frame, so unfinished by the next it died; tests may await
+# frames, so they get a deadline instead.
 func _process(_delta:float) -> void:
-	if _started and not _done:
+	if not _started or _done:
+		return
+	if _deadline == 0:
 		_finish({"ok": false, "error": "export aborted by a script error"}, 3)
+	elif Time.get_ticks_msec() > _deadline:
+		_finish({"ok": false, "error": "tests timed out, or a suite stopped on a script error mid-await"}, 3)
 
 func _run() -> void:
 	var fs = EditorInterface.get_resource_filesystem()
@@ -42,6 +51,15 @@ func _run() -> void:
 	_started = true
 
 	var job = JSON.parse_string(FileAccess.get_file_as_string("res://addons/%s/job.json"))
+	if job is Dictionary and job.get("kind", "") == "test":
+		_deadline = Time.get_ticks_msec() + int(job.timeout) * 1000
+		var runner = load(job.runner)
+		if not _compiled(runner):
+			_finish({"ok": false, "error": "test runner failed to compile (missing dependency?)"}, 3)
+			return
+		var report = await runner.run(job.dir)
+		_finish({"ok": report.failed == 0, "report": report}, 0 if report.failed == 0 else 1)
+		return
 	var file_utils = load("res://addons/package_exporter/src/class/export/plugin_exporter_file_utils.gd")
 	var exporter = load("res://addons/package_exporter/src/class/export/plugin_exporter_static.gd")
 	if not job is Dictionary or not _compiled(file_utils) or not _compiled(exporter):
@@ -86,11 +104,21 @@ static func godot(project_dir:String, args:Array) -> Dictionary:
 
 ## Imports first: without it every class_name reads as undeclared on the editor run.
 static func run_export(project_dir:String, config_path:String) -> Dictionary:
+	return _run_job(project_dir, {"config": config_path})
+
+
+## Runs every suite under `test_dir` (res://) through the toolchain's TEST_JOB. The result's
+## `report` is TestRunner's: {suites: [{path, passed, output}], failed, invalid}.
+static func run_tests(project_dir:String, test_dir:String, timeout_sec:int = TEST_TIMEOUT_SEC) -> Dictionary:
+	return _run_job(project_dir, {"kind": "test", "dir": test_dir, "runner": TEST_JOB, "timeout": timeout_sec})
+
+
+static func _run_job(project_dir:String, job:Dictionary) -> Dictionary:
 	var job_path = project_dir.path_join("addons").path_join(EXPORT_AUTORUN_DIR).path_join("job.json")
 	var file = FileAccess.open(job_path, FileAccess.WRITE)
 	if file == null:
 		return {"exit": -1, "output": "could not write " + job_path, "result": {}}
-	file.store_string(JSON.stringify({"config": config_path}))
+	file.store_string(JSON.stringify(job))
 	file.close()
 
 	var imported = godot(project_dir, ["--import"])
@@ -163,17 +191,22 @@ static func script_errors(output:String) -> Array[String]:
 	return out
 
 
-static func copy_dir(from_dir:String, to_dir:String) -> bool:
+## `skip`: file or dir names left out at any depth, e.g. ".git".
+static func copy_dir(from_dir:String, to_dir:String, skip:Array = []) -> bool:
 	DirAccess.make_dir_recursive_absolute(to_dir)
 	var dir = DirAccess.open(from_dir)
 	if dir == null:
 		return false
 	dir.include_hidden = true
 	for f in dir.get_files():
+		if f in skip:
+			continue
 		if DirAccess.copy_absolute(from_dir.path_join(f), to_dir.path_join(f)) != OK:
 			return false
 	for d in dir.get_directories():
-		if not copy_dir(from_dir.path_join(d), to_dir.path_join(d)):
+		if d in skip:
+			continue
+		if not copy_dir(from_dir.path_join(d), to_dir.path_join(d), skip):
 			return false
 	return true
 
