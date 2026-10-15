@@ -17,6 +17,7 @@ static func run_tests() -> Dictionary:
 	_test_package_cfg()
 	_test_unpackaged()
 	_test_release_workflow()
+	_test_godot_build_name()
 	var output:Array[String] = ["package_init: %d passed, %d failed" % [_passed, _failures.size()]]
 	for failure in _failures:
 		output.append("  FAIL  " + failure)
@@ -72,11 +73,22 @@ static func _test_release_workflow() -> void:
 	var text = FileAccess.get_file_as_string(path)
 	_check("calls the reusable workflow", "uses: brohd11/godot-package-exporter/.github/workflows/package-release.yml@%s" % PluginInit.RELEASE_WORKFLOW_REF in text, true)
 	_check("runs on version tags", 'tags: ["v*", "[0-9]*"]' in text, true)
+	_check("builds on the editor's Godot", 'godot-version: "%s"' % PluginInit.godot_build_name() in text, true)
+	_check("manual runs are dry runs", ["workflow_dispatch:" in text, "publish: ${{ github.event_name == 'push' }}" in text], [true, true])
 	FileAccess.open(path, FileAccess.WRITE).store_string("edited")
 	notes.clear()
 	_check("existing not overwritten", [PluginInit.write_release_workflow(dir, notes), FileAccess.get_file_as_string(path)], ["", "edited"])
 	_check("existing says why", notes.size() == 1 and notes[0].begins_with("Release workflow already exists"), true)
 	Runner.remove_dir(ProjectSettings.globalize_path(dir))
+
+
+## Names must match godot-builds releases exactly, since CI downloads by them.
+static func _test_godot_build_name() -> void:
+	_check("patch release", PluginInit.godot_build_name({"major": 4, "minor": 6, "patch": 3, "status": "stable"}), "4.6.3-stable")
+	_check("x.y.0 drops the patch", PluginInit.godot_build_name({"major": 4, "minor": 7, "patch": 0, "status": "stable"}), "4.7-stable")
+	_check("pre-release", PluginInit.godot_build_name({"major": 4, "minor": 8, "patch": 0, "status": "beta1"}), "4.8-beta1")
+	_check("custom build", PluginInit.godot_build_name({"major": 4, "minor": 8, "patch": 0, "status": "custom_build"}), "")
+	_check("running editor is official", PluginInit.godot_build_name() != "", true)
 
 
 static func _mkdir(relative:String) -> void:

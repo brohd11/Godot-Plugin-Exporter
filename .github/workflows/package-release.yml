@@ -7,7 +7,7 @@ on:
   workflow_call:
     inputs:
       godot-version:
-        description: Godot build to run the export with (a godot-builds release name).
+        description: Godot to build and verify on - a godot-builds release name (4.6.3-stable, 4.8-beta1); a bare 4.7 means 4.7-stable.
         type: string
         default: "4.6.3-stable"
       toolchain-version:
@@ -25,6 +25,8 @@ on:
 
 env:
   TOOLCHAIN_REPO: brohd11/godot-package-exporter
+  # Oldest Godot package_exporter itself runs on.
+  GODOT_FLOOR: "4.6"
 
 jobs:
   release:
@@ -44,8 +46,21 @@ jobs:
         env:
           INSTALL_PATH: ${{ inputs.install-path }}
           PUBLISH: ${{ inputs.publish }}
+          GODOT_VERSION: ${{ inputs.godot-version }}
         run: |
           set -euo pipefail
+          godot="$GODOT_VERSION"
+          case "$godot" in *-*) ;; *) godot="$godot-stable" ;; esac
+          IFS=. read -r major minor _ <<< "${godot%%-*}"
+          IFS=. read -r fmajor fminor <<< "$GODOT_FLOOR"
+          if ! [[ "$major" =~ ^[0-9]+$ && "$minor" =~ ^[0-9]+$ ]]; then
+            echo "::error::godot-version \"$GODOT_VERSION\" isn't a Godot version"; exit 1
+          fi
+          if (( major * 1000 + minor < fmajor * 1000 + fminor )); then
+            echo "::error::godot-version $godot is too old: package_exporter runs on Godot $GODOT_FLOOR+"; exit 1
+          fi
+          echo "godot=$godot" >> "$GITHUB_OUTPUT"
+
           cfg=""
           for name in plugin.cfg version.cfg addon.cfg; do
             if [ -f "pkg/$name" ]; then cfg="pkg/$name"; break; fi
@@ -84,13 +99,13 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/godot
-          key: godot-${{ inputs.godot-version }}-linux
+          key: godot-${{ steps.pkg.outputs.godot }}-linux
 
       - name: Install Godot
         if: steps.godot-cache.outputs.cache-hit != 'true'
         shell: bash
         env:
-          GODOT_VERSION: ${{ inputs.godot-version }}
+          GODOT_VERSION: ${{ steps.pkg.outputs.godot }}
         run: |
           set -euo pipefail
           mkdir -p ~/godot && cd ~/godot
@@ -111,7 +126,7 @@ jobs:
         shell: bash
         env:
           TOOLCHAIN_VERSION: ${{ inputs.toolchain-version }}
-          GODOT_VERSION: ${{ inputs.godot-version }}
+          GODOT_VERSION: ${{ steps.pkg.outputs.godot }}
           PKG_PATH: ${{ steps.pkg.outputs.path }}
         run: |
           set -euo pipefail
@@ -145,6 +160,23 @@ jobs:
           godot --headless --path "$WS" --script res://addons/package_exporter/src/class/release/release_cli.gd -- "$PKG_PATH" \
             2>&1 | tee "$RUNNER_TEMP/export.log"
           echo "zips=$(sed -n 's/^PE_RELEASE_OUTPUT //p' "$RUNNER_TEMP/export.log" | tail -1)" >> "$GITHUB_OUTPUT"
+
+      # Lets a dry run (publish: false) be inspected; kept short since publishing keeps the real copy.
+      - name: Collect zips
+        shell: bash
+        env:
+          ZIPS: ${{ steps.export.outputs.zips }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/zips"
+          jq -r '.[]' <<< "$ZIPS" | while read -r f; do cp "$f" "$RUNNER_TEMP/zips/"; done
+
+      - name: Upload zips
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-zips
+          path: ${{ runner.temp }}/zips/
+          retention-days: 7
 
       - name: Upload failed export
         if: failure()

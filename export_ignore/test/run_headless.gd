@@ -20,6 +20,7 @@ const SUITES:PackedStringArray = [
 	"res://addons/package_exporter/export_ignore/test/package_cfg_test.gd",
 	"res://addons/package_exporter/export_ignore/test/package_targets_test.gd",
 	"res://addons/package_exporter/export_ignore/test/release_runner_test.gd",
+	"res://addons/package_exporter/export_ignore/test/release_engine_test.gd",
 	"res://addons/package_exporter/export_ignore/test/doc_viewer/markdown_parser_test.gd",
 	"res://addons/package_exporter/export_ignore/test/doc_viewer/doc_index_test.gd",
 ]

@@ -182,22 +182,46 @@ static func write_release_workflow(target:String, notes:Array[String]) -> String
 	if file == null:
 		notes.append("Could not write " + path)
 		return ""
-	file.store_string(_NewPluginText.RELEASE_WORKFLOW_TEXT % RELEASE_WORKFLOW_REF)
+	var godot = godot_build_name()
+	if godot.is_empty():
+		var info = Engine.get_version_info()
+		godot = "%d.%d-stable" % [info.major, info.minor]
+		notes.append("%s isn't an official Godot build; the workflow builds on %s, edit godot-version to change it" % [info.string, godot])
+	file.store_string(_NewPluginText.RELEASE_WORKFLOW_TEXT % [RELEASE_WORKFLOW_REF, godot])
 	file.close()
 	return path
+
+
+## The godot-builds release name of `info` (Engine.get_version_info()): "4.6.3-stable", "4.7-stable",
+## "4.8-beta1". CI downloads exactly that build, so a custom build's status gives "".
+static func godot_build_name(info:Dictionary = Engine.get_version_info()) -> String:
+	var status = str(info.get("status", ""))
+	var official = RegEx.create_from_string("^(stable|(alpha|beta|rc|dev)\\d+)$")
+	if official.search(status) == null:
+		return ""
+	var version = "%d.%d" % [info.major, info.minor]
+	if int(info.get("patch", 0)) > 0:
+		version += ".%d" % info.patch
+	return version + "-" + status
 
 
 class _NewPluginText:
 	const RELEASE_WORKFLOW_TEXT = \
 '# Builds and publishes this package on version tags with PackageExporter. The tag must match
 # version= in the package cfg; deps are fetched by tag, so they need pushing first.
+# A manual run (Actions tab) builds the tag matching version= without publishing it.
 name: release
 on:
   push:
     tags: ["v*", "[0-9]*"]
+  workflow_dispatch:
 jobs:
   release:
     uses: brohd11/godot-package-exporter/.github/workflows/package-release.yml@%s
+    with:
+      # Builds and verifies on this Godot; it must run everything the package and its deps use.
+      godot-version: "%s"
+      publish: ${{ github.event_name == \'push\' }}
     permissions:
       contents: write
 '

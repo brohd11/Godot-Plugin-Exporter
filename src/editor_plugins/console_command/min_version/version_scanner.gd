@@ -13,6 +13,9 @@ const VersionApi = preload("res://addons/package_exporter/src/editor_plugins/con
 const SyntaxRules = preload("res://addons/package_exporter/src/editor_plugins/console_command/min_version/syntax_rules.gd")
 
 var api := VersionApi.new()
+## Off for scripts outside this project (release workspaces): loading them here would parse them
+## against this project's classes. The base then comes from a native `extends` line only.
+var load_scripts := true
 
 var _syntax := SyntaxRules.new()
 
@@ -23,6 +26,7 @@ var _self_regex: RegEx          # self.member -> base-class member
 var _class_token_regex: RegEx   # bare PascalCase token (class existence)
 var _enum_value_regex: RegEx    # bare ALL_CAPS token -> possible global enum value
 var _res_type_regex: RegEx      # type="ClassName" in tscn/tres
+var _extends_regex: RegEx       # extends Native (no-load base)
 
 
 func _init() -> void:
@@ -33,6 +37,7 @@ func _init() -> void:
 	_class_token_regex = _re("\\b([A-Z][A-Za-z0-9_]*)\\b")
 	_enum_value_regex = _re("(?<![.\\w])([A-Z][A-Z0-9_]+)\\b")
 	_res_type_regex = _re("type=\"([A-Za-z_][A-Za-z0-9_]*)\"")
+	_extends_regex = _re("(?m)^extends\\s+([A-Za-z_][A-Za-z0-9_]*)\\s*(#.*)?$")
 
 
 static func _re(pattern: String) -> RegEx:
@@ -93,6 +98,9 @@ func scan_file(file_path: String) -> Dictionary:
 ## Native base type of a .gd script via Script.get_instance_base_type(); "" if it
 ## can't be loaded as a script.
 func _resolve_base_type(file_path: String) -> String:
+	if not load_scripts:
+		var m := _extends_regex.search(FileAccess.get_file_as_string(file_path))
+		return m.get_string(1) if m and api.has_class(m.get_string(1)) else ""
 	var res = load(file_path)
 	if res is Script:
 		return res.get_instance_base_type()

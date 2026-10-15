@@ -17,6 +17,8 @@ const CompileCheck = preload("res://addons/package_exporter/src/class/release/co
 const Toolchain = preload("res://addons/package_exporter/src/class/release/toolchain.gd")
 const ReleaseCache = preload("res://addons/package_exporter/src/class/release/release_cache.gd")
 const PackageFetcher = preload("res://addons/package_exporter/src/class/release/package_fetcher.gd")
+const VersionScanner = preload("res://addons/package_exporter/src/editor_plugins/console_command/min_version/version_scanner.gd")
+const VersionApi = VersionScanner.VersionApi
 
 const LOCK_FILE = ".export_lock.json"
 const GIT_DETAILS_FILE = ".export_git_details"
@@ -97,6 +99,8 @@ static func _export_release(plugin_name:String, refresh:bool, local:bool) -> boo
 		toolchain = info.dir
 		lock.toolchain = {"version": info.version, "source": info.source, "id": info.id}
 		print("  toolchain %s %s (%s)" % [Toolchain.NAME, info.version, info.source])
+	# Also keys the workspace: its .godot import cache belongs to one engine.
+	lock.godot = Engine.get_version_info().string
 
 	var workspace = ReleaseWorkspace.new(fetcher)
 	var debug_section = ReleaseRunner.project_section(FileAccess.get_file_as_string("res://project.godot"), "debug")
@@ -105,6 +109,8 @@ static func _export_release(plugin_name:String, refresh:bool, local:bool) -> boo
 	if ws == "":
 		for e in workspace.errors:
 			_note("  " + e)
+		return false
+	if not _check_engine(ws):
 		return false
 
 	print("Release export: exporting in " + ws)
@@ -160,6 +166,43 @@ static func _export_release(plugin_name:String, refresh:bool, local:bool) -> boo
 		return _fail("output does not compile on its own; moved to *%s" % UNVERIFIED_SUFFIX)
 	zips = written
 	return true
+
+
+## Scans the workspace's sources (target and deps, not the toolchain) against the API index before
+## exporting: an older engine fails to parse newer syntax on import and drops those classes quietly.
+static func _check_engine(ws:String) -> bool:
+	var scanner = VersionScanner.new()
+	scanner.load_scripts = false
+	if not scanner.api.has_index():
+		print("  no min_version API index; skipping the engine check")
+		return true
+	var search = UtilsRemote.GetFiles.open(ws)
+	search.file_extensions = ["gd", "tscn", "tres"]
+	search.ignore_dir_paths = [ws.path_join(ReleaseWorkspace.TOOLCHAIN_PATH.trim_prefix("res://"))]
+	search.ignore_dir_names = ExportFileUtils.ExportIgnore.NAMES
+	var scan = scanner.scan_files(search.get_files())
+	for f in scan.findings:
+		f.location = String(f.location).trim_prefix(ws.trim_suffix("/") + "/")
+	var err = engine_check(scan.min_version, scan.findings, Engine.get_version_info())
+	if err != "":
+		return _fail(err)
+	print("  sources need Godot %s" % scan.min_version)
+	return true
+
+
+## "" when `engine` (Engine.get_version_info()) runs code needing `min_version`, else why not, citing
+## the first finding at that version. An unparseable min_version passes - the index can't judge it.
+static func engine_check(min_version:String, findings:Array, engine:Dictionary) -> String:
+	var need = VersionApi.version_code(min_version)
+	if need < 0 or need <= int(engine.major) * 1000 + int(engine.minor):
+		return ""
+	var where = ""
+	for f in findings:
+		if f.version == min_version:
+			where = " (%s at %s)" % [f.feature, f.location]
+			break
+	return "sources need Godot %s%s, but this export runs on %s; set godot-version in .github/workflows/release.yml, or export from a newer editor" % [
+		min_version, where, engine.get("string", "%d.%d" % [engine.major, engine.minor])]
 
 
 ## Where this project exports package_exporter, for --local toolchains. Computed with the export
