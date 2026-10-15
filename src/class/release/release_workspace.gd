@@ -58,12 +58,16 @@ func build_tests(lock:Dictionary, target_name:String, toolchain_dir:String, tree
 
 
 ## Tracked and untracked files minus ignored ones (old exports, caches), so a local run sees what
-## a CI checkout would. Not a repo: everything but .git.
+## a CI checkout would. Not a repo: everything but .git. Newline-separated, not -z: OS.execute
+## decodes output as UTF-8, and a NUL there (or a char(0) the analyzer folds) logs parse errors.
 static func _copy_tree(from_dir:String, to_dir:String) -> bool:
 	var output = []
-	if OS.execute("git", ["-C", from_dir, "ls-files", "-co", "--exclude-standard", "-z"], output) != 0:
+	if OS.execute("git", ["-c", "core.quotePath=false", "-C", from_dir, "ls-files", "-co", "--exclude-standard"], output) != 0:
 		return ReleaseRunner.copy_dir(from_dir, to_dir, [".git"])
-	for rel in "".join(output).split(char(0), false):
+	for rel in "".join(output).split("\n", false):
+		if rel.begins_with("\""):
+			push_warning("test workspace: skipped %s (quotes, backslashes or control characters in its path)" % rel)
+			continue
 		var dest = to_dir.path_join(rel)
 		if not FileAccess.file_exists(from_dir.path_join(rel)):
 			continue # deleted, not yet staged
