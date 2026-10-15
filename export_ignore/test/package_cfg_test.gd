@@ -1,6 +1,7 @@
 @tool
 extends EditorScript
-## PackageCfg: which file in a dir is the package cfg, and [addon] winning over [plugin] per key.
+## PackageCfg: which file in a dir is the package cfg, [addon] winning over [plugin] per key, and
+## the released cfg's require rewrite.
 
 const PackageCfg = preload("res://addons/package_exporter/src/class/export/package_cfg.gd")
 const Runner = preload("res://addons/package_exporter/src/class/release/release_runner.gd")
@@ -16,6 +17,7 @@ static func run_tests() -> Dictionary:
 	_test_section()
 	_test_config_file()
 	_test_find()
+	_test_set_require()
 	var output:Array[String] = ["package_cfg: %d passed, %d failed" % [_passed, _failures.size()]]
 	for failure in _failures:
 		output.append("  FAIL  " + failure)
@@ -62,6 +64,24 @@ static func _test_find() -> void:
 	_check("dir_value: [addon] in addon.cfg", PackageCfg.dir_value(ROOT.path_join("av"), "version"), "2")
 	_check("dir_value: no cfg default", PackageCfg.dir_value(ROOT.path_join("none"), "version", ""), "")
 	Runner.remove_dir(ProjectSettings.globalize_path(ROOT))
+
+
+## Released cfgs list only what an installer must add; the rest of the file is left as written.
+static func _test_set_require() -> void:
+	var multi = '[plugin]\nname="p"\nversion="1.0.0"\n\nrequire=[\n"a/b@v1",\n"c/d@v2",\n]\n\n[namespace]\npath=""\n'
+	_check("multi-line list emptied", PackageCfg.set_require(multi, []),
+		'[plugin]\nname="p"\nversion="1.0.0"\n\nrequire=[]\n\n[namespace]\npath=""\n')
+	_check("one-line list replaced", PackageCfg.set_require('[plugin]\nrequire=["a/b@v1"]\nversion="1"\n', ["x/y@v3", "z/w@v1"]),
+		'[plugin]\nrequire=["x/y@v3", "z/w@v1"]\nversion="1"\n')
+	_check("legacy deps key", PackageCfg.set_require('[plugin]\ndeps=["a/b@v1"]\n', []), '[plugin]\ndeps=[]\n')
+	_check("[namespace] require untouched", PackageCfg.set_require('[namespace]\nrequire=["k"]\n[plugin]\nversion="1"\n', []),
+		'[namespace]\nrequire=["k"]\n[plugin]\nversion="1"\n')
+	var plain = '[plugin]\nname="p"\nversion="1"\n\n[namespace]\npath=""\n'
+	_check("no key, nothing to add: unchanged", PackageCfg.set_require(plain, []), plain)
+	_check("no key: added after version's section", PackageCfg.set_require(plain, ["a/b@v1"]),
+		'[plugin]\nname="p"\nversion="1"\nrequire=["a/b@v1"]\n\n[namespace]\npath=""\n')
+	_check("[addon] version: added there", PackageCfg.set_require('[plugin]\nname="p"\n[addon]\nversion="1"\n', ["a/b@v1"]),
+		'[plugin]\nname="p"\n[addon]\nversion="1"\nrequire=["a/b@v1"]\n')
 
 
 static func _write(relative:String, text:String) -> void:

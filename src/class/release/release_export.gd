@@ -86,6 +86,7 @@ static func _export_release(plugin_name:String, refresh:bool, local:bool) -> boo
 		return false
 	var options = config.get("options", {})
 	_print_lock(lock)
+	_warn_unexported_peers(config)
 
 	# Recorded in the lock before the workspace is keyed on it, so a new toolchain gets a new one.
 	var toolchain = ""
@@ -259,12 +260,29 @@ static func _cfg_version(dir:String) -> String:
 
 static func _print_lock(lock:Dictionary) -> void:
 	for entry in [lock.target] + lock.deps:
-		var role = "target" if entry == lock.target else ("compile" if entry.get("verify", false) else "bundled")
+		var role = "target" if entry == lock.target else ("test" if entry.get("test", false) \
+				else ("compile" if entry.get("verify", false) else "bundled"))
 		var fetched = entry.get("kind", "source")
 		if entry.get("asset", "") != "":
 			fetched += " " + entry.asset
 		print("  %-8s %-6s %s %s [%s] (%s) -> %s" % [role, entry.get("source", ""), entry.repo_id, entry.tag,
 			fetched, entry.sha.substr(0, 7), entry.path])
+
+
+## A compile_require dep is installed beside the export for verification, not bundled, so an
+## installer has to add it too: it belongs in exported_require.
+static func _warn_unexported_peers(config:Dictionary) -> void:
+	var exported = {}
+	var listed = config.get(ExportFileUtils.KeysConfig.EXPORTED_REQUIRE, config.get("options", {}).get(ExportFileUtils.KeysConfig.Options.EXPORTED_DEPS, []))
+	for spec in (listed if listed is Array else [listed]):
+		var dep = DepResolver.parse_dep(str(spec))
+		if dep != null:
+			exported[dep.repo_id] = true
+	var compile = config.get(DepResolver.COMPILE_KEY, [])
+	for spec in (compile if compile is Array else [compile]):
+		var dep = DepResolver.parse_dep(str(spec))
+		if dep != null and not exported.has(dep.repo_id):
+			print_rich("[color=e0b000]Release export: %s is a compile_require but not in exported_require; installs of this release won't get it[/color]" % dep.repo_id)
 
 
 ## A local build is fine to try, but one others can't reproduce shouldn't pass silently - nor should

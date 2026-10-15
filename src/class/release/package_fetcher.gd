@@ -22,13 +22,13 @@ func _init(repo_cache, release_cache) -> void:
 ## {kind: "source"|"release", url, tag, id, asset} for a tag that can be fetched, or {} with
 ## last_error set. `canonical_url` is the repo's real remote - a --local checkout url can't be
 ## asked about GitHub releases, so releases always come from the remote.
-func lookup(url:String, tag:String, kind:String, canonical_url:String) -> Dictionary:
-	var key = "%s|%s|%s" % [kind, url, tag]
+func lookup(url:String, tag:String, kind:String, canonical_url:String, asset_pattern:String = "") -> Dictionary:
+	var key = "%s|%s|%s|%s" % [kind, url, tag, asset_pattern]
 	if _lookups.has(key):
 		return _lookups[key]
 	var info = {}
 	if kind == "release":
-		var rel = releases.lookup(canonical_url, tag)
+		var rel = releases.lookup(canonical_url, tag, asset_pattern)
 		if rel.state == "error":
 			last_error = releases.last_error
 			return {}

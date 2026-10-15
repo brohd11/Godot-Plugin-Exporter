@@ -24,26 +24,43 @@ func _init(cache_root:String = "", refresh_assets:bool = false) -> void:
 	refresh = refresh_assets
 
 
+## Checksum and signature files published beside an asset; never the asset itself.
+const SIDECAR_EXTENSIONS = ["sha256", "sha512", "sha1", "md5", "sig", "asc", "minisig"]
+
+
 ## The asset to install from GitHub release JSON: {name, url} for the single upload, {} when there
 ## are none (install the source), or {error} when several uploads leave no automatic choice.
-static func auto_asset(release:Dictionary) -> Dictionary:
-	var uploads:Array = release.get("assets", [])
+## Sidecars (SIDECAR_EXTENSIONS) don't count, so a zip with its .sha256 is still a single upload.
+## `pattern` (a spec's `:<asset>` glob) narrows the uploads to the one it must match.
+static func auto_asset(release:Dictionary, pattern:String = "") -> Dictionary:
+	var uploads:Array = release.get("assets", []).filter(func(a):
+		return not str(a.get("name", "")).get_extension().to_lower() in SIDECAR_EXTENSIONS)
+	var names = uploads.map(func(a): return str(a.get("name", "")))
+	var tag = release.get("tag_name", "?")
+	if pattern != "":
+		var matched = uploads.filter(func(a): return str(a.get("name", "")).match(pattern))
+		if matched.size() == 1:
+			return {"name": str(matched[0].get("name", "")), "url": str(matched[0].get("browser_download_url", ""))}
+		if matched.is_empty():
+			return {"error": "release %s has no asset matching '%s' (%s)" % [tag, pattern, ", ".join(names) if not names.is_empty() else "no uploads"]}
+		return {"error": "'%s' matches %d assets of release %s (%s); narrow the pattern" % [
+			pattern, matched.size(), tag, ", ".join(matched.map(func(a): return str(a.get("name", ""))))]}
 	if uploads.size() == 1:
 		return {"name": str(uploads[0].get("name", "")), "url": str(uploads[0].get("browser_download_url", ""))}
 	if uploads.is_empty():
 		return {}
-	var names = uploads.map(func(a): return str(a.get("name", "")))
-	return {"error": "release %s has %d uploaded assets (%s), so there is no automatic pick; drop /release to build from source, or publish a single asset" % [
-		release.get("tag_name", "?"), uploads.size(), ", ".join(names)]}
+	return {"error": "release %s has %d uploaded assets (%s), so there is no automatic pick; pin one with /release@%s:<asset glob>, or drop /release to build from source" % [
+		tag, uploads.size(), ", ".join(names), tag]}
 
 
 func release_dir(repo_url:String, tag:String) -> String:
 	return root.path_join("releases").path_join(DepResolver.repo_id_from_url(repo_url)).path_join(tag.validate_filename())
 
 
-## {state: "asset", asset, sha} when the tag's release has one uploaded asset, {state: "none"} when
-## the source should be used instead, or {state: "error"} with last_error set.
-func lookup(repo_url:String, tag:String) -> Dictionary:
+## {state: "asset", asset, sha} when the tag's release has one uploaded asset (or one matching
+## `pattern`), {state: "none"} when the source should be used instead, or {state: "error"} with
+## last_error set.
+func lookup(repo_url:String, tag:String, pattern:String = "") -> Dictionary:
 	var id = DepResolver.repo_id_from_url(repo_url)
 	if not id.begins_with("github.com/"):
 		return {"state": "none"} # no release API to ask; gdaddon falls back to source here too
@@ -63,7 +80,7 @@ func lookup(repo_url:String, tag:String) -> Dictionary:
 	if not release is Dictionary:
 		last_error = "unreadable release data at " + json_path
 		return {"state": "error"}
-	var pick = auto_asset(release)
+	var pick = auto_asset(release, pattern)
 	if pick.is_empty():
 		return {"state": "none"}
 	if pick.has("error"):

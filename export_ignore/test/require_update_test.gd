@@ -132,6 +132,7 @@ static func _test_untouched() -> void:
 
 static func _test_repin() -> void:
 	_check("repin plain", RequireUpdate.repin("a/b@v1", "v2"), "a/b@v2")
+	_check("repin keeps an asset pin", RequireUpdate.repin("a/b/release@v1:a-*.zip", "v2"), "a/b/release@v2:a-*.zip")
 	_check("repin untagged", RequireUpdate.repin("a/b", "v2"), "a/b@v2")
 	_check("repin keeps host and source", RequireUpdate.repin("gitlab.com/a/b/source@v1", "v2"),
 		"gitlab.com/a/b/source@v2")

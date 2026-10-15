@@ -22,6 +22,8 @@ var pre_script:String
 var post_script:String
 
 var options:Dictionary = {}
+## The released cfg's require list: deps an installer must add because they aren't bundled.
+var exported_require:Array = []
 var overwrite:bool = true
 var include_uid:bool = true
 var include_import:bool = true
@@ -69,6 +71,10 @@ func _init(export_config_path):
 			strip_cast_names[i] = strip_cast_names[i].strip_edges()
 	
 	options = export_data.get(KeysConfig.OPTIONS)
+	var exported = export_data.get(KeysConfig.EXPORTED_REQUIRE)
+	if exported == null and options is Dictionary:
+		exported = options.get(KeysConfig.Options.EXPORTED_DEPS) # pre-rename configs
+	exported_require = exported if exported is Array else ([exported] if exported is String and exported != "" else [])
 	overwrite = options.get(KeysConfig.Options.OVERWRITE, false)
 	include_uid = options.get(KeysConfig.Options.INCLUDE_UID, true)
 	include_import = options.get(KeysConfig.Options.INCLUDE_IMPORT, true)

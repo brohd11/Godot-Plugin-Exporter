@@ -17,6 +17,7 @@ const ExportPaths = ReleaseExport.ExportPaths
 const ExportIgnore = ExportFileUtils.ExportIgnore
 
 const TEST_DIR = "test"
+const SKIP_PREFIX = "SKIP:"
 
 ## Failure lines from the last test_package call.
 static var messages:Array[String] = []
@@ -126,14 +127,16 @@ static func _test_package(plugin_name:String, refresh:bool, local:bool, tree_dir
 	return true
 
 
-## PASS/FAIL per suite, output only for failures; paths relative to the test dir.
+## PASS/FAIL per suite, full output only for failures. A pass still shows its "SKIP:" lines, so a
+## suite that skipped part of itself (a missing optional backend) doesn't read as fully run.
 static func _print_report(rep:Dictionary, test_dir:String) -> bool:
 	for suite in rep.suites:
 		var label = String(suite.path).trim_prefix("res://")
 		print("  [%s] %s" % ["PASS" if suite.passed else "FAIL", label])
-		if not suite.passed:
-			for line in suite.output:
-				print("      " + str(line))
+		for line in suite.output:
+			var text = str(line).strip_edges()
+			if not suite.passed or text.begins_with(SKIP_PREFIX):
+				print("      " + (text if suite.passed else str(line)))
 	for path in rep.invalid:
 		print("  [----] %s (no run/run_test/run_tests)" % String(path).trim_prefix("res://"))
 	if rep.suites.is_empty():

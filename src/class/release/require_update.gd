@@ -117,12 +117,14 @@ static func apply(report:Dictionary, overwrite:bool, prune:bool) -> Dictionary:
 	return result
 
 
-## The spec's own spelling with only its tag replaced, so a leading host and a /source or /release
-## marker survive a re-pin.
+## The spec's own spelling with only its tag replaced, so a leading host, a /source or /release
+## marker and a `:<asset>` pin survive a re-pin.
 static func repin(spec:String, tag:String) -> String:
 	var at = spec.rfind("@")
 	var base = spec.substr(0, at) if at >= 0 else spec
-	return "%s@%s" % [base.strip_edges(), tag]
+	var old_tag = spec.substr(at + 1) if at >= 0 else ""
+	var asset = old_tag.substr(old_tag.find(":")) if ":" in old_tag else ""
+	return "%s@%s%s" % [base.strip_edges(), tag, asset.strip_edges()]
 
 
 ## How this project and gdaddon spell a github repo in a require list.

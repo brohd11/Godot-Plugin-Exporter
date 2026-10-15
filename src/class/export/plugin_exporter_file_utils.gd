@@ -521,6 +521,8 @@ class KeysConfig:
 	const POST_SCRIPT = "post_script"
 	
 	const BUILD_REQUIRE = "build_require"
+	const TEST_REQUIRE = "test_require"
+	const EXPORTED_REQUIRE = "exported_require"
 	const COMPILE_REQUIRE = "compile_require"
 	
 	const EXPORTS = "exports"
@@ -542,7 +544,7 @@ class KeysConfig:
 		const INCLUDE_IMPORT = "include_import"
 		const INCLUDE_UID = "include_uid"
 		const USE_TAG_IN_CFG = "use_tag_in_cfg"
-		const EXPORTED_DEPS = "exported_deps"
+		const EXPORTED_DEPS = "exported_deps" # renamed to KeysConfig.EXPORTED_REQUIRE; still read
 		const INCLUDE_MIN_VERSION = "include_min_version"
 		const OVERWRITE = "overwrite"
 		const IGNORE_DEPENDENCIES = "ignore_dependencies"

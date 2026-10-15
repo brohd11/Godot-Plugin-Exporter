@@ -322,15 +322,14 @@ class PluginExportJSON:
 			KeysConfig.PLUGIN_FOLDER: "",
 			KeysConfig.PRE_SCRIPT: "",
 			KeysConfig.POST_SCRIPT: "",
-			KeysConfig.BUILD_REQUIRE: "@require", # plugin.cfg's require list (DepResolver.REQUIRE_REF)
-			KeysConfig.COMPILE_REQUIRE: [],
+			# build_require / test_require default to the cfg's require, compile_require and
+			# exported_require to [] (DepResolver, ExportData), so new configs leave them out.
 			KeysConfig.OPTIONS: {
 				KeysConfig.Options.OVERWRITE: true,
 				KeysConfig.Options.INCLUDE_UID: true,
 				KeysConfig.Options.INCLUDE_IMPORT: true,
 				KeysConfig.Options.IGNORE_SRC: true,
 				KeysConfig.Options.USE_TAG_IN_CFG: true,
-				KeysConfig.Options.EXPORTED_DEPS: [],
 				KeysConfig.Options.INCLUDE_MIN_VERSION: true,
 				KeysConfig.Options.MOVE_GLOBAL_FILES: true,
 				KeysConfig.Options.INCLUDE_DOCS: true,

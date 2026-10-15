@@ -9,6 +9,7 @@ extends EditorScript
 ##     load("res://addons/package_exporter/export_ignore/test/dep_resolver_test.gd").run_tests()
 
 const DepResolver = preload("res://addons/package_exporter/src/class/release/dep_resolver.gd")
+const ReleaseCache = preload("res://addons/package_exporter/src/class/release/release_cache.gd")
 
 const EX = "export_ignore/plugin_export.yml"
 
@@ -18,13 +19,16 @@ static var _passed:int = 0
 
 class FakeFetcher:
 	var repos:Dictionary = {} # url -> {tag: {path: text}}, git trees
-	var releases:Dictionary = {} # url -> {tag: {path: text}}, contents of a release's single asset
+	var releases:Dictionary = {} # url -> {tag: {path: text}}, contents of a release's picked asset
+	var assets:Dictionary = {} # "url@tag" -> uploaded asset names; picked with the real auto_asset
 	var last_error:String = ""
+	var asked_patterns:Array = [] # every non-empty asset pattern lookup() was given
 
 	func add(spec:String, tag:String, files:Dictionary) -> String:
 		return _put(repos, "https://github.com/" + spec, tag, files)
 
-	func add_release(spec:String, tag:String, files:Dictionary) -> String:
+	func add_release(spec:String, tag:String, files:Dictionary, names:Array = ["pkg.zip"]) -> String:
+		assets["https://github.com/%s@%s" % [spec, tag]] = names
 		return _put(releases, "https://github.com/" + spec, tag, files)
 
 	func _put(store:Dictionary, url:String, tag:String, files:Dictionary) -> String:
@@ -33,11 +37,18 @@ class FakeFetcher:
 		store[url][tag] = files
 		return url
 
-	func lookup(url:String, tag:String, kind:String, canonical:String) -> Dictionary:
+	func lookup(url:String, tag:String, kind:String, canonical:String, pattern:String = "") -> Dictionary:
+		if pattern != "":
+			asked_patterns.append(pattern)
 		if kind == "release":
 			if releases.has(canonical) and releases[canonical].has(tag):
-				return {"kind": "release", "url": canonical, "tag": tag, "id": ("r" + canonical + tag).sha1_text(), "asset": "pkg.zip"}
-			last_error = "no release asset"
+				var uploads = assets.get("%s@%s" % [canonical, tag], []).map(func(n): return {"name": n})
+				var pick = ReleaseCache.auto_asset({"tag_name": tag, "assets": uploads}, pattern)
+				if pick.has("error"):
+					last_error = pick.error
+					return {}
+				return {"kind": "release", "url": canonical, "tag": tag, "id": ("r" + canonical + tag).sha1_text(), "asset": pick.name}
+			last_error = "no release asset at " + tag
 			return {}
 		if repos.has(url) and repos[url].has(tag):
 			return {"kind": "source", "url": url, "tag": tag, "id": (url + tag).sha1_text(), "asset": ""}
@@ -67,13 +78,15 @@ static func run_tests() -> Dictionary:
 	_test_failures()
 	_test_cycle()
 	_test_local_override()
-	_test_cfg_require_ignored()
+	_test_cfg_require_default()
 	_test_cfg_require_ref()
 	_test_addon_cfg()
 	_test_verify()
 	_test_kinds()
 	_test_library_from_source()
 	_test_resolve_tree()
+	_test_test_require()
+	_test_asset_pin()
 	_test_target_layout()
 	_test_export_ignore_names()
 
@@ -108,6 +121,12 @@ static func _test_parse_dep() -> void:
 	_check("tagless", DepResolver.parse_dep("o/r").tag, "")
 	var c = DepResolver.parse_dep("clone:brohd11/godot-util-r@v0.2.0")
 	_check("gdaddon clone: prefix dropped", [c.repo_id, c.tag, c.kind], ["github.com/brohd11/godot-util-r", "v0.2.0", "source"])
+	var pinned = DepResolver.parse_dep("brohd11/godot-gdscript-lsp/release@v0.2.1:gdscript-lsp-*.zip")
+	_check("asset pin", [pinned.kind, pinned.tag, pinned.asset, pinned.repo_id], ["release", "v0.2.1", "gdscript-lsp-*.zip", "github.com/brohd11/godot-gdscript-lsp"])
+	_check("no pin, no asset", DepResolver.parse_dep("o/r/release@v1").asset, "")
+	_check("asset pin needs /release", [DepResolver.parse_dep("o/r@v1:x.zip"), DepResolver.parse_dep("o/r/source@v1:x.zip")], [null, null])
+	_check("empty pin rejected", DepResolver.parse_dep("o/r/release@v1:"), null)
+	_check("pin without a tag rejected", DepResolver.parse_dep("o/r/release:x.zip"), null)
 	_check("one part rejected", DepResolver.parse_dep("justone@v1"), null)
 	_check("three parts without a dotted host or marker rejected", DepResolver.parse_dep("a/b/c@v1"), null)
 	_check("four parts rejected", DepResolver.parse_dep("a/b/c/d@v1"), null)
@@ -309,30 +328,47 @@ static func _test_local_override() -> void:
 
 ## plugin.cfg `require` is gdaddon's install list: the exporter never follows it, and a package
 ## without an export config declares nothing.
-static func _test_cfg_require_ignored() -> void:
+static func _test_cfg_require_default() -> void:
 	var f = FakeFetcher.new()
 	var t = f.add("me/t", "v1", {"plugin.cfg": '[plugin]\nrequire=["me/ext@v1"]\n', EX: _ex(["me/lib@v1"])})
+	# lib has no export config: its cfg require is the default, so me/other comes too.
 	f.add("me/lib", "v1", {"plugin.cfg": '[plugin]\npath="addons/lib"\nrequire=["me/other@v1"]\n'})
+	f.add("me/other", "v1", {"plugin.cfg": '[plugin]\npath="addons/other"\n'})
 	var r = DepResolver.new(f)
 	var lock = r.resolve(t, "v1", "res://addons/t")
-	_check("cfg require ignored: resolved " + str(r.errors), lock.is_empty(), false)
-	_check("cfg require ignored: only build_require followed", lock.get("deps", []).map(func(e): return e.repo_id), ["github.com/me/lib"])
+	_check("explicit build_require: resolved " + str(r.errors), lock.is_empty(), false)
+	_check("explicit build_require replaces the cfg list; a config-less dep brings its own", lock.get("deps", []).map(func(e): return e.repo_id),
+		["github.com/me/lib", "github.com/me/other"])
 
 	var bare = f.add("me/bare", "v1", {"plugin.cfg": '[plugin]\nrequire=["me/lib@v1"]\n'})
-	_check("no export config: no deps", DepResolver.new(f).resolve(bare, "v1", "res://addons/bare").get("deps"), [])
+	_check("no export config: cfg require", DepResolver.new(f).resolve(bare, "v1", "res://addons/bare").get("deps", []).map(func(e): return e.repo_id),
+		["github.com/me/lib", "github.com/me/other"])
+	var keyless = f.add("me/keyless", "v1", {"plugin.cfg": '[plugin]\nrequire=["me/other@v1"]\n', EX: 'export_root: "res://exports"\n'})
+	_check("no build_require key: cfg require", DepResolver.new(f).resolve(keyless, "v1", "res://addons/keyless").get("deps", []).map(func(e): return e.repo_id),
+		["github.com/me/other"])
+	var none = f.add("me/none", "v1", {"plugin.cfg": '[plugin]\nrequire=["me/other@v1"]\n', EX: _ex([])})
+	_check("build_require: [] means none", DepResolver.new(f).resolve(none, "v1", "res://addons/none").get("deps"), [])
+	f.add_release("me/sealed", "v1", {"addons/sealed/plugin.cfg": '[plugin]\npath="addons/sealed"\nrequire=["me/missing@v1"]\n'})
+	var uses_release = f.add("me/ur", "v1", {"plugin.cfg": '[plugin]\n', EX: _ex(["me/sealed/release@v1"])})
+	r = DepResolver.new(f)
+	r.resolve(f.add("me/miss", "v1", {"plugin.cfg": '[plugin]\n', EX: _ex(["me/sealed/release@v2"])}), "v1", "res://addons/miss")
+	_check("the written tag's error is the one reported " + str(r.errors), "at v2)" in "".join(r.errors) and not "at 2)" in "".join(r.errors), true)
+	r = DepResolver.new(f)
+	_check("a release asset stays sealed " + str(r.errors), r.resolve(uses_release, "v1", "res://addons/ur").get("deps", []).map(func(e): return e.repo_id),
+		["github.com/me/sealed"])
 
 
-## `@require` follows the package's own cfg list at the fetched tag. A dep's cfg list is still only
-## followed when that dep's config opts in too - me/other is never added, so following it would fail.
+## `@require` follows the package's own cfg list at the fetched tag. A dep whose config lists
+## build_require explicitly isn't followed into its cfg - me/other is never added, so that would fail.
 static func _test_cfg_require_ref() -> void:
 	var f = FakeFetcher.new()
 	var t = f.add("me/t", "v1", {"plugin.cfg": '[plugin]\nrequire=[\n"me/lib@v1",\n]\n', EX: _ex(["@require"])})
 	f.add("me/lib", "v1", {"plugin.cfg": '[plugin]\npath="addons/lib"\nrequire=["me/other@v1"]\n', EX: _ex(["me/dep@v1"])})
-	f.add("me/dep", "v1", {"plugin.cfg": '[plugin]\npath="addons/dep"\nrequire=["me/other@v1"]\n'})
+	f.add("me/dep", "v1", {"plugin.cfg": '[plugin]\npath="addons/dep"\nrequire=["me/other@v1"]\n', EX: _ex([])})
 	var r = DepResolver.new(f)
 	var lock = r.resolve(t, "v1", "res://addons/t")
 	_check("@require: resolved " + str(r.errors), lock.is_empty(), false)
-	_check("@require: cfg list followed, deps' cfgs only when opted in", lock.get("deps", []).map(func(e): return e.repo_id),
+	_check("@require: cfg list followed, explicit lists win", lock.get("deps", []).map(func(e): return e.repo_id),
 		["github.com/me/dep", "github.com/me/lib"])
 
 
@@ -399,7 +435,7 @@ static func _test_kinds() -> void:
 	var t3 = f.add("me/t3", "v1", {"plugin.cfg": '[plugin]\n', EX: _ex(["me/z/release@v1"])})
 	var r3 = DepResolver.new(f)
 	_check("release without asset: empty lock", r3.resolve(t3, "v1", "res://addons/t3"), {})
-	_check("release without asset: named " + str(r3.errors), r3.errors.size() == 1 and "no usable tag v1 (no release asset)" in r3.errors[0], true)
+	_check("release without asset: named " + str(r3.errors), r3.errors.size() == 1 and "no usable tag v1 (no release asset at v1)" in r3.errors[0], true)
 
 	var t4 = f.add("me/t4", "v1", {"plugin.cfg": '[plugin]\n', EX: _ex(["me/y/release@v2", "me/w@v1"])})
 	f.add("me/w", "v1", {"plugin.cfg": '[plugin]\npath="addons/w"\n', EX: _ex(["me/y@v2"])})
@@ -463,6 +499,66 @@ static func _test_resolve_tree() -> void:
 	DirAccess.remove_absolute(dir)
 
 
+## test_require counts for test CI's root only: its extras join selection and are marked test.
+static func _test_test_require() -> void:
+	var dir = ProjectSettings.globalize_path("user://pe_test_require_test")
+	DirAccess.make_dir_recursive_absolute(dir.path_join(EX).get_base_dir())
+	FileAccess.open(dir.path_join("version.cfg"), FileAccess.WRITE).store_string('[plugin]\npath="addons/t"\nrequire=["me/u@v1.0.0"]\n')
+	FileAccess.open(dir.path_join(EX), FileAccess.WRITE).store_string('export_root: "res://exports"\ntest_require:\n  - "@require"\n  - "me/ext/release@v1"\n  - "me/u@v1.1.0"\n')
+	var f = FakeFetcher.new()
+	var t = f.add("me/t", "v1", {"version.cfg": '[plugin]\n'})
+	f.add("me/u", "v1.0.0", {"version.cfg": '[plugin]\npath="addons/u"\n'})
+	f.add("me/u", "v1.1.0", {"version.cfg": '[plugin]\npath="addons/u"\n'})
+	f.add_release("me/ext", "v1", {"addons/ext/plugin.cfg": '[plugin]\npath="addons/ext"\n'})
+	# A dep's own test_require is never read: me/never doesn't exist.
+	f.add("me/lib", "v1", {"version.cfg": '[plugin]\npath="addons/lib"\n', EX: _ex([]) + 'test_require: ["me/never@v1"]\n'})
+	var r = DepResolver.new(f)
+	var lock = r.resolve_tree(t, dir, "res://addons/t")
+	_check("test_require: resolved " + str(r.errors), lock.is_empty(), false)
+	_check("test_require: build deps plus extras, MVS across both", lock.get("deps", []).map(func(e): return [e.repo_id, e.tag, e.get("test", false)]),
+		[["github.com/me/ext", "v1", true], ["github.com/me/u", "v1.1.0", false]])
+
+	FileAccess.open(dir.path_join(EX), FileAccess.WRITE).store_string('export_root: "res://exports"\nbuild_require: ["me/lib@v1"]\n')
+	r = DepResolver.new(f)
+	lock = r.resolve_tree(t, dir, "res://addons/t")
+	_check("test_require defaults to @require; deps' test_require ignored " + str(r.errors), lock.get("deps", []).map(func(e): return [e.repo_id, e.get("test", false)]),
+		[["github.com/me/lib", false], ["github.com/me/u", true]])
+	r = DepResolver.new(f)
+	var release_lock = r.resolve(f.add("me/r", "v1", {"version.cfg": '[plugin]\n', EX: 'export_root: "x"\ntest_require: ["me/u@v1.0.0"]\n'}), "v1", "res://addons/r")
+	_check("release resolve ignores test_require", release_lock.get("deps", null), [])
+	for rel in [EX, "version.cfg"]:
+		DirAccess.remove_absolute(dir.path_join(rel))
+	DirAccess.remove_absolute(dir.path_join(EX).get_base_dir())
+	DirAccess.remove_absolute(dir)
+
+
+## A /release with several assets needs a `:<glob>`; the glob still works once MVS raises the tag,
+## and one repo can't be pinned two ways.
+static func _test_asset_pin() -> void:
+	var f = FakeFetcher.new()
+	var multi = ["lib-v1.0.0-linux.zip", "lib-v1.0.0-macos.zip", "lib-v1.0.0-linux.zip.sha256"]
+	f.add_release("me/lib", "v1.0.0", {"addons/lib/plugin.cfg": '[plugin]\npath="addons/lib"\n'}, multi)
+	f.add_release("me/lib", "v1.1.0", {"addons/lib/plugin.cfg": '[plugin]\npath="addons/lib"\n'}, ["lib-v1.1.0-linux.zip", "lib-v1.1.0-macos.zip"])
+	f.add("me/mid", "v1", {"plugin.cfg": '[plugin]\npath="addons/mid"\n', EX: _ex(["me/lib/release@v1.1.0:*-linux.zip"])})
+
+	var unpinned = f.add("me/a", "v1", {"plugin.cfg": '[plugin]\n', EX: _ex(["me/lib/release@v1.0.0"])})
+	var r = DepResolver.new(f)
+	_check("several assets, no pin: errors with the choices", r.resolve(unpinned, "v1", "res://addons/a").is_empty() and "lib-v1.0.0-macos.zip" in "".join(r.errors), true)
+
+	var t = f.add("me/t", "v1", {"plugin.cfg": '[plugin]\n', EX: _ex(["me/lib/release@v1.0.0:*-linux.zip", "me/mid@v1"])})
+	r = DepResolver.new(f)
+	var lock = r.resolve(t, "v1", "res://addons/t")
+	_check("pin: resolved " + str(r.errors), lock.is_empty(), false)
+	var lib = _dep(lock, "github.com/me/lib")
+	_check("pin: glob holds across the MVS bump", [lib.get("tag"), lib.get("asset"), lib.get("asset_pattern")], ["v1.1.0", "lib-v1.1.0-linux.zip", "*-linux.zip"])
+	_check("pin: unpinned entries keep their lock shape", _dep(lock, "github.com/me/mid").has("asset_pattern"), false)
+	_check("pin: the fetcher was asked with the pattern", "*-linux.zip" in f.asked_patterns, true)
+
+	var clash = f.add("me/c", "v1", {"plugin.cfg": '[plugin]\n', EX: _ex(["me/lib/release@v1.0.0:*-macos.zip", "me/mid@v1"])})
+	r = DepResolver.new(f)
+	_check("two pins for one repo: errors with both", r.resolve(clash, "v1", "res://addons/c").is_empty() and "'*-macos.zip' and '*-linux.zip'" in "".join(r.errors), true)
+
+
 ## The target goes through the same placement, and has to land where this project keeps it.
 static func _test_target_layout() -> void:
 	var f = FakeFetcher.new()
@@ -493,9 +589,12 @@ static func _test_export_ignore_names() -> void:
 
 
 ## plugin_export.yml text with the given build_require / compile_require lists.
+## Explicit even when empty: a missing build_require means @require.
 static func _ex(build:Array, compile:Array = []) -> String:
 	var text = 'export_root: "res://exports"\n'
-	if not build.is_empty():
+	if build.is_empty():
+		text += "build_require: []\n"
+	else:
 		text += "build_require:\n" + "".join(build.map(func(s): return '  - "%s"\n' % s))
 	if not compile.is_empty():
 		text += "compile_require:\n" + "".join(compile.map(func(s): return '  - "%s"\n' % s))

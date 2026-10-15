@@ -61,6 +61,52 @@ static func dir_value(dir:String, key:String, default = null):
 	return get_value(cfg, key, default)
 
 
+## `text` with every package section's `require` (or legacy `deps`) list set to `specs`, a
+## multi-line array collapsed to one line; everything else is left byte for byte. With neither key,
+## an empty `specs` changes nothing and a non-empty one is added to the section holding version=.
+static func set_require(text:String, specs:Array) -> String:
+	var value = "[%s]" % ", ".join(specs.map(func(s): return '"%s"' % s))
+	var out:Array[String] = []
+	var current = ""
+	var replaced = false
+	var skipping = false # inside a replaced multi-line array
+	for line in text.split("\n"):
+		if skipping:
+			skipping = not "]" in line
+			continue
+		var stripped = line.strip_edges()
+		if stripped.begins_with("["):
+			current = stripped.trim_prefix("[").trim_suffix("]").strip_edges()
+		elif current in SECTIONS and "=" in stripped and stripped.get_slice("=", 0).strip_edges() in ["require", "deps"]:
+			var old_value = stripped.substr(stripped.find("=") + 1)
+			out.append("%s=%s" % [stripped.get_slice("=", 0).strip_edges(), value])
+			replaced = true
+			skipping = "[" in old_value and not "]" in old_value
+			continue
+		out.append(line)
+	if replaced or specs.is_empty():
+		return "\n".join(out)
+
+	var target = key_section(text, "version")
+	var header = -1
+	var last = -1 # last non-blank line of the target section
+	for i in out.size():
+		var stripped = out[i].strip_edges()
+		if stripped.begins_with("["):
+			if header >= 0:
+				break
+			if stripped.trim_prefix("[").trim_suffix("]").strip_edges() == target:
+				header = i
+				last = i
+		elif header >= 0 and stripped != "":
+			last = i
+	if header < 0:
+		out.append_array(["", "[%s]" % target, "require=" + value])
+	else:
+		out.insert(last + 1, "require=" + value)
+	return "\n".join(out)
+
+
 static func _sections(text:String) -> Dictionary:
 	var out = {}
 	var current = ""

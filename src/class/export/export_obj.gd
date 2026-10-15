@@ -520,20 +520,17 @@ func update_plugin_cfg():
 	var file_access = FileAccess.open(plugin_cfg_path, FileAccess.WRITE)
 	file_access.store_string("\n".join(lines))
 
+## Bundled deps ship inside the package, so the released cfg lists only what an installer must add.
 func _update_deps(plugin_cfg_path:String):
-	var exported_deps = export_data.options.get(_KeysConfig.Options.EXPORTED_DEPS)
-	if exported_deps == null:
+	var text = FileAccess.get_file_as_string(plugin_cfg_path)
+	var updated = _PackageCfg.set_require(text, export_data.exported_require)
+	if updated == text:
 		return
-	var cfg = ConfigFile.new()
-	var err = cfg.load(plugin_cfg_path)
-	if err != OK:
-		printerr("Could not load config: ", plugin_cfg_path)
+	var file = FileAccess.open(plugin_cfg_path, FileAccess.WRITE)
+	if file == null:
+		printerr("Could not write config: ", plugin_cfg_path)
 		return
-	for section in _PackageCfg.SECTIONS:
-		if cfg.has_section_key(section, "deps"):
-			cfg.set_value(section, "deps", exported_deps)
-			cfg.save(plugin_cfg_path)
-			return
+	file.store_string(updated)
 
 ## Line indexes inside cfg `section`, header excluded; empty when the section is missing.
 static func _section_lines(lines:PackedStringArray, section:String) -> Array:
