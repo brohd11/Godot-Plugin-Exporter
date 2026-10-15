@@ -124,7 +124,7 @@ static func _test_layout() -> void:
 	_check("dependency tag: current dir", _exists(dir, "src/version.cfg"), true)
 	_check("dependency tag: plain", _found(dir, "yaml_parser/version.cfg"), true)
 
-	_check("licenses gathered", _found(dir, "licenses/_lib_brohd/LICENSE"), true)
+	_check("licenses gathered", _found(dir, "licenses/_lib_util_r/LICENSE"), true)
 	# fixtures/vendor holds a LICENSE with a second one under vendor/nested, each claimed by a tagged
 	# file. Closest-ancestor matching has to hand the subtree to the nested one while vendor/ keeps
 	# the rest, so both arrive - matching in scan order let the outer license swallow the subtree.
@@ -181,11 +181,11 @@ static func _test_rewrites() -> void:
 		_check("%s: malformed absolute path normalized" % variant,
 			_has(_dirs[variant], "src/utils_remote.gd", "_lib/util_r/src//"), false)
 		_check("%s: untagged hub dependency copied" % variant,
-			_found(_dirs[variant], "/u_list.gd"), true)
+			_found(_dirs[variant], "/u_window.gd"), true)
 		_check("%s: preload hub needs no remote tag" % variant,
 			_has(_dirs[variant], "src/utils_remote.gd", "#! remote"), false)
 	_check("ignore-remote path untouched", _has(dir, "src/core/consumer.gd",
-		'"res://addons/_lib/brohd/README.md" #! ignore-remote'), true)
+		'"res://addons/_lib/util_r/LICENSE" #! ignore-remote'), true)
 	_check("namespace directive stripped", _has(dir, "src/core/tags.gd", "#! namespace"), false)
 
 	_check("strip-cast: built-in name", _has(dir, "src/core/tags.gd",
@@ -216,14 +216,14 @@ static func _test_reduction() -> void:
 		return
 
 	_check("reduced: declaration form became the preload", _has(dir, "src/core/access_paths.gd",
-		"const UList = preload("), true)
+		"const UWindow = preload("), true)
 	_check("reduced: inline use rewritten", _has(dir, "src/core/access_paths.gd",
-		"return UList.get_next_item"), true)
+		"return UWindow.get_control_absolute_position"), true)
 	_check("reduced: no chain left", _has(dir, "src/core/access_paths.gd",
-		"ALibRuntime.Utils"), false)
+		"UtilR."), false)
 	_check("reduced: matching preload not redeclared", _count(dir, "src/core/access_paths.gd",
 		"const UObject = preload("), 1)
-	_check("reduced: pass-through hub dropped", _found(dir, "_ns/a_lib_runtime.gd"), false)
+	_check("reduced: pass-through hub dropped", _found(dir, "_ns/util_r.gd"), false)
 
 	# One mention that no reduction rewrites away is enough to keep a hub.
 	_check("reduced: bare-used hub kept", _found(dir, "_ns/singletons.gd"), true)
@@ -235,17 +235,17 @@ static func _test_reduction() -> void:
 
 	# The derived script rewrites its uses but must not redeclare the inherited constant.
 	_check("reduced: base declares the binding", _has(dir, "src/core/access_base.gd",
-		"const USort = preload("), true)
+		"const UName = preload("), true)
 	_check("reduced: derived uses it", _has(dir, "src/core/access_derived.gd",
-		"return USort.sort_priority_dict"), true)
+		"return UName.incremental_name_check_in_array"), true)
 	_check("reduced: derived does not redeclare", _has(dir, "src/core/access_derived.gd",
-		"const USort = preload("), false)
+		"const UName = preload("), false)
 
 	# An enum tail the walk cannot follow is kept on the end of the rewritten expression, and the
 	# file it resolved to has to travel even though nothing else in the plugin preloads it.
 	_check("reduced: tail chain rewritten", _has(dir, "src/core/access_tail.gd",
 		"return StringMap.Mode.STRING"), true)
-	_check("reduced: tail target exported", _found(dir, "utils/string/string_map.gd"), true)
+	_check("reduced: tail target exported", _found(dir, "string/string_map.gd"), true)
 
 
 static func _test_relative() -> void:
@@ -276,7 +276,7 @@ static func _test_renamed() -> void:
 	# everywhere else, which only matters when rename_plugin is on - this is the only case in the
 	# repo that exercises it.
 	_check("renamed: license still landed inside the export",
-		_found(dir, "licenses/_lib_brohd/LICENSE"), true)
+		_found(dir, "licenses/_lib_util_r/LICENSE"), true)
 	# gather_docs maps out of res:// the same way, so it shares that hazard.
 	_check("renamed: docs landed inside the export", _exists(dir, ".doc/index.md"), true)
 
@@ -364,7 +364,7 @@ static func _test_no_cross_contamination() -> void:
 		if dir == "":
 			continue
 		# Reduction is variant 2's alone; with it off the pass-through hub is still copied.
-		_check("%s: reduction did not leak in" % variant, _found(dir, "_ns/a_lib_runtime.gd"), true)
+		_check("%s: reduction did not leak in" % variant, _found(dir, "_ns/util_r.gd"), true)
 
 	for variant in [BASELINE, REDUCED, RENAMED, BACKPORT]:
 		var dir = _dirs.get(variant, "")

@@ -1,6 +1,4 @@
 extends PluginExporterAPI.UtilsRemote.TreeHelperBase
-#extends UtilsRemote.TreeHelperBase
-#extends "res://addons/plugin_exporter/src/class/remote/tree_helper_base.gd"
 
 const UtilsRemote = preload("res://addons/plugin_exporter/src/class/utils_remote.gd")
 

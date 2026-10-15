@@ -1,6 +1,5 @@
 #! remote
 
-const UConfig = preload("res://addons/_lib/brohd/src/alib_runtime/utils/u_config.gd")
 const UFile = preload("uid://bqfy5cvhth0m1") #! resolve UtilR.Files.UFile
 const GetFiles = preload("uid://2kt1rv8kqr3u") #! resolve UtilR.Files.GetFiles
 const UString = preload("uid://dce8d0wuh35gs") #! resolve UtilR.Strings.UString
@@ -21,9 +20,7 @@ const EditorIcons = preload("uid://viocyrti6wce") #! resolve UIPlugin.EditorIcon
 
 const Options = preload("uid://dxdxq2n3imf4q") #! resolve UtilR.Nodes.PopupMenus.Options
 
-const SplitWrapper = preload("uid://ceuhswngaxtvo") #! resolve ALibRuntime.UICustom.SplitWrapper
-
-const UControl = preload("uid://brio73mirr5e6") #! resolve ALibRuntime.Utils.UControl
+const UControl = preload("uid://cdo8rcof3ilt1") #! resolve UtilR.Nodes.UControl
 
 const FSTreeClasses = preload("res://addons/_lib/editor_filesystem/src/components/tree/fs_tree_classes.gd")
 

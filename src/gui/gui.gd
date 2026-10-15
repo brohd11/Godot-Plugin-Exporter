@@ -7,7 +7,6 @@ const TabBarContainer = UtilsRemote.TabBarContainer
 const EditorIcons = UtilsRemote.EditorIcons
 
 const Options = UtilsRemote.Options
-const SplitWrapper = UtilsRemote.SplitWrapper
 
 const UControl = UtilsRemote.UControl
 const UFile = UtilsRemote.UFile

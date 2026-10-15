@@ -7,7 +7,6 @@ const FileParser = UtilsLocal.FileParser
 
 const UFile = UtilsRemote.UFile
 const UString = UtilsRemote.UString
-const UConfig = UtilsRemote.UConfig
 const UEditor = UtilsRemote.UEditor
 const UClassDetail = UtilsRemote.UClassDetail
 const ScanGD = UtilsRemote.DepScanner.ScanGD
@@ -103,7 +102,7 @@ static func get_version(folder, export_config_file):
 		UEditor.push_toast("No package cfg (%s) in %s, Aborting." % ["/".join(PackageCfg.NAMES), target_folder], 2)
 		return
 	
-	var plugin_data = UConfig.load_config_data(plugin_cfg_path)
+	var plugin_data = UFile.load_config_file(plugin_cfg_path)
 	if not plugin_data:
 		UEditor.push_toast("Issue getting plugin data. Aborting.", 2)
 		return 
