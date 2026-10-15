@@ -27,9 +27,9 @@ const UControl = preload("uid://brio73mirr5e6") #! resolve ALibRuntime.Utils.UCo
 
 const FSTreeClasses = preload("res://addons/_lib/editor_filesystem/src/components/tree/fs_tree_classes.gd")
 
-const Dependencies = preload("uid://dbn0kmkxa7caq") #! resolve ALibRuntime.Utils.UResource.Dependencies
+const DepScanner = preload("uid://dbn0kmkxa7caq") #! resolve DepMap.Scanner
 const GDScriptOptimizer = preload("res://addons/_lib/gdscript_optimizer/src/optimizer.gd")
-const DepGraphPanel = preload("res://addons/_lib/brohd/src/alib_runtime/ui/dep_graph/dep_graph_panel.gd")
+const DepGraphUI = preload("uid://b7hbmx4nmp3rb") #! resolve DepMap.GraphUI
 
 const JSONHighlighter = preload("uid://b1cjxhrucdnbo") #! resolve SyntaxHighlighters.Text.Json
 const YAMLHighlighter = preload("uid://com2gj0t82d8f") #! resolve SyntaxHighlighters.Text.Yaml

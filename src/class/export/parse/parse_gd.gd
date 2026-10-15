@@ -59,7 +59,7 @@ func post_export_edit_file(file_path:String, file_lines:Variant=null):
 	var declared_bindings = {}
 
 	var extended_class_string = ""
-	var ignored_lines = Dependencies.ScanGD.ignored_line_numbers(
+	var ignored_lines = DepScanner.ScanGD.ignored_line_numbers(
 		"\n".join(file_lines), [DependencyTags.IGNORE_REMOTE])
 	
 	var adjusted_file_lines = []
@@ -353,7 +353,7 @@ func _reduction_preload_lines(reductions:Dictionary, declared_bindings:Dictionar
 
 
 func _update_paths(line:String):
-	if not Dependencies.ScanGD.ignored_line_numbers(line, [DependencyTags.IGNORE_REMOTE]).is_empty():
+	if not DepScanner.ScanGD.ignored_line_numbers(line, [DependencyTags.IGNORE_REMOTE]).is_empty():
 		return line
 	var current_parse_file = export_obj.file_parser.current_file_path_parsing
 	var comment_index = line.find("#")

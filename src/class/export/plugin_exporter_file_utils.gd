@@ -10,7 +10,7 @@ const UString = UtilsRemote.UString
 const UConfig = UtilsRemote.UConfig
 const UEditor = UtilsRemote.UEditor
 const UClassDetail = UtilsRemote.UClassDetail
-const ScanGD = UtilsRemote.Dependencies.ScanGD
+const ScanGD = UtilsRemote.DepScanner.ScanGD
 const DependencyTags = UtilsLocal.DependencyTags
 
 const Confirmation = UtilsRemote.Confirmation

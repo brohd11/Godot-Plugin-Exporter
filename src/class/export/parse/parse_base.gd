@@ -12,8 +12,8 @@ const KeysData = ExportFileUtils.KeysData
 const CompatData = UtilsLocal.CompatData
 const DependencyTags = UtilsLocal.DependencyTags
 
-const Dependencies = UtilsRemote.Dependencies
-const DepEdge = Dependencies.DepEdge
+const DepScanner = UtilsRemote.DepScanner
+const DepEdge = DepScanner.DepEdge
 const DepKind = DepEdge.Kind
 
 ## Edge kinds that mean "copy this file". LOAD is deliberately absent - a load() target
@@ -84,7 +84,7 @@ func class_reduced_away(file_path:String, cls:String) -> bool:
 	var expressions = expressions_headed_by(plan, cls)
 	if expressions.is_empty():
 		return false
-	var text = Dependencies.ScanGD.mask_ignored_lines(
+	var text = DepScanner.ScanGD.mask_ignored_lines(
 		FileAccess.get_file_as_string(file_path), [DependencyTags.IGNORE_REMOTE])
 	return class_fully_reduced(text, cls, expressions)
 
@@ -103,7 +103,7 @@ func _get_dep_scanner():
 ## path like "ALibRuntime.Utils.UFile" actually lands, which is what reduce_access_paths needs.
 ## Left empty, the scan does no global-class work at all - parse_gd's own pass owns that.
 static func build_dep_scanner(class_map:Dictionary = {}):
-	var scanner = Dependencies.new()
+	var scanner = DepScanner.new()
 	# depth of 1, called per file, so only need direct dependencies for each
 	scanner.max_depth = 1
 	scanner.include_missing = false # a file that is not on disk must never reach files_to_copy

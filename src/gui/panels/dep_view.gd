@@ -4,11 +4,11 @@ const UtilsRemote = preload("res://addons/plugin_exporter/src/class/utils_remote
 const UtilsLocal = preload("res://addons/plugin_exporter/src/class/utils_local.gd")
 const UControl = UtilsRemote.UControl
 const Options = UtilsRemote.Options
-const DepGraphPanel = UtilsRemote.DepGraphPanel
+const DepGraphUI = UtilsRemote.DepGraphUI
 const DependencyTags = UtilsLocal.DependencyTags
 
 
-var dep_graph:DepGraphPanel
+var dep_graph:DepGraphUI
 
 var current_files:Array = []
 
@@ -16,12 +16,12 @@ func _init() -> void:
 	name = "Dependency View"
 
 func _ready() -> void:
-	dep_graph = DepGraphPanel.new()
+	dep_graph = DepGraphUI.new()
 	add_child(dep_graph)
 	UControl.expand(dep_graph)
 	
 	# create setting?
-	dep_graph.set_edge_mode(DepGraphPanel.EdgeMode.TREE)
+	dep_graph.set_edge_mode(DepGraphUI.EdgeMode.TREE)
 
 func set_current_file(path:String):
 	show()

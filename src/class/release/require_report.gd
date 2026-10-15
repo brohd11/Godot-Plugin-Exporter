@@ -11,8 +11,8 @@ const UtilsRemote = preload("res://addons/plugin_exporter/src/class/utils_remote
 const ExportFileUtils = UtilsLocal.ExportFileUtils
 const ExportData = UtilsLocal.ExportData
 const DependencyTags = UtilsLocal.DependencyTags
-const Dependencies = UtilsRemote.Dependencies
-const DepEdge = Dependencies.DepEdge
+const DepScanner = UtilsRemote.DepScanner
+const DepEdge = DepScanner.DepEdge
 const DepResolver = preload("res://addons/plugin_exporter/src/class/release/dep_resolver.gd")
 
 const CFG_NAMES = DepResolver.CFG_NAMES
@@ -174,7 +174,7 @@ static func _package_dir(path:String, cache:Dictionary) -> String:
 
 
 static func _scan_files(roots:Array, class_map:Dictionary):
-	var scanner = Dependencies.open_many(roots)
+	var scanner = DepScanner.open_many(roots)
 	scanner.class_map = class_map
 	scanner.include_missing = false # a file not on disk can't be packaged
 	scanner.follow_load = false

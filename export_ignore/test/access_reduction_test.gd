@@ -11,9 +11,8 @@ extends EditorScript
 ##
 ##     load("res://addons/plugin_exporter/export_ignore/test/access_reduction_test.gd").run_tests()
 
-const UResource = preload("uid://72uu8yngsoht") #! resolve ALibRuntime.Utils.UResource
-const Dependencies = UResource.Dependencies
-const DepEdge = Dependencies.DepEdge
+const DepScanner = preload("uid://dbn0kmkxa7caq") #! resolve DepMap.Scanner
+const DepEdge = DepScanner.DepEdge
 
 const DIR = "user://pe_access_reduction_tests/"
 
@@ -119,7 +118,7 @@ static func _test_off_by_default() -> void:
 	var hub = _w("r_hub5.gd", _hub('const Leaf = preload("%s")\n' % leaf))
 	var user = _w("r_user5.gd", "extends RefCounted\nvar v = Hub.Leaf\n")
 
-	var scanner = Dependencies.new()
+	var scanner = DepScanner.new()
 	scanner.max_depth = 1
 	scanner.include_missing = false
 	scanner.use_project_classes = false
@@ -140,7 +139,7 @@ static func _test_off_by_default() -> void:
 
 ## Mirrors build_dep_scanner() with a class map.
 static func _scan(root:String, class_map:Dictionary) -> Array:
-	var scanner = Dependencies.new()
+	var scanner = DepScanner.new()
 	scanner.max_depth = 1
 	scanner.include_missing = false
 	scanner.use_project_classes = false

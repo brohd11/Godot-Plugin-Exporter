@@ -1,4 +1,4 @@
-## `#!` tag handlers for the dependency scan. Registered on a Dependencies instance with
+## `#!` tag handlers for the dependency scan. Registered on a DepMap.Scanner instance with
 ## add_tag_handler(), which documents the handler contract - a Callable taking one context
 ## dict and returning the metadata to hang on the edges it emits.
 

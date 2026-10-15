@@ -2,17 +2,16 @@
 extends EditorScript
 
 ## Tests for plugin_exporter's `#! dependency` tag handler — the one handler the exporter
-## registers on UResource.Dependencies. The collector itself ships no handlers; the mechanism
-## it provides is covered by tests/dependencies.
+## registers on DepMap.Scanner. The collector itself ships no handlers; the mechanism
+## it provides is covered by dep_map's own suite.
 ##
 ## Fixtures are written to user:// for the same reason the collector suite does it: the tag
 ## lines are more readable sitting next to the assertion that reads them.
 ##
 ##     load("res://addons/plugin_exporter/export_ignore/test/dependency_tags_test.gd").run_tests()
 
-const UResource = preload("uid://72uu8yngsoht") #! resolve ALibRuntime.Utils.UResource
-const Dependencies = UResource.Dependencies
-const Kind = Dependencies.Kind
+const DepScanner = preload("uid://dbn0kmkxa7caq") #! resolve DepMap.Scanner
+const Kind = DepScanner.Kind
 const DependencyTags = preload("res://addons/plugin_exporter/src/class/export/dependency_tags.gd")
 const DIR_KEY = DependencyTags.DIR_KEY
 
@@ -77,7 +76,7 @@ static func _test_scan_end_to_end() -> void:
 		'## tag it `#! dependency "res://nope.gd"` to pull a file in',
 	]) + "\n")
 
-	var d = Dependencies.open(src)
+	var d = DepScanner.open(src)
 	d.use_project_classes = false
 	d.add_tag_handler(DependencyTags.TAG, DependencyTags.dependency_dir())
 	var graph = d.get_graph()
@@ -96,7 +95,7 @@ static func _test_scan_end_to_end() -> void:
 static func _test_ignore_remote() -> void:
 	var asset = _w("ignored_asset.gd", "extends RefCounted\n")
 	var source = _w("ignored_source.gd", 'const Asset = preload("%s") #! ignore-remote\n' % asset)
-	var scanner = Dependencies.open(source)
+	var scanner = DepScanner.open(source)
 	scanner.use_project_classes = false
 	scanner.ignore_line_tags = [DependencyTags.IGNORE_REMOTE]
 	scanner.add_tag_handler(DependencyTags.TAG, DependencyTags.dependency_dir())
