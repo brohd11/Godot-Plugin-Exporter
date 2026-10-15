@@ -4,7 +4,7 @@ extends RefCounted
 ## loads every script and resource there, and collects parse/compile errors from the output.
 ## load() hands back a non-null GDScript even when compilation fails, so output is the real signal.
 
-const ReleaseRunner = preload("res://addons/plugin_exporter/src/class/release/release_runner.gd")
+const ReleaseRunner = preload("res://addons/package_exporter/src/class/release/release_runner.gd")
 
 const PROBE_DIR = "pe_compile_probe"
 const LOAD_FAIL_PREFIX = "PE_LOAD_FAIL "
@@ -12,7 +12,7 @@ const LOAD_EXTENSIONS = ["gd", "tscn", "tres"]
 
 const _PROBE = """@tool
 extends EditorPlugin
-# Written by PluginExporter's release compile check: loads every file of one plugin, then quits.
+# Written by PackageExporter's release compile check: loads every file of one plugin, then quits.
 
 var _started := false
 var _done := false

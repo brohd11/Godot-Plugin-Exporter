@@ -1,13 +1,13 @@
 extends GDSh.CommandBase
 
-const PluginExporter = preload("res://addons/plugin_exporter/src/class/plugin_exporter.gd")
-const PECommandUtils = preload("res://addons/plugin_exporter/src/editor_plugins/console_command/command_utils.gd")
+const PluginExporter = preload("res://addons/package_exporter/src/class/plugin_exporter.gd")
+const PECommandUtils = preload("res://addons/package_exporter/src/editor_plugins/console_command/command_utils.gd")
 const PackageCfg = PluginExporter.UtilsLocal.ExportFileUtils.PackageCfg
 const UString = PluginExporter.UtilsRemote.UString
 
 const _HELP = \
 "Initialize a folder as a library package: a package cfg, git init, src/, then plugin_init
-Usage: plugin_exporter package_init [--name=addon|plugin|version] <folder>
+Usage: package_exporter package_init [--name=addon|plugin|version] <folder>
   --name=NAME  Cfg file to write, NAME.cfg (default: addon)."
 
 var name_flag := "addon"

@@ -2,9 +2,9 @@
 extends EditorScript
 ## Packages are discovered by metadata, then filtered by export config presence.
 
-const Discovery = preload("res://addons/plugin_exporter/src/class/export/package_discovery.gd")
-const ExportIgnore = preload("res://addons/plugin_exporter/src/class/export/export_ignore.gd")
-const Runner = preload("res://addons/plugin_exporter/src/class/release/release_runner.gd")
+const Discovery = preload("res://addons/package_exporter/src/class/export/package_discovery.gd")
+const ExportIgnore = preload("res://addons/package_exporter/src/class/export/export_ignore.gd")
+const Runner = preload("res://addons/package_exporter/src/class/release/release_runner.gd")
 const ROOT = "user://pe_package_discovery_tests"
 
 static var _failures:Array[String] = []

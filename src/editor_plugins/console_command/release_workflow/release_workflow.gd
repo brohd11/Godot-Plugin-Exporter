@@ -1,12 +1,12 @@
 extends GDSh.CommandBase
 
-const PluginExporter = preload("res://addons/plugin_exporter/src/class/plugin_exporter.gd")
-const PECommandUtils = preload("res://addons/plugin_exporter/src/editor_plugins/console_command/command_utils.gd")
+const PluginExporter = preload("res://addons/package_exporter/src/class/plugin_exporter.gd")
+const PECommandUtils = preload("res://addons/package_exporter/src/editor_plugins/console_command/command_utils.gd")
 
 const _HELP = \
 "Opt a package into CI releases: writes .github/workflows/release.yml at its repo root, calling
-PluginExporter's reusable workflow on version tags. Never overwrites an existing file.
-Usage: plugin_exporter release_workflow <plugin_name>"
+PackageExporter's reusable workflow on version tags. Never overwrites an existing file.
+Usage: package_exporter release_workflow <plugin_name>"
 
 static func get_command_name() -> String:
 	return "release_workflow"

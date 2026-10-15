@@ -4,16 +4,16 @@ const SLOT = EditorContextMenuPlugin.CONTEXT_SLOT_SCRIPT_EDITOR_CODE
 
 const Params = PopupWrapper.ContextPlugin.ItemParams
 
-const UtilsRemote = preload("res://addons/plugin_exporter/src/class/utils_remote.gd")
+const UtilsRemote = preload("res://addons/package_exporter/src/class/utils_remote.gd")
 const UFile = UtilsRemote.UFile
 
 const DEPENDENCY_TAGS = ["#! dependency", "#! ignore-remote"]
 
-const SINGLETON_MODULE = "Plugin Exporter/Singleton Module"
-const DEPENDENCY = "Plugin Exporter/Dependency"
-const EXPORTED_FLAG = "Plugin Exporter/Exported Flag"
-const BACKPORT_FLAG = "Plugin Exporter/Backport Flag"
-const IGNORE_REMOTE = "Plugin Exporter/Ignore Remote"
+const SINGLETON_MODULE = "Package Exporter/Singleton Module"
+const DEPENDENCY = "Package Exporter/Dependency"
+const EXPORTED_FLAG = "Package Exporter/Exported Flag"
+const BACKPORT_FLAG = "Package Exporter/Backport Flag"
+const IGNORE_REMOTE = "Package Exporter/Ignore Remote"
 
 const STD_META = {
 	Params.PRIORITY: 1020,

@@ -1,8 +1,8 @@
 extends GDSh.CommandBase
 
-const RequireReport = preload("res://addons/plugin_exporter/src/class/release/require_report.gd")
-const RequireUpdate = preload("res://addons/plugin_exporter/src/class/release/require_update.gd")
-const PECommandUtils = preload("res://addons/plugin_exporter/src/editor_plugins/console_command/command_utils.gd")
+const RequireReport = preload("res://addons/package_exporter/src/class/release/require_report.gd")
+const RequireUpdate = preload("res://addons/package_exporter/src/class/release/require_update.gd")
+const PECommandUtils = preload("res://addons/package_exporter/src/editor_plugins/console_command/command_utils.gd")
 
 const _HELP = \
 "Write the packages the crawl found into the target's own build_require, in its _export_ignore (or
@@ -10,7 +10,7 @@ export_ignore) plugin_export config. Each tag is the required package's cfg vers
 that isn't tagged in its checkout yet only warns. A \"@require\" in build_require is dropped rather
 than expanded: the cfg's require= is gdaddon's install-time list and may name optional deps.
 Only the target is written; other packages stay reported by `require`.
-Usage: plugin_exporter require update <plugin_name>"
+Usage: package_exporter require update <plugin_name>"
 
 var overwrite_flag := false
 var prune_flag := false

@@ -134,7 +134,7 @@ There are a couple of tags you can use to change how files are processed.
 
 A tag has the form `#! tag value` or `#! tag mods; args`, and has to open its comment.
 
-The reason I mention the singleton-module tag is because you could add your own tags and parse them with your own custom parser. You can add any parsers to folder `plugin_exporter/src/class/export/parse/<extension>` replace with your file extension and the parser will be called on those files. You can add parameters in the `plugin_export.json` file under `parser_settings`, more info [here](./export_settings.md).
+The reason I mention the singleton-module tag is because you could add your own tags and parse them with your own custom parser. You can add any parsers to folder `package_exporter/src/class/export/parse/<extension>` replace with your file extension and the parser will be called on those files. You can add parameters in the `plugin_export.json` file under `parser_settings`, more info [here](./export_settings.md).
 
 ### Full Plugin Copy
 
@@ -200,9 +200,9 @@ A normal export crawls the project as it is on disk, uncommitted changes and all
 builds from tags instead:
 
 ```
-plugin_exporter export --release my_plugin
-plugin_exporter export --release --refresh my_plugin
-plugin_exporter export --release --local my_plugin
+package_exporter export --release my_plugin
+package_exporter export --release --refresh my_plugin
+package_exporter export --release --local my_plugin
 ```
 
 1. **Resolve.** The plugin's `version=` must have a matching tag (`1.2.0` or `v1.2.0`) on its
@@ -211,11 +211,11 @@ plugin_exporter export --release --local my_plugin
    on. When two plugins ask for different tags of one repo, the highest wins (Go's minimal
    version selection). Every requirement needs an `@tag`; an untagged one fails the export and
    prints the chain that asked for it.
-2. **Fetch.** Repos are mirrored under the OS cache dir (`plugin_exporter/repos`). A tag already
+2. **Fetch.** Repos are mirrored under the OS cache dir (`package_exporter/repos`). A tag already
    mirrored is never re-fetched. `--refresh` checks every cached tag against its remote and fails
    if one was moved.
 3. **Workspace.** Each dependency's addon folder, at its tag, is copied into its install path (see
-   "Where a dependency installs" below). A released `plugin_exporter` (the
+   "Where a dependency installs" below). A released `package_exporter` (the
    toolchain, below) runs the export headless there. Workspaces are reused while the resolved tags
    and the toolchain stay the same.
 4. **Verify.** Every exported variant is installed into an empty project, along with its
@@ -269,7 +269,7 @@ place it:
 When a package holds several addon folders, only the one whose cfg `url=` names the repo is used.
 A `path=`/`dir=` in the chosen cfg always wins over the derived location.
 
-To find out what to require, run `plugin_exporter require my_plugin`. It runs the export crawl
+To find out what to require, run `package_exporter require my_plugin`. It runs the export crawl
 without writing anything and lists the packages the export pulls in (no tags). A package is the
 nearest folder with a `plugin.cfg`, `addon.cfg` or `version.cfg`, so every file of one release counts once. Its
 identity is the git `origin` when the folder is a checkout, or the cfg `url=` for a package installed
@@ -277,10 +277,10 @@ from a release zip. Packages are grouped by the package whose export config shou
 each is marked `declared (build)`, `declared (compile)` or `MISSING`. A package with no export
 config is flagged, since it declares nothing.
 
-`plugin_exporter require --self my_plugin` prints only that plugin's own list, one `owner/repo@tag`
+`package_exporter require --self my_plugin` prints only that plugin's own list, one `owner/repo@tag`
 per line and nothing else, for piping.
 
-`plugin_exporter require update my_plugin` writes that list into the plugin's own `build_require`,
+`package_exporter require update my_plugin` writes that list into the plugin's own `build_require`,
 in the config it already has - only the target's, never a package it depends on. A tag is `v` plus
 the required package's cfg `version=`; when that tag isn't in the package's checkout yet you get a
 warning, since tagging comes after the update, and a package with no version to pin is an error that
@@ -293,16 +293,16 @@ config are untouched, and `plugin.cfg` is never written.
 `--local` is for trying a release before pushing anything. Every repo with a checkout in this
 project is fetched from that checkout instead of its remote; repos without one (a checkout counts
 only if its `origin` is the same repo) still come from their remote, with a warning. A missing
-local tag or local plugin_exporter export is an error, never a fallback. It is still tag-pinned, so only committed, tagged files are used - you tag, but
+local tag or local package_exporter export is an error, never a fallback. It is still tag-pinned, so only committed, tagged files are used - you tag, but
 don't push. A local tag you move is followed rather than rejected. Lock entries are marked
 `"source": "local"`, and each local tag that isn't on `origin` yet gets a warning.
 
-**Toolchain.** The export is run by a *released* plugin_exporter rather than the one in this
+**Toolchain.** The export is run by a *released* package_exporter rather than the one in this
 project, so the exporter's own libraries can't clash with the pinned ones. Its version is
-`toolchain` under `options` in the export config, or this project's plugin_exporter version when
-unset. Normally it is the GitHub release zip (`plugin-exporter-<version>.zip` on tag
+`toolchain` under `options` in the export config, or this project's package_exporter version when
+unset. Normally it is the GitHub release zip (`package-exporter-<version>.zip` on tag
 `v<version>`), downloaded once into the cache's `toolchains` folder and reused; `--refresh`
-downloads it again. With `--local` it is this project's own export of plugin_exporter instead,
+downloads it again. With `--local` it is this project's own export of package_exporter instead,
 refused when any export script has changed since that export was made. If the toolchain's export
 scripts don't compile, the release export fails before verification.
 

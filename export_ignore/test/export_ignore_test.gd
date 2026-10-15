@@ -4,10 +4,10 @@ extends EditorScript
 ## Tests for the export-ignore folder helper: both spellings, `_export_ignore` winning when a plugin
 ## has both, and the always-excluded path check.
 ##
-##     load("res://addons/plugin_exporter/export_ignore/test/export_ignore_test.gd").run_tests()
+##     load("res://addons/package_exporter/export_ignore/test/export_ignore_test.gd").run_tests()
 
-const ExportIgnore = preload("res://addons/plugin_exporter/src/class/export/export_ignore.gd")
-const ReleaseRunner = preload("res://addons/plugin_exporter/src/class/release/release_runner.gd")
+const ExportIgnore = preload("res://addons/package_exporter/src/class/export/export_ignore.gd")
+const ReleaseRunner = preload("res://addons/package_exporter/src/class/release/release_runner.gd")
 
 const DIR = "user://pe_export_ignore_tests"
 

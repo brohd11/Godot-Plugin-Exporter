@@ -2,8 +2,8 @@
 extends EditorScript
 ## PackageCfg: which file in a dir is the package cfg, and [addon] winning over [plugin] per key.
 
-const PackageCfg = preload("res://addons/plugin_exporter/src/class/export/package_cfg.gd")
-const Runner = preload("res://addons/plugin_exporter/src/class/release/release_runner.gd")
+const PackageCfg = preload("res://addons/package_exporter/src/class/export/package_cfg.gd")
+const Runner = preload("res://addons/package_exporter/src/class/release/release_runner.gd")
 const ROOT = "user://pe_package_cfg_tests"
 
 static var _failures:Array[String] = []

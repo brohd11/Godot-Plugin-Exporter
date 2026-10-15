@@ -1,25 +1,25 @@
 @tool
 extends RefCounted
-## The released plugin_exporter a release export runs in its workspace - Go's toolchain, in effect.
+## The released package_exporter a release export runs in its workspace - Go's toolchain, in effect.
 ## Its version is `toolchain` in the export config's options, or the dev exporter's version when
 ## unset. Remote: the GitHub release zip, downloaded once and cached. --local: this project's own
 ## export of it, refused when older than the dev export scripts it was built from.
 
-const DepResolver = preload("res://addons/plugin_exporter/src/class/release/dep_resolver.gd")
-const ReleaseRunner = preload("res://addons/plugin_exporter/src/class/release/release_runner.gd")
+const DepResolver = preload("res://addons/package_exporter/src/class/release/dep_resolver.gd")
+const ReleaseRunner = preload("res://addons/package_exporter/src/class/release/release_runner.gd")
 
-const NAME = "plugin_exporter"
+const NAME = "package_exporter"
 const CONFIG_KEY = "toolchain"
-const DEV_DIR = "res://addons/plugin_exporter"
-const DEV_EXPORT_SCRIPTS = "res://addons/plugin_exporter/src/class/export"
-const FALLBACK_REPO = "https://github.com/brohd11/Godot-Plugin-Exporter"
-const ASSET = "plugin-exporter-%s.zip"
+const DEV_DIR = "res://addons/package_exporter"
+const DEV_EXPORT_SCRIPTS = "res://addons/package_exporter/src/class/export"
+const FALLBACK_REPO = "https://github.com/brohd11/godot-package-exporter"
+const ASSET = "package-exporter-%s.zip"
 
 var errors:Array[String] = []
 
 
 ## {dir, version, source: "remote"|"local", id}, or {} with `errors` filled. `local_dir` is where
-## this project exports plugin_exporter; only read when `local`.
+## this project exports package_exporter; only read when `local`.
 func resolve(options:Dictionary, cache_root:String, local:bool, refresh:bool, local_dir:String = "") -> Dictionary:
 	errors.clear()
 	var version = pick_version(options, _cfg_version(DEV_DIR)).trim_prefix("v")
@@ -87,7 +87,7 @@ func _resolve_remote(version:String, cache_root:String, refresh:bool) -> Diction
 func _resolve_local(version:String, local_dir:String) -> Dictionary:
 	var cfg_path = local_dir.path_join("plugin.cfg")
 	if local_dir == "" or not FileAccess.file_exists(cfg_path):
-		errors.append("no local %s export at '%s'; run 'plugin_exporter export %s' first" % [NAME, local_dir, NAME])
+		errors.append("no local %s export at '%s'; run 'package_exporter export %s' first" % [NAME, local_dir, NAME])
 		return {}
 
 	# plugin.cfg is rewritten by every export, so its time is when this copy was built.
@@ -98,7 +98,7 @@ func _resolve_local(version:String, local_dir:String) -> Dictionary:
 			mtimes[file] = FileAccess.get_modified_time(file)
 	var newer = newest_after(mtimes, exported_at)
 	if newer != "":
-		errors.append("local %s export is older than %s; run 'plugin_exporter export %s' again" % [
+		errors.append("local %s export is older than %s; run 'package_exporter export %s' again" % [
 			NAME, ProjectSettings.localize_path(newer), NAME])
 		return {}
 

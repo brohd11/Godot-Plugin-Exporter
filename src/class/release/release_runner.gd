@@ -4,7 +4,7 @@ extends RefCounted
 ## in `--headless --editor` rather than `--script`, because both the export pipeline and exported
 ## plugins reach for EditorInterface; results come back as one sentinel line on stdout.
 
-const PackageLayout = preload("res://addons/plugin_exporter/src/class/release/package_layout.gd")
+const PackageLayout = preload("res://addons/package_exporter/src/class/release/package_layout.gd")
 
 const RESULT_PREFIX = "PE_RELEASE_RESULT "
 const EXPORT_AUTORUN_DIR = "pe_release_autorun"
@@ -17,7 +17,7 @@ const _ERROR_PATTERNS = [
 
 const _EXPORT_AUTORUN = """@tool
 extends EditorPlugin
-# Written by PluginExporter's release export: runs one export once the editor has scanned, prints
+# Written by PackageExporter's release export: runs one export once the editor has scanned, prints
 # the result for the parent process, then quits. Loaded lazily so a pinned exporter can resolve
 # its global classes first.
 
@@ -42,8 +42,8 @@ func _run() -> void:
 	_started = true
 
 	var job = JSON.parse_string(FileAccess.get_file_as_string("res://addons/%s/job.json"))
-	var file_utils = load("res://addons/plugin_exporter/src/class/export/plugin_exporter_file_utils.gd")
-	var exporter = load("res://addons/plugin_exporter/src/class/export/plugin_exporter_static.gd")
+	var file_utils = load("res://addons/package_exporter/src/class/export/plugin_exporter_file_utils.gd")
+	var exporter = load("res://addons/package_exporter/src/class/export/plugin_exporter_static.gd")
 	if not job is Dictionary or not _compiled(file_utils) or not _compiled(exporter):
 		_finish({"ok": false, "error": "exporter scripts failed to compile (missing dependency?)"}, 3)
 		return

@@ -4,24 +4,24 @@ extends RefCounted
 ## those tags instead of the dev tree, then proves the output compiles on its own. The workspace
 ## export (PluginExporterStatic.export_by_name) is untouched - this is the build with go.work off.
 
-const UtilsLocal = preload("res://addons/plugin_exporter/src/class/utils_local.gd")
-const UtilsRemote = preload("res://addons/plugin_exporter/src/class/utils_remote.gd")
+const UtilsLocal = preload("res://addons/package_exporter/src/class/utils_local.gd")
+const UtilsRemote = preload("res://addons/package_exporter/src/class/utils_remote.gd")
 const ExportFileUtils = UtilsLocal.ExportFileUtils
 const ExportPaths = ExportFileUtils.ExportPaths
 
-const DepResolver = preload("res://addons/plugin_exporter/src/class/release/dep_resolver.gd")
-const RepoCache = preload("res://addons/plugin_exporter/src/class/release/repo_cache.gd")
-const ReleaseWorkspace = preload("res://addons/plugin_exporter/src/class/release/release_workspace.gd")
-const ReleaseRunner = preload("res://addons/plugin_exporter/src/class/release/release_runner.gd")
-const CompileCheck = preload("res://addons/plugin_exporter/src/class/release/compile_check.gd")
-const Toolchain = preload("res://addons/plugin_exporter/src/class/release/toolchain.gd")
-const ReleaseCache = preload("res://addons/plugin_exporter/src/class/release/release_cache.gd")
-const PackageFetcher = preload("res://addons/plugin_exporter/src/class/release/package_fetcher.gd")
+const DepResolver = preload("res://addons/package_exporter/src/class/release/dep_resolver.gd")
+const RepoCache = preload("res://addons/package_exporter/src/class/release/repo_cache.gd")
+const ReleaseWorkspace = preload("res://addons/package_exporter/src/class/release/release_workspace.gd")
+const ReleaseRunner = preload("res://addons/package_exporter/src/class/release/release_runner.gd")
+const CompileCheck = preload("res://addons/package_exporter/src/class/release/compile_check.gd")
+const Toolchain = preload("res://addons/package_exporter/src/class/release/toolchain.gd")
+const ReleaseCache = preload("res://addons/package_exporter/src/class/release/release_cache.gd")
+const PackageFetcher = preload("res://addons/package_exporter/src/class/release/package_fetcher.gd")
 
 const LOCK_FILE = ".export_lock.json"
 const GIT_DETAILS_FILE = ".export_git_details"
 const UNVERIFIED_SUFFIX = "-unverified"
-const TOOLCHAIN_SCRIPTS = "res://addons/plugin_exporter/src/class/"
+const TOOLCHAIN_SCRIPTS = "res://addons/package_exporter/src/class/"
 
 ## Failure lines from the last export_release call, for callers that don't see the Output log.
 static var messages:Array[String] = []
@@ -162,7 +162,7 @@ static func _export_release(plugin_name:String, refresh:bool, local:bool) -> boo
 	return true
 
 
-## Where this project exports plugin_exporter, for --local toolchains. Computed with the export
+## Where this project exports package_exporter, for --local toolchains. Computed with the export
 ## pipeline (it resolves {{version}} templates), so it stays here rather than in Toolchain.
 static func _local_toolchain_dir() -> String:
 	var config_path = ExportFileUtils.get_export_config_path(Toolchain.NAME)

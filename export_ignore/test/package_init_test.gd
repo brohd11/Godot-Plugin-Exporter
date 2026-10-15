@@ -2,9 +2,9 @@
 extends EditorScript
 ## package_init's package cfg template and the unpackaged-dir completion scan.
 
-const Discovery = preload("res://addons/plugin_exporter/src/class/export/package_discovery.gd")
-const PluginInit = preload("res://addons/plugin_exporter/src/class/export/plugin_init.gd")
-const Runner = preload("res://addons/plugin_exporter/src/class/release/release_runner.gd")
+const Discovery = preload("res://addons/package_exporter/src/class/export/package_discovery.gd")
+const PluginInit = preload("res://addons/package_exporter/src/class/export/plugin_init.gd")
+const Runner = preload("res://addons/package_exporter/src/class/release/release_runner.gd")
 const ROOT = "user://pe_package_init_tests"
 
 static var _failures:Array[String] = []
@@ -59,17 +59,23 @@ static func _test_unpackaged() -> void:
 
 ## Opt-in only: written at the package root, never over an existing file, refused for non-packages.
 static func _test_release_workflow() -> void:
-	var dir = "res://addons/plugin_exporter/export_ignore/test/fixtures/_release_workflow_%d" % Time.get_ticks_usec()
+	var dir = "res://addons/package_exporter/export_ignore/test/fixtures/_release_workflow_%d" % Time.get_ticks_usec()
 	DirAccess.make_dir_recursive_absolute(dir)
-	_check("not a package refused", PluginInit.add_release_workflow(dir), "")
+	var notes:Array[String] = []
+	_check("not a package refused", PluginInit.write_release_workflow(dir, notes), "")
+	_check("not a package says why", notes.size() == 1 and notes[0].begins_with("Not a package"), true)
 	FileAccess.open(dir.path_join("version.cfg"), FileAccess.WRITE).store_string('[plugin]\nversion="0.1.0"\n')
-	var path = PluginInit.add_release_workflow(dir)
+	notes.clear()
+	var path = PluginInit.write_release_workflow(dir, notes)
 	_check("written at the package root", path, dir.path_join(".github/workflows/release.yml"))
+	_check("warns without a .git dir", notes.size() == 1 and "no .git dir" in notes[0], true)
 	var text = FileAccess.get_file_as_string(path)
-	_check("calls the reusable workflow", "uses: brohd11/Godot-Plugin-Exporter/.github/workflows/package-release.yml@%s" % PluginInit.RELEASE_WORKFLOW_REF in text, true)
+	_check("calls the reusable workflow", "uses: brohd11/godot-package-exporter/.github/workflows/package-release.yml@%s" % PluginInit.RELEASE_WORKFLOW_REF in text, true)
 	_check("runs on version tags", 'tags: ["v*", "[0-9]*"]' in text, true)
 	FileAccess.open(path, FileAccess.WRITE).store_string("edited")
-	_check("existing not overwritten", [PluginInit.add_release_workflow(dir), FileAccess.get_file_as_string(path)], ["", "edited"])
+	notes.clear()
+	_check("existing not overwritten", [PluginInit.write_release_workflow(dir, notes), FileAccess.get_file_as_string(path)], ["", "edited"])
+	_check("existing says why", notes.size() == 1 and notes[0].begins_with("Release workflow already exists"), true)
 	Runner.remove_dir(ProjectSettings.globalize_path(dir))
 
 

@@ -2,8 +2,8 @@
 extends RefCounted
 ## Package snapshots are rebuilt on demand after editor filesystem changes.
 
-const ExportIgnore = preload("res://addons/plugin_exporter/src/class/export/export_ignore.gd")
-const PackageCfg = preload("res://addons/plugin_exporter/src/class/export/package_cfg.gd")
+const ExportIgnore = preload("res://addons/package_exporter/src/class/export/export_ignore.gd")
+const PackageCfg = preload("res://addons/package_exporter/src/class/export/package_cfg.gd")
 
 enum Filter { ALL, VALID, NOT_VALID }
 

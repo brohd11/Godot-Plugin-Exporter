@@ -1,6 +1,6 @@
 
-const UtilsRemote = preload("res://addons/plugin_exporter/src/class/utils_remote.gd")
-const UtilsLocal = preload("res://addons/plugin_exporter/src/class/utils_local.gd")
+const UtilsRemote = preload("res://addons/package_exporter/src/class/utils_remote.gd")
+const UtilsLocal = preload("res://addons/package_exporter/src/class/utils_local.gd")
 
 const ExportData = UtilsLocal.ExportData
 const FileParser = UtilsLocal.FileParser
@@ -13,9 +13,9 @@ const ScanGD = UtilsRemote.DepScanner.ScanGD
 const DependencyTags = UtilsLocal.DependencyTags
 
 const Confirmation = UtilsRemote.Confirmation
-const ExportIgnore = preload("res://addons/plugin_exporter/src/class/export/export_ignore.gd")
-const ExportPaths = preload("res://addons/plugin_exporter/src/class/export/export_paths.gd")
-const PackageCfg = preload("res://addons/plugin_exporter/src/class/export/package_cfg.gd")
+const ExportIgnore = preload("res://addons/package_exporter/src/class/export/export_ignore.gd")
+const ExportPaths = preload("res://addons/package_exporter/src/class/export/export_paths.gd")
+const PackageCfg = preload("res://addons/package_exporter/src/class/export/package_cfg.gd")
 
 const VALID_FILE_NAMES = ExportIgnore.CONFIG_NAMES
 
@@ -47,21 +47,21 @@ static func get_export_data(export_config_path:String):
 		var json = JSON.new()
 		var parse_result = json.parse(config_string)
 		if parse_result != OK:
-			printerr("Plugin Exporter - Error parsing JSON: " + json.get_error_message() + " at line " + str(json.get_error_line()))
+			printerr("Package Exporter - Error parsing JSON: " + json.get_error_message() + " at line " + str(json.get_error_line()))
 			return
 		return json.data
 	elif export_config_path.get_extension() in ["yml", "yaml"]:
 		var parser = YAMLParser.new()
 		var err = parser.parse(config_string)
 		if err != OK:
-			printerr("Plugin Exporter - Error parsing YAML: " , err)
+			printerr("Package Exporter - Error parsing YAML: " , err)
 			printerr(parser.errors)
 			return
 		return parser.data
 
 static func get_file_export_path(file_path:String, export_config_path:String, desired_export:int=-1, export_data:ExportData=null):
 	if not FileAccess.file_exists(file_path):
-		printerr("Plugin Exporter - File doesn't exist: %s" % file_path)
+		printerr("Package Exporter - File doesn't exist: %s" % file_path)
 		return
 	if export_data == null:
 		export_data = ExportData.new(export_config_path)

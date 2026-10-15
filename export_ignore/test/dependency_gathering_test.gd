@@ -3,7 +3,7 @@ extends EditorScript
 ## Exercises the real export crawl and rewrites. The exporter requires editor services.
 
 const DIR = "user://pe_gathering_tests/"
-const UtilsLocal = preload("res://addons/plugin_exporter/src/class/utils_local.gd")
+const UtilsLocal = preload("res://addons/package_exporter/src/class/utils_local.gd")
 const FileUtils = UtilsLocal.ExportFileUtils
 const Keys = FileUtils.KeysData
 
@@ -135,9 +135,9 @@ static func _test_replacement() -> void:
 static func _test_scan_consumers() -> void:
 	var leaf = _w("external/consumer_leaf.gd", "extends RefCounted\n")
 	var root = _w("plugin/consumer.gd", 'const Leaf = preload("%s") #! ignore-remote\n' % leaf)
-	var report = load("res://addons/plugin_exporter/src/class/release/require_report.gd")
+	var report = load("res://addons/package_exporter/src/class/release/require_report.gd")
 	_check("require ignores tagged edge", report._scan_files([root], {}).has(leaf), false)
-	var view = load("res://addons/plugin_exporter/src/gui/panels/dep_view.gd").new()
+	var view = load("res://addons/package_exporter/src/gui/panels/dep_view.gd").new()
 	Engine.get_main_loop().root.add_child(view)
 	view.set_current_file(root)
 	_check("dependency view ignores tagged edge", view.dep_graph.get_dep_graph().has(leaf), false)

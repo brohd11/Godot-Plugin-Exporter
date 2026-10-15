@@ -1,15 +1,15 @@
 extends GDSh.CommandBase
 
-const RequireReport = preload("res://addons/plugin_exporter/src/class/release/require_report.gd")
-const RequireUpdate = preload("res://addons/plugin_exporter/src/class/release/require_update.gd")
-const PECommandUtils = preload("res://addons/plugin_exporter/src/editor_plugins/console_command/command_utils.gd")
+const RequireReport = preload("res://addons/package_exporter/src/class/release/require_report.gd")
+const RequireUpdate = preload("res://addons/package_exporter/src/class/release/require_update.gd")
+const PECommandUtils = preload("res://addons/package_exporter/src/editor_plugins/console_command/command_utils.gd")
 
 const _HELP = \
 "List the packages (dirs with a plugin.cfg, addon.cfg or version.cfg) a plugin's export pulls in, grouped by
 the package whose _export_ignore (or export_ignore) plugin_export config should list them under build_require. Identity
 is the git origin, or the cfg url= for a release package. Runs the export crawl only; use the
 update subcommand to write the target's build_require.
-Usage: plugin_exporter require <plugin_name>"
+Usage: package_exporter require <plugin_name>"
 
 var self_flag := false
 

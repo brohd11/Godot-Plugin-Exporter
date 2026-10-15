@@ -1,11 +1,11 @@
 extends GDSh.CommandBase
 
-const PluginExporter = preload("res://addons/plugin_exporter/src/class/plugin_exporter.gd")
-const PECommandUtils = preload("res://addons/plugin_exporter/src/editor_plugins/console_command/command_utils.gd")
+const PluginExporter = preload("res://addons/package_exporter/src/class/plugin_exporter.gd")
+const PECommandUtils = preload("res://addons/package_exporter/src/editor_plugins/console_command/command_utils.gd")
 
 const _HELP = \
 "Export the selected plugin
-Usage: plugin_exporter export [--release [--local] [--refresh]] <plugin_name>"
+Usage: package_exporter export [--release [--local] [--refresh]] <plugin_name>"
 
 var release_flag := false
 var refresh_flag := false
@@ -50,7 +50,7 @@ func _execute(ctx:Context):
 	if release_flag:
 		success = PluginExporter.export_release(plugin_name, refresh_flag, local_flag)
 		if not success:
-			for line in load("res://addons/plugin_exporter/src/class/release/release_export.gd").messages:
+			for line in load("res://addons/package_exporter/src/class/release/release_export.gd").messages:
 				ctx.append_error(line)
 	else:
 		success = PluginExporter.export(plugin_name)

@@ -1,5 +1,5 @@
-# Reusable release build for a PluginExporter package (callers come from add_release_workflow).
-# Builds the package from pinned tags with a released plugin_exporter as toolchain, compile-checks
+# Reusable release build for a PackageExporter package (callers come from add_release_workflow).
+# Builds the package from pinned tags with a released package_exporter as toolchain, compile-checks
 # the output on its own, then attaches the zips to the tag's GitHub release.
 name: package-release
 
@@ -11,7 +11,7 @@ on:
         type: string
         default: "4.6.3-stable"
       toolchain-version:
-        description: plugin_exporter release to build with; empty means its latest release.
+        description: package_exporter release to build with; empty means its latest release.
         type: string
         default: ""
       install-path:
@@ -24,7 +24,7 @@ on:
         default: true
 
 env:
-  TOOLCHAIN_REPO: brohd11/Godot-Plugin-Exporter
+  TOOLCHAIN_REPO: brohd11/godot-package-exporter
 
 jobs:
   release:
@@ -74,7 +74,7 @@ jobs:
           fi
           case "$path" in
             ""|*"{{"*) echo "::error::can't tell where the package installs: set path= in $cfg or pass install-path"; exit 1 ;;
-            addons/plugin_exporter) echo "::error::plugin_exporter installs where the toolchain lives; release it from the editor"; exit 1 ;;
+            addons/package_exporter) echo "::error::package_exporter installs where the toolchain lives; release it from the editor"; exit 1 ;;
           esac
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "path=${path%/}" >> "$GITHUB_OUTPUT"
@@ -103,9 +103,9 @@ jobs:
       # Tag mirrors, release zips, toolchains and workspaces; tags are trusted as immutable.
       - uses: actions/cache@v4
         with:
-          path: ~/.cache/plugin_exporter
-          key: plugin-exporter-${{ github.repository }}-${{ hashFiles('pkg/*.cfg', 'pkg/_export_ignore/*', 'pkg/export_ignore/*.yml') }}
-          restore-keys: plugin-exporter-${{ github.repository }}-
+          path: ~/.cache/package_exporter
+          key: package-exporter-${{ github.repository }}-${{ hashFiles('pkg/*.cfg', 'pkg/_export_ignore/*', 'pkg/export_ignore/*.yml') }}
+          restore-keys: package-exporter-${{ github.repository }}-
 
       - name: Assemble project
         shell: bash
@@ -118,14 +118,14 @@ jobs:
           v="$TOOLCHAIN_VERSION"
           [ -n "$v" ] || v=$(gh release view -R "$TOOLCHAIN_REPO" --json tagName -q .tagName)
           v="${v#v}"
-          gh release download "v$v" -R "$TOOLCHAIN_REPO" -p "plugin-exporter-$v.zip" -D "$RUNNER_TEMP" \
-            || gh release download "$v" -R "$TOOLCHAIN_REPO" -p "plugin-exporter-$v.zip" -D "$RUNNER_TEMP"
-          echo "toolchain plugin_exporter $v"
+          gh release download "v$v" -R "$TOOLCHAIN_REPO" -p "package-exporter-$v.zip" -D "$RUNNER_TEMP" \
+            || gh release download "$v" -R "$TOOLCHAIN_REPO" -p "package-exporter-$v.zip" -D "$RUNNER_TEMP"
+          echo "toolchain package_exporter $v"
 
-          # The toolchain zip carries its install layout (addons/plugin_exporter); the package joins
+          # The toolchain zip carries its install layout (addons/package_exporter); the package joins
           # it at its own install path, .git included - the export fetches it by tag from origin.
           mkdir -p "$WS"
-          unzip -q "$RUNNER_TEMP/plugin-exporter-$v.zip" -d "$WS"
+          unzip -q "$RUNNER_TEMP/package-exporter-$v.zip" -d "$WS"
           mkdir -p "$WS/$(dirname "$PKG_PATH")"
           mv pkg "$WS/$PKG_PATH"
           # The same header ReleaseRunner.project_godot writes for its workspaces.
@@ -142,7 +142,7 @@ jobs:
           PKG_PATH: ${{ steps.pkg.outputs.path }}
         run: |
           set -euo pipefail
-          godot --headless --path "$WS" --script res://addons/plugin_exporter/src/class/release/release_cli.gd -- "$PKG_PATH" \
+          godot --headless --path "$WS" --script res://addons/package_exporter/src/class/release/release_cli.gd -- "$PKG_PATH" \
             2>&1 | tee "$RUNNER_TEMP/export.log"
           echo "zips=$(sed -n 's/^PE_RELEASE_OUTPUT //p' "$RUNNER_TEMP/export.log" | tail -1)" >> "$GITHUB_OUTPUT"
 

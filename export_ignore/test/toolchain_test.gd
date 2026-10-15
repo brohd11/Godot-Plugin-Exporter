@@ -5,10 +5,10 @@ extends EditorScript
 ## --local staleness rule, and cached remote toolchains. No network - a cached toolchain is laid
 ## out by hand, so resolve() never has a reason to download.
 ##
-##     load("res://addons/plugin_exporter/export_ignore/test/toolchain_test.gd").run_tests()
+##     load("res://addons/package_exporter/export_ignore/test/toolchain_test.gd").run_tests()
 
-const Toolchain = preload("res://addons/plugin_exporter/src/class/release/toolchain.gd")
-const ReleaseRunner = preload("res://addons/plugin_exporter/src/class/release/release_runner.gd")
+const Toolchain = preload("res://addons/package_exporter/src/class/release/toolchain.gd")
+const ReleaseRunner = preload("res://addons/package_exporter/src/class/release/release_runner.gd")
 
 const DIR = "user://pe_toolchain_tests"
 
@@ -48,13 +48,13 @@ static func _test_pick_version() -> void:
 
 
 static func _test_asset_urls() -> void:
-	var urls = Toolchain.asset_urls("https://www.github.com/Brohd11/Godot-Plugin-Exporter.git", "0.7.4")
-	_check("v tag first", urls[0], "https://github.com/Brohd11/Godot-Plugin-Exporter/releases/download/v0.7.4/plugin-exporter-0.7.4.zip")
-	_check("bare tag second", urls[1], "https://github.com/Brohd11/Godot-Plugin-Exporter/releases/download/0.7.4/plugin-exporter-0.7.4.zip")
+	var urls = Toolchain.asset_urls("https://www.github.com/Brohd11/Godot-Package-Exporter.git", "0.7.4")
+	_check("v tag first", urls[0], "https://github.com/Brohd11/Godot-Package-Exporter/releases/download/v0.7.4/package-exporter-0.7.4.zip")
+	_check("bare tag second", urls[1], "https://github.com/Brohd11/Godot-Package-Exporter/releases/download/0.7.4/package-exporter-0.7.4.zip")
 	_check("v in version not doubled", Toolchain.asset_urls("https://github.com/o/r", "v1.0")[0],
-		"https://github.com/o/r/releases/download/v1.0/plugin-exporter-1.0.zip")
+		"https://github.com/o/r/releases/download/v1.0/package-exporter-1.0.zip")
 	_check("scp remote", Toolchain.asset_urls("git@github.com:o/r.git", "1.0")[0],
-		"https://github.com/o/r/releases/download/v1.0/plugin-exporter-1.0.zip")
+		"https://github.com/o/r/releases/download/v1.0/package-exporter-1.0.zip")
 
 
 static func _test_newest_after() -> void:
@@ -67,19 +67,19 @@ static func _test_newest_after() -> void:
 ## A version already in the cache resolves as-is: trusted, like a mirrored tag.
 static func _test_cached_remote(root:String) -> void:
 	var cache_root = root.path_join("cache")
-	var dir = cache_root.path_join("toolchains/plugin_exporter-9.9.9")
-	_write(dir.path_join("addons/plugin_exporter/plugin.cfg"), '[plugin]\nversion="9.9.9"\n')
-	_write(dir.path_join("plugin-exporter-9.9.9.zip"), "not really a zip")
+	var dir = cache_root.path_join("toolchains/package_exporter-9.9.9")
+	_write(dir.path_join("addons/package_exporter/plugin.cfg"), '[plugin]\nversion="9.9.9"\n')
+	_write(dir.path_join("package-exporter-9.9.9.zip"), "not really a zip")
 
 	var tc = Toolchain.new()
 	var info = tc.resolve({"toolchain": "v9.9.9"}, cache_root, false, false)
 	_check("cached: resolved " + str(tc.errors), info.is_empty(), false)
 	if not info.is_empty():
-		_check("cached: dir", info.dir, dir.path_join("addons/plugin_exporter"))
+		_check("cached: dir", info.dir, dir.path_join("addons/package_exporter"))
 		_check("cached: source", info.source, "remote")
-		_check("cached: id is zip hash", info.id, FileAccess.get_sha256(dir.path_join("plugin-exporter-9.9.9.zip")))
+		_check("cached: id is zip hash", info.id, FileAccess.get_sha256(dir.path_join("package-exporter-9.9.9.zip")))
 
-	_write(dir.path_join("addons/plugin_exporter/plugin.cfg"), '[plugin]\nversion="9.9.8"\n')
+	_write(dir.path_join("addons/package_exporter/plugin.cfg"), '[plugin]\nversion="9.9.8"\n')
 	var mismatch = Toolchain.new()
 	_check("cached: wrong version rejected", mismatch.resolve({"toolchain": "9.9.9"}, cache_root, false, false), {})
 	_check("cached: mismatch named", mismatch.errors.size() == 1 and "is 9.9.8, expected 9.9.9" in mismatch.errors[0], true)
@@ -87,8 +87,8 @@ static func _test_cached_remote(root:String) -> void:
 
 static func _test_local_missing() -> void:
 	var tc = Toolchain.new()
-	_check("local: missing export", tc.resolve({"toolchain": "1.0"}, "", true, false, "/nonexistent/plugin_exporter"), {})
-	_check("local: says to export", tc.errors.size() == 1 and "run 'plugin_exporter export plugin_exporter' first" in tc.errors[0], true)
+	_check("local: missing export", tc.resolve({"toolchain": "1.0"}, "", true, false, "/nonexistent/package_exporter"), {})
+	_check("local: says to export", tc.errors.size() == 1 and "run 'package_exporter export package_exporter' first" in tc.errors[0], true)
 
 
 static func _test_unzip(root:String) -> void:
@@ -96,7 +96,7 @@ static func _test_unzip(root:String) -> void:
 	DirAccess.make_dir_recursive_absolute(zip_path.get_base_dir())
 	var packer = ZIPPacker.new()
 	packer.open(zip_path)
-	for entry in ["plugin_exporter/sub/a.txt", "__MACOSX/plugin_exporter/._a.txt", "plugin_exporter/.DS_Store"]:
+	for entry in ["package_exporter/sub/a.txt", "__MACOSX/package_exporter/._a.txt", "package_exporter/.DS_Store"]:
 		packer.start_file(entry)
 		packer.write_file("hello".to_utf8_buffer())
 		packer.close_file()
@@ -104,9 +104,9 @@ static func _test_unzip(root:String) -> void:
 
 	var dest = root.path_join("unzip/out")
 	_check("unzip ok", ReleaseRunner.unzip(zip_path, dest), "")
-	_check("unzip content", FileAccess.get_file_as_string(dest.path_join("plugin_exporter/sub/a.txt")), "hello")
+	_check("unzip content", FileAccess.get_file_as_string(dest.path_join("package_exporter/sub/a.txt")), "hello")
 	_check("unzip skips __MACOSX", DirAccess.dir_exists_absolute(dest.path_join("__MACOSX")), false)
-	_check("unzip skips .DS_Store", FileAccess.file_exists(dest.path_join("plugin_exporter/.DS_Store")), false)
+	_check("unzip skips .DS_Store", FileAccess.file_exists(dest.path_join("package_exporter/.DS_Store")), false)
 	_check("unzip bad archive", ReleaseRunner.unzip(root.path_join("unzip/missing.zip"), dest).begins_with("could not open"), true)
 
 

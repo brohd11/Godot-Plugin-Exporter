@@ -7,9 +7,9 @@ const DOC_DIR_NAME = ".doc"
 ## Base dir of a project-root LICENSE, as get_base_dir() reports it.
 const PROJECT_LICENSE_DIR = "res://"
 
-const _UtilsRemote = preload("res://addons/plugin_exporter/src/class/utils_remote.gd")
+const _UtilsRemote = preload("res://addons/package_exporter/src/class/utils_remote.gd")
 const _UEditor = _UtilsRemote.UEditor
-const _UtilsLocal = preload("res://addons/plugin_exporter/src/class/utils_local.gd")
+const _UtilsLocal = preload("res://addons/package_exporter/src/class/utils_local.gd")
 const _ExportFileUtils = _UtilsLocal.ExportFileUtils
 const _KeysConfig = _ExportFileUtils.KeysConfig
 const _KeysData = _ExportFileUtils.KeysData
@@ -18,8 +18,8 @@ const _FileParser = _UtilsLocal.FileParser
 const _UClassDetail = _UtilsRemote.UClassDetail
 const _UFile = _UtilsRemote.UFile
 const _GetFiles = _UtilsRemote.GetFiles
-const _PackageCfg = preload("res://addons/plugin_exporter/src/class/export/package_cfg.gd")
-const _VersionScanner = preload("res://addons/plugin_exporter/src/editor_plugins/console_command/min_version/version_scanner.gd")
+const _PackageCfg = preload("res://addons/package_exporter/src/class/export/package_cfg.gd")
+const _VersionScanner = preload("res://addons/package_exporter/src/editor_plugins/console_command/min_version/version_scanner.gd")
 
 var export_data: _ExportData
 var source:String

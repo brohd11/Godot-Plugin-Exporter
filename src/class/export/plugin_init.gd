@@ -1,6 +1,6 @@
 
-const UtilsRemote = preload("res://addons/plugin_exporter/src/class/utils_remote.gd")
-const UtilsLocal = preload("res://addons/plugin_exporter/src/class/utils_local.gd")
+const UtilsRemote = preload("res://addons/package_exporter/src/class/utils_remote.gd")
+const UtilsLocal = preload("res://addons/package_exporter/src/class/utils_local.gd")
 
 const UFile = UtilsRemote.UFile
 const Confirmation = UtilsRemote.Confirmation
@@ -144,38 +144,52 @@ static func package_cfg_text(package_dir:String) -> String:
 
 
 const RELEASE_WORKFLOW_PATH = ".github/workflows/release.yml"
-## Ref of PluginExporter's reusable workflow that callers pin. Not a version tag: the resolver reads
-## every v* tag here as a plugin_exporter release, so a moving `v1` would outrank them all.
+## Ref of PackageExporter's reusable workflow that callers pin. Not a version tag: the resolver reads
+## every v* tag here as a package_exporter release, so a moving `v1` would outrank them all.
 const RELEASE_WORKFLOW_REF = "main"
 
-## Opts a package into CI releases: a workflow at its repo root calling PluginExporter's reusable
+## Opts a package into CI releases: a workflow at its repo root calling PackageExporter's reusable
 ## one on version tags. Separate from package_init so publishing stays a choice; never overwrites.
 ## Returns the path written, or "".
 static func add_release_workflow(target:String) -> String:
+	var notes:Array[String] = []
+	var path = write_release_workflow(target, notes)
+	for note in notes:
+		if path == "":
+			printerr(note)
+		else:
+			push_warning(note)
+	if path != "":
+		print("Release workflow added: %s" % path)
+	return path
+
+
+## add_release_workflow without console output: a refusal ("" returned) or a warning about a
+## written file goes into `notes`, so tests can assert on it.
+static func write_release_workflow(target:String, notes:Array[String]) -> String:
 	var package_dir = ExportPaths.resolve_target(target)
 	if package_dir == "" or PackageCfg.find(package_dir) == "":
-		printerr("Not a package (no %s): %s" % [" / ".join(PackageCfg.NAMES), target])
+		notes.append("Not a package (no %s): %s" % [" / ".join(PackageCfg.NAMES), target])
 		return ""
 	var path = package_dir.path_join(RELEASE_WORKFLOW_PATH)
 	if FileAccess.file_exists(path):
-		printerr("Release workflow already exists: " + path)
+		notes.append("Release workflow already exists: " + path)
 		return ""
 	if not DirAccess.dir_exists_absolute(package_dir.path_join(".git")):
-		push_warning("%s has no .git dir; the workflow only runs from the package's own repo root" % package_dir)
+		notes.append("%s has no .git dir; the workflow only runs from the package's own repo root" % package_dir)
 	DirAccess.make_dir_recursive_absolute(path.get_base_dir())
 	var file = FileAccess.open(path, FileAccess.WRITE)
 	if file == null:
-		printerr("Could not write " + path)
+		notes.append("Could not write " + path)
 		return ""
 	file.store_string(_NewPluginText.RELEASE_WORKFLOW_TEXT % RELEASE_WORKFLOW_REF)
 	file.close()
-	print("Release workflow added: %s" % path)
 	return path
 
 
 class _NewPluginText:
 	const RELEASE_WORKFLOW_TEXT = \
-'# Builds and publishes this package on version tags with PluginExporter. The tag must match
+'# Builds and publishes this package on version tags with PackageExporter. The tag must match
 # version= in the package cfg; deps are fetched by tag, so they need pushing first.
 name: release
 on:
@@ -183,7 +197,7 @@ on:
     tags: ["v*", "[0-9]*"]
 jobs:
   release:
-    uses: brohd11/Godot-Plugin-Exporter/.github/workflows/package-release.yml@%s
+    uses: brohd11/godot-package-exporter/.github/workflows/package-release.yml@%s
     permissions:
       contents: write
 '

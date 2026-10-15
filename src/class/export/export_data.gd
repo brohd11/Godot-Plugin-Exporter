@@ -1,7 +1,7 @@
 extends RefCounted
 
-const _UtilsRemote = preload("res://addons/plugin_exporter/src/class/utils_remote.gd")
-const _UtilsLocal = preload("res://addons/plugin_exporter/src/class/utils_local.gd")
+const _UtilsRemote = preload("res://addons/package_exporter/src/class/utils_remote.gd")
+const _UtilsLocal = preload("res://addons/package_exporter/src/class/utils_local.gd")
 
 const Export = _UtilsLocal.ExportObj
 const _ExportFileUtils = _UtilsLocal.ExportFileUtils
@@ -107,7 +107,7 @@ func _init(export_config_path):
 			var raw_folder = String(export.get(KeysConfig.Export.EXPORT_FOLDER, ""))
 			var reason = _ExportFileUtils.ExportPaths.export_folder_error(raw_folder)
 			var msg = "export_folder \"%s\" %s" % [raw_folder, reason] if reason != "" else "invalid export_name or export_folder for " + export_obj.source
-			printerr("Plugin Exporter - " + msg) # a headless release child has no toast
+			printerr("Package Exporter - " + msg) # a headless release child has no toast
 			_UEditor.push_toast(msg, 2)
 			return
 

@@ -7,7 +7,7 @@ extends RefCounted
 ## against, so a "@require" in build_require is dropped rather than expanded.
 ## Only DepResolver is imported - reaching for the export pipeline here would break headless callers.
 
-const DepResolver = preload("res://addons/plugin_exporter/src/class/release/dep_resolver.gd")
+const DepResolver = preload("res://addons/package_exporter/src/class/release/dep_resolver.gd")
 
 const KEY = DepResolver.BUILD_KEY
 const CFG_NAMES = DepResolver.CFG_NAMES

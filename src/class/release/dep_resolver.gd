@@ -8,9 +8,9 @@ extends RefCounted
 ## goes through `fetcher` (PackageFetcher, or a fake in tests); each package's addon folder and
 ## install path come from PackageLayout.
 
-const PackageLayout = preload("res://addons/plugin_exporter/src/class/release/package_layout.gd")
-const ExportIgnore = preload("res://addons/plugin_exporter/src/class/export/export_ignore.gd")
-const PackageCfg = preload("res://addons/plugin_exporter/src/class/export/package_cfg.gd")
+const PackageLayout = preload("res://addons/package_exporter/src/class/release/package_layout.gd")
+const ExportIgnore = preload("res://addons/package_exporter/src/class/export/export_ignore.gd")
+const PackageCfg = preload("res://addons/package_exporter/src/class/export/package_cfg.gd")
 
 const DEFAULT_HOST = "github.com"
 const CFG_NAMES = PackageCfg.NAMES

@@ -2,7 +2,7 @@
 extends EditorScript
 ## The runner passes the selected config directly, even with an older name-only toolchain.
 
-const Runner = preload("res://addons/plugin_exporter/src/class/release/release_runner.gd")
+const Runner = preload("res://addons/package_exporter/src/class/release/release_runner.gd")
 const ROOT = "user://pe_release_runner_tests"
 const CONFIG = "res://lib/pkg/_export_ignore/export.yml"
 
@@ -27,7 +27,7 @@ static func run_tests() -> Dictionary:
 	_write(root.path_join("project.godot"), Runner.project_godot("Release Runner Test", [
 		"res://addons/%s/plugin.cfg" % Runner.EXPORT_AUTORUN_DIR]))
 	_write(root.path_join(CONFIG.trim_prefix("res://")), "exports: []\n")
-	var scripts = root.path_join("addons/plugin_exporter/src/class/export")
+	var scripts = root.path_join("addons/package_exporter/src/class/export")
 	_write(scripts.path_join("plugin_exporter_file_utils.gd"), FILE_UTILS)
 	_write(scripts.path_join("plugin_exporter_static.gd"),
 		'extends RefCounted\nstatic func export_plugin(config):\n\treturn config == "%s" and FileAccess.file_exists(config)\n' % CONFIG)

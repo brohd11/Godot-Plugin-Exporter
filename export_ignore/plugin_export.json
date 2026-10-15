@@ -1,21 +1,21 @@
 {
-	"export_root": "res://addons/plugin_exporter/export_ignore/exports/",
+	"export_root": "res://addons/package_exporter/export_ignore/exports/",
 	"exports": [
 		{
 			"exclude": {
 				"directories": [
-					"res://addons/plugin_exporter/export_ignore"
+					"res://addons/package_exporter/export_ignore"
 				],
 				"file_extensions": [],
 				"files": []
 			},
-			"remote_dir":"res://addons/plugin_exporter/src/class/remote/",
-			"export_name": "plugin-exporter{{version=plugin_exporter}}",
-			"export_folder": "addons/plugin_exporter",
+			"remote_dir":"res://addons/package_exporter/src/class/remote/",
+			"export_name": "package-exporter{{version=package_exporter}}",
+			"export_folder": "addons/package_exporter",
 			"other_transfers": [
 				{"to":"modular_browser/.gdignore"}
 			],
-			"source": "res://addons/plugin_exporter/",
+			"source": "res://addons/package_exporter/",
 			"parser_overide_settings":{
 				"parse_cs":{},
 				"parse_gd":{},
@@ -26,18 +26,18 @@
 		{
 			"exclude": {
 				"directories": [
-					"res://addons/plugin_exporter/export_ignore"
+					"res://addons/package_exporter/export_ignore"
 				],
 				"file_extensions": [],
 				"files": []
 			},
-			"remote_dir":"res://addons/plugin_exporter/src/class/remote/",
-			"export_name": "plugin-exporter-backport{{version=plugin_exporter}}",
-			"export_folder": "addons/plugin_exporter_backport",
+			"remote_dir":"res://addons/package_exporter/src/class/remote/",
+			"export_name": "package-exporter-backport{{version=package_exporter}}",
+			"export_folder": "addons/package_exporter_backport",
 			"other_transfers": [
 				{"to":"modular_browser/.gdignore"}
 			],
-			"source": "res://addons/plugin_exporter/",
+			"source": "res://addons/package_exporter/",
 			"parser_overide_settings":{
 				"parse_cs":{},
 				"parse_gd":{},
@@ -66,7 +66,7 @@
 			"parse_tres":{},
 		}
 	},
-	"plugin_folder": "PluginExporter/PluginExporter{{version=plugin_exporter}}",
+	"plugin_folder": "PackageExporter/PackageExporter{{version=package_exporter}}",
 	"post_script": "",
 	"pre_script": ""
 }

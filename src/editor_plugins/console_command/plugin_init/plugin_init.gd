@@ -1,11 +1,11 @@
 extends GDSh.CommandBase
 
-const PluginExporter = preload("res://addons/plugin_exporter/src/class/plugin_exporter.gd")
-const PECommandUtils = preload("res://addons/plugin_exporter/src/editor_plugins/console_command/command_utils.gd")
+const PluginExporter = preload("res://addons/package_exporter/src/class/plugin_exporter.gd")
+const PECommandUtils = preload("res://addons/package_exporter/src/editor_plugins/console_command/command_utils.gd")
 
 const _HELP = \
 "Initialize plugin folder with required files
-Usage: plugin_exporter plugin_init <plugin_name>"
+Usage: package_exporter plugin_init <plugin_name>"
 
 static func get_command_name() -> String:
 	return "plugin_init"
