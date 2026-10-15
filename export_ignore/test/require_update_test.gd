@@ -135,6 +135,7 @@ static func _test_repin() -> void:
 	_check("repin untagged", RequireUpdate.repin("a/b", "v2"), "a/b@v2")
 	_check("repin keeps host and source", RequireUpdate.repin("gitlab.com/a/b/source@v1", "v2"),
 		"gitlab.com/a/b/source@v2")
+	_check("repin keeps release", RequireUpdate.repin("a/b/release@v1", "v2"), "a/b/release@v2")
 	_check("short_id drops only github.com", RequireUpdate.short_id("github.com/a/b"), "a/b")
 	_check("short_id keeps other hosts", RequireUpdate.short_id("gitlab.com/a/b"), "gitlab.com/a/b")
 

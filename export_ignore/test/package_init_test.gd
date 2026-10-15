@@ -16,6 +16,7 @@ static func run_tests() -> Dictionary:
 	_passed = 0
 	_test_package_cfg()
 	_test_unpackaged()
+	_test_release_workflow()
 	var output:Array[String] = ["package_init: %d passed, %d failed" % [_passed, _failures.size()]]
 	for failure in _failures:
 		output.append("  FAIL  " + failure)
@@ -54,6 +55,22 @@ static func _test_unpackaged() -> void:
 	_check("missing root", Discovery.discover_unpackaged(ROOT.path_join("missing")), {})
 	DirAccess.remove_absolute(ROOT.path_join("loop"))
 	Runner.remove_dir(ProjectSettings.globalize_path(ROOT))
+
+
+## Opt-in only: written at the package root, never over an existing file, refused for non-packages.
+static func _test_release_workflow() -> void:
+	var dir = "res://addons/plugin_exporter/export_ignore/test/fixtures/_release_workflow_%d" % Time.get_ticks_usec()
+	DirAccess.make_dir_recursive_absolute(dir)
+	_check("not a package refused", PluginInit.add_release_workflow(dir), "")
+	FileAccess.open(dir.path_join("version.cfg"), FileAccess.WRITE).store_string('[plugin]\nversion="0.1.0"\n')
+	var path = PluginInit.add_release_workflow(dir)
+	_check("written at the package root", path, dir.path_join(".github/workflows/release.yml"))
+	var text = FileAccess.get_file_as_string(path)
+	_check("calls the reusable workflow", "uses: brohd11/Godot-Plugin-Exporter/.github/workflows/package-release.yml@%s" % PluginInit.RELEASE_WORKFLOW_REF in text, true)
+	_check("runs on version tags", 'tags: ["v*", "[0-9]*"]' in text, true)
+	FileAccess.open(path, FileAccess.WRITE).store_string("edited")
+	_check("existing not overwritten", [PluginInit.add_release_workflow(dir), FileAccess.get_file_as_string(path)], ["", "edited"])
+	Runner.remove_dir(ProjectSettings.globalize_path(dir))
 
 
 static func _mkdir(relative:String) -> void:

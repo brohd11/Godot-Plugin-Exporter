@@ -3,9 +3,10 @@ extends RefCounted
 ## Resolves an addon's build dependency graph to pinned tags for a release export. Requirements are
 ## `build_require` / `compile_require` in each package's export_ignore/plugin_export.* - the package cfg's
 ## `require` is install-time only (gdaddon's) unless build_require names `@require`. Versions are
-## picked Go-MVS style: each repo gets the
-## highest tag any reachable requirement names. Repo access goes through `fetcher` (PackageFetcher,
-## or a fake in tests); each package's addon folder and install path come from PackageLayout.
+## picked Go-MVS style: each repo gets the highest tag any reachable requirement names, and a pick
+## on another major line than a requirement fails (v0 and v1 share a line, as in Go). Repo access
+## goes through `fetcher` (PackageFetcher, or a fake in tests); each package's addon folder and
+## install path come from PackageLayout.
 
 const PackageLayout = preload("res://addons/plugin_exporter/src/class/release/package_layout.gd")
 const ExportIgnore = preload("res://addons/plugin_exporter/src/class/export/export_ignore.gd")
@@ -18,15 +19,16 @@ const BUILD_KEY = "build_require"
 const COMPILE_KEY = "compile_require"
 const REQUIRE_REF = "@require" # build_require item standing for the package cfg's require list
 const TAGS_INCOMPARABLE = -99
-const KIND_AUTO = "auto"
 const KIND_SOURCE = "source"
+const KIND_RELEASE = "release"
+const CLONE_PREFIX = "clone:"
 
 class Dep:
 	var host:String
 	var owner:String
 	var repo:String
 	var tag:String
-	var kind:String = "auto"
+	var kind:String = "source"
 	var repo_url:String
 	var repo_id:String
 
@@ -48,12 +50,14 @@ func _init(fetcher_obj, dev_install_paths:Dictionary = {}, overrides:Dictionary 
 
 #region Parsing
 
-## `owner/repo[/source][@tag]`, optionally led by a host (`gitlab.com/owner/repo`). A first segment
-## only counts as a host when it has a dot - that is what keeps `owner/repo/source` apart from
-## gdaddon's `host/owner/repo`. Plain means the release gdaddon would install; `/source` forces
-## the tag's tree. null for any other shape.
+## `owner/repo[/source|/release][@tag]`, optionally led by a host (`gitlab.com/owner/repo`). A first
+## segment only counts as a host when it has a dot - that is what keeps `owner/repo/source` apart
+## from gdaddon's `host/owner/repo`. Plain (or /source) is the tag's tree, whose own requirements
+## join the selection; /release is its sealed release asset, for packages that can't be rebuilt
+## from source (GDExtension, third-party zips). gdaddon's `clone:` install mode is dropped - a build
+## reads the tree either way. null for any other shape.
 static func parse_dep(item:String) -> Dep:
-	item = item.strip_edges()
+	item = item.strip_edges().trim_prefix(CLONE_PREFIX)
 	var repo_part = item
 	var tag = ""
 	var at = item.rfind("@")
@@ -66,8 +70,8 @@ static func parse_dep(item:String) -> Dep:
 	dep.host = DEFAULT_HOST
 	if parts.size() >= 3 and "." in parts[0]:
 		dep.host = parts.pop_front()
-	if parts.size() == 3 and parts[2] == KIND_SOURCE:
-		dep.kind = KIND_SOURCE
+	if parts.size() == 3 and parts[2] in [KIND_SOURCE, KIND_RELEASE]:
+		dep.kind = parts[2]
 		parts.pop_back()
 	if parts.size() != 2 or parts[0] == "" or parts[1] == "":
 		return null
@@ -228,6 +232,12 @@ static func compare_tags(a:String, b:String) -> int:
 			return 1 if x > y else -1
 	return 0
 
+
+## Go's compatibility line: v0 and v1 share one, each later major is its own. -1 when not a version.
+static func major_line(tag:String) -> int:
+	var parts = version_parts(tag)
+	return -1 if parts.is_empty() else maxi(parts[0], 1)
+
 #endregion
 
 
@@ -265,6 +275,8 @@ func resolve(target_url:String, version:String, target_path:String) -> Dictionar
 	if not errors.is_empty():
 		return {}
 	var pruned = _prune(root, target_path, required)
+	if not errors.is_empty():
+		return {}
 
 	var deps = []
 	for id in pruned.selected:
@@ -332,6 +344,7 @@ func _explore(root:Array, root_path:String) -> Dictionary:
 ## {selected, verify}: the repos reachable when every repo is taken at its selected tag (so a
 ## requirement only an outvoted version made isn't bundled), and which of them the compile check
 ## needs. A compile_require marks its target, and everything that target needs is needed too.
+## Major lines are checked here for the same reason: an outvoted version's requirements don't ship.
 func _prune(root:Array, root_path:String, required:Dictionary) -> Dictionary:
 	var selected = {}
 	var edges = [] # [from id, to id, compile]
@@ -343,9 +356,10 @@ func _prune(root:Array, root_path:String, required:Dictionary) -> Dictionary:
 			if dep.repo_id == root[0] or not required.has(dep.repo_id):
 				continue
 			edges.append([node[0], dep.repo_id, req.compile])
+			var sel = required[dep.repo_id]
+			_check_major_line(node, dep, sel)
 			if selected.has(dep.repo_id):
 				continue
-			var sel = required[dep.repo_id]
 			selected[dep.repo_id] = sel
 			stack.append([dep.repo_id, sel.url, sel.tag, sel.kind, sel.canonical])
 
@@ -362,6 +376,19 @@ func _prune(root:Array, root_path:String, required:Dictionary) -> Dictionary:
 				verify[e[1]] = true
 				queue.append(e[1])
 	return {"selected": selected, "verify": verify}
+
+
+func _check_major_line(node:Array, dep:Dep, sel:Dictionary) -> void:
+	var wanted = major_line(dep.tag)
+	var picked = major_line(sel.tag)
+	if wanted < 0 or picked < 0 or wanted == picked:
+		return
+	_error("%s: %s@%s needs %s (%s), but %s is selected via %s; up- or downgrade one side so they share a major line" % [
+		dep.repo_id, node[0], node[2], _line_name(wanted), dep.tag, sel.tag, sel.chain])
+
+
+static func _line_name(line:int) -> String:
+	return "v0/v1" if line == 1 else "v%d" % line
 
 
 ## {requires, error} from a node's located package's export config; no config means no

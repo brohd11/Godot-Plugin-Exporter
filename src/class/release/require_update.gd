@@ -117,8 +117,8 @@ static func apply(report:Dictionary, overwrite:bool, prune:bool) -> Dictionary:
 	return result
 
 
-## The spec's own spelling with only its tag replaced, so a leading host and the /source marker
-## survive a re-pin.
+## The spec's own spelling with only its tag replaced, so a leading host and a /source or /release
+## marker survive a re-pin.
 static func repin(spec:String, tag:String) -> String:
 	var at = spec.rfind("@")
 	var base = spec.substr(0, at) if at >= 0 else spec

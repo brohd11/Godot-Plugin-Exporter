@@ -33,7 +33,7 @@ static func auto_asset(release:Dictionary) -> Dictionary:
 	if uploads.is_empty():
 		return {}
 	var names = uploads.map(func(a): return str(a.get("name", "")))
-	return {"error": "release %s has %d uploaded assets (%s), so there is no automatic pick; require it with /source or publish a single asset" % [
+	return {"error": "release %s has %d uploaded assets (%s), so there is no automatic pick; drop /release to build from source, or publish a single asset" % [
 		release.get("tag_name", "?"), uploads.size(), ", ".join(names)]}
 
 

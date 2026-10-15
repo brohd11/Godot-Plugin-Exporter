@@ -25,12 +25,15 @@ const TOOLCHAIN_SCRIPTS = "res://addons/plugin_exporter/src/class/"
 
 ## Failure lines from the last export_release call, for callers that don't see the Output log.
 static var messages:Array[String] = []
+## Zips the last successful export_release produced, for callers that publish them (release_cli.gd).
+static var zips:Array[String] = []
 
 
 ## `local` fetches every repo checked out in this project from that checkout rather than its
 ## remote - still by tag, so nothing uncommitted gets in, but nothing has to be pushed either.
 static func export_release(plugin_name:String, refresh:bool = false, local:bool = false) -> bool:
 	messages.clear()
+	zips.clear()
 	var started = Time.get_ticks_msec()
 	var ok = _export_release(plugin_name, refresh, local)
 	var seconds = (Time.get_ticks_msec() - started) / 1000.0
@@ -127,7 +130,7 @@ static func _export_release(plugin_name:String, refresh:bool, local:bool) -> boo
 	var full_export_path:String = run.result.full_export_path
 	for e in run.result.exports:
 		_finalize_export_dir(e.dir, lock)
-	_rezip(full_export_path)
+	var written = _rezip(full_export_path)
 
 	print("Release export: verifying")
 	# compile_require deps (and what they need) sit beside the export, as they would when installed.
@@ -155,6 +158,7 @@ static func _export_release(plugin_name:String, refresh:bool, local:bool) -> boo
 			_note("  " + f)
 		_mark_unverified(full_export_path)
 		return _fail("output does not compile on its own; moved to *%s" % UNVERIFIED_SUFFIX)
+	zips = written
 	return true
 
 
@@ -184,13 +188,16 @@ static func _finalize_export_dir(dir:String, lock:Dictionary) -> void:
 
 
 ## Same packaging as PluginExporterStatic.export_plugin, redone because finalizing changed files.
-static func _rezip(full_export_path:String) -> void:
+static func _rezip(full_export_path:String) -> Array[String]:
+	var written:Array[String] = []
 	for dir in DirAccess.get_directories_at(full_export_path):
 		var dir_path = full_export_path.path_join(dir)
 		var search = UtilsRemote.GetFiles.open(dir_path)
 		search.show_hidden = true
 		search.enter_gdignore = true
 		ExportFileUtils.write_zip_file(dir_path + ".zip", search.get_files())
+		written.append(dir_path + ".zip")
+	return written
 
 
 ## Keeps a failed release around for inspection, under a name nobody would ship by accident.

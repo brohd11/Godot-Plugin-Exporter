@@ -34,6 +34,9 @@ static func plugin_init(plugin_name:String):
 static func package_init(target:String, cfg_name:String = "addon.cfg"):
 	PluginInit.package_init(target, cfg_name)
 
+static func add_release_workflow(target:String) -> String:
+	return PluginInit.add_release_workflow(target)
+
 static func gui_open(plugin_name:String):
 	var export_file_path = UtilsLocal.ExportFileUtils.get_export_config_path(plugin_name)
 	if not FileAccess.file_exists(export_file_path):

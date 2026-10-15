@@ -1,8 +1,8 @@
 @tool
 extends RefCounted
 ## One view of a dependency at a tag, however it is fetched. `source` is the git tree at the tag
-## (RepoCache). `auto` is what gdaddon would install: the release's single uploaded asset
-## (ReleaseCache), or the tree when the tag has no release or the release uploaded nothing.
+## (RepoCache). `release` is the release's single uploaded asset (ReleaseCache), asked for
+## explicitly - no tree fallback, so a missing asset fails instead of quietly changing what ships.
 ## lookup() returns the info the other calls take; lock entries carry the same keys.
 
 var repos # RepoCache
@@ -27,14 +27,16 @@ func lookup(url:String, tag:String, kind:String, canonical_url:String) -> Dictio
 	if _lookups.has(key):
 		return _lookups[key]
 	var info = {}
-	if kind != "source":
+	if kind == "release":
 		var rel = releases.lookup(canonical_url, tag)
 		if rel.state == "error":
 			last_error = releases.last_error
 			return {}
-		if rel.state == "asset":
-			info = {"kind": "release", "url": canonical_url, "tag": tag, "id": rel.sha, "asset": rel.asset}
-	if info.is_empty():
+		if rel.state != "asset":
+			last_error = "%s@%s has no release with an uploaded asset; drop /release to build it from source" % [canonical_url, tag]
+			return {}
+		info = {"kind": "release", "url": canonical_url, "tag": tag, "id": rel.sha, "asset": rel.asset}
+	else:
 		var sha = repos.tag_sha(url, tag)
 		if sha == "":
 			last_error = repos.last_error

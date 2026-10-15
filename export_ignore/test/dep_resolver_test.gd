@@ -1,7 +1,7 @@
 @tool
 extends EditorScript
 
-## Tests for the release export's dependency resolver: spec parsing with the /source marker,
+## Tests for the release export's dependency resolver: spec parsing with /source and /release,
 ## build_require / compile_require read from export configs, tag ordering, MVS selection, verify
 ## flags, and packages located inside whole projects or release zips. Repos are a fake fetcher (git
 ## trees and single-asset releases), so no git or network.
@@ -34,8 +34,11 @@ class FakeFetcher:
 		return url
 
 	func lookup(url:String, tag:String, kind:String, canonical:String) -> Dictionary:
-		if kind != "source" and releases.has(canonical) and releases[canonical].has(tag):
-			return {"kind": "release", "url": canonical, "tag": tag, "id": ("r" + canonical + tag).sha1_text(), "asset": "pkg.zip"}
+		if kind == "release":
+			if releases.has(canonical) and releases[canonical].has(tag):
+				return {"kind": "release", "url": canonical, "tag": tag, "id": ("r" + canonical + tag).sha1_text(), "asset": "pkg.zip"}
+			last_error = "no release asset"
+			return {}
 		if repos.has(url) and repos[url].has(tag):
 			return {"kind": "source", "url": url, "tag": tag, "id": (url + tag).sha1_text(), "asset": ""}
 		return {}
@@ -59,6 +62,7 @@ static func run_tests() -> Dictionary:
 	_test_repo_id()
 	_test_compare_tags()
 	_test_mvs()
+	_test_major_lines()
 	_test_tag_v_toggle()
 	_test_failures()
 	_test_cycle()
@@ -68,6 +72,7 @@ static func run_tests() -> Dictionary:
 	_test_addon_cfg()
 	_test_verify()
 	_test_kinds()
+	_test_library_from_source()
 	_test_target_layout()
 	_test_export_ignore_names()
 
@@ -88,16 +93,20 @@ static func _test_parse_dep() -> void:
 	_check("short form id lowercased", d.repo_id, "github.com/brohd11/godot-addon-lib")
 	_check("short form tag", d.tag, "v2.1.0")
 	_check("short form url keeps case", d.repo_url, "https://github.com/Brohd11/Godot-Addon-Lib")
-	_check("plain is auto", d.kind, "auto")
+	_check("plain is source", d.kind, "source")
 
 	var h = DepResolver.parse_dep("gitlab.com/o/r@1.0")
-	_check("host form", [h.host, h.owner, h.repo, h.tag, h.kind], ["gitlab.com", "o", "r", "1.0", "auto"])
+	_check("host form", [h.host, h.owner, h.repo, h.tag, h.kind], ["gitlab.com", "o", "r", "1.0", "source"])
 	var s = DepResolver.parse_dep("brohd11/godot-yaml-parser/source@v2.1.0")
 	_check("source marker", [s.kind, s.repo_id, s.tag], ["source", "github.com/brohd11/godot-yaml-parser", "v2.1.0"])
 	_check("source with a slash before @", DepResolver.parse_dep("o/r/source/@v1").kind, "source")
+	var rel = DepResolver.parse_dep("brohd11/godot-yaml-parser/release@v2.1.0")
+	_check("release marker", [rel.kind, rel.repo_id, rel.tag], ["release", "github.com/brohd11/godot-yaml-parser", "v2.1.0"])
 	var hs = DepResolver.parse_dep("gitlab.com/o/r/source@1")
 	_check("host and source", [hs.host, hs.repo, hs.kind], ["gitlab.com", "r", "source"])
 	_check("tagless", DepResolver.parse_dep("o/r").tag, "")
+	var c = DepResolver.parse_dep("clone:brohd11/godot-util-r@v0.2.0")
+	_check("gdaddon clone: prefix dropped", [c.repo_id, c.tag, c.kind], ["github.com/brohd11/godot-util-r", "v0.2.0", "source"])
 	_check("one part rejected", DepResolver.parse_dep("justone@v1"), null)
 	_check("three parts without a dotted host or marker rejected", DepResolver.parse_dep("a/b/c@v1"), null)
 	_check("four parts rejected", DepResolver.parse_dep("a/b/c/d@v1"), null)
@@ -105,10 +114,10 @@ static func _test_parse_dep() -> void:
 
 static func _test_export_config() -> void:
 	var yml = DepResolver.requires_in_export_config(
-		'export_root: "x"\nbuild_require:\n  - "a/b@v1"\n  - "bad"\ncompile_require: "c/d/source@v2"\n', "yml")
+		'export_root: "x"\nbuild_require:\n  - "a/b@v1"\n  - "bad"\ncompile_require: "c/d/release@v2"\n', "yml")
 	_check("yaml: no error", yml.error, "")
 	_check("yaml: list and single string", yml.requires.map(func(r): return [r.dep.repo_id, r.compile, r.dep.kind]),
-		[["github.com/a/b", false, "auto"], ["github.com/c/d", true, "source"]])
+		[["github.com/a/b", false, "source"], ["github.com/c/d", true, "release"]])
 	var json = DepResolver.requires_in_export_config('{"build_require": ["a/b@v1"], "options": {}}', "json")
 	_check("json", json.requires.map(func(r): return r.dep.repo_id), ["github.com/a/b"])
 	_check("json: invalid is an error", DepResolver.requires_in_export_config("{nope", "json").error != "", true)
@@ -176,6 +185,45 @@ static func _test_mvs() -> void:
 	_check("mvs: remote source", lock.target.source, "remote")
 	_check("mvs: sha recorded", lock.target.sha != "", true)
 	_check("mvs: hash stable", DepResolver.lock_hash(lock), DepResolver.lock_hash(lock.duplicate(true)))
+
+
+## Go-style lines: v0 and v1 are one line, so 0.x -> 0.y and 0.x -> 1.x are plain upgrades, while
+## 1.x -> 2.x fails naming both sides - unless the requirement came from an outvoted version.
+static func _test_major_lines() -> void:
+	_check("major_line: v0 joins v1", [DepResolver.major_line("v0.3"), DepResolver.major_line("1.9.0")], [1, 1])
+	_check("major_line: later majors", DepResolver.major_line("v2.0.0-beta"), 2)
+	_check("major_line: not a version", DepResolver.major_line("2024-01-02"), -1)
+
+	for case in [["v0.1.0", "v0.9.0", true], ["v0.4.0", "v1.2.0", true], ["v1.2.0", "v2.0.0", false]]:
+		var f = FakeFetcher.new()
+		var t = f.add("me/t", "v1", {"plugin.cfg": '[plugin]\n', EX: _ex(["me/u@" + case[0], "me/l@v1"])})
+		f.add("me/l", "v1", {"version.cfg": '[plugin]\npath="addons/l"\n', EX: _ex(["me/u@" + case[1]])})
+		f.add("me/u", case[0], {"version.cfg": '[plugin]\npath="addons/u"\n'})
+		f.add("me/u", case[1], {"version.cfg": '[plugin]\npath="addons/u"\n'})
+		var r = DepResolver.new(f)
+		var lock = r.resolve(t, "v1", "res://addons/t")
+		var label = "major %s -> %s" % [case[0], case[1]]
+		if case[2]:
+			_check(label + ": resolved " + str(r.errors), lock.is_empty(), false)
+			_check(label + ": higher picked", _dep(lock, "github.com/me/u").get("tag"), case[1])
+		else:
+			_check(label + ": empty lock", lock, {})
+			var err = r.errors[0] if r.errors.size() == 1 else str(r.errors)
+			_check(label + ": names requirer, both lines and the winning chain " + err,
+				"github.com/me/t@v1 needs v0/v1 (v1.2.0), but v2.0.0 is selected via github.com/me/t -> github.com/me/l -> github.com/me/u" in err, true)
+
+	# a@v1.0.0 asks for u@v1 but loses to a@v1.2.0, whose u@v2 is the only live requirement.
+	var f2 = FakeFetcher.new()
+	var t2 = f2.add("me/t", "v1", {"plugin.cfg": '[plugin]\n', EX: _ex(["me/a@v1.0.0", "me/b@v1"])})
+	f2.add("me/a", "v1.0.0", {"version.cfg": '[plugin]\npath="addons/a"\n', EX: _ex(["me/u@v1.0.0"])})
+	f2.add("me/a", "v1.2.0", {"version.cfg": '[plugin]\npath="addons/a"\n', EX: _ex(["me/u@v2.0.0"])})
+	f2.add("me/b", "v1", {"version.cfg": '[plugin]\npath="addons/b"\n', EX: _ex(["me/a@v1.2.0"])})
+	f2.add("me/u", "v1.0.0", {"version.cfg": '[plugin]\npath="addons/u"\n'})
+	f2.add("me/u", "v2.0.0", {"version.cfg": '[plugin]\npath="addons/u"\n'})
+	var r2 = DepResolver.new(f2)
+	var lock2 = r2.resolve(t2, "v1", "res://addons/t")
+	_check("major: outvoted requirement ignored " + str(r2.errors), lock2.is_empty(), false)
+	_check("major: outvoted selection", _dep(lock2, "github.com/me/u").get("tag"), "v2.0.0")
 
 
 static func _test_tag_v_toggle() -> void:
@@ -319,8 +367,9 @@ static func _test_verify() -> void:
 	_check("verify: flags", got, {"both": true, "ext": true, "ext2": true, "extdep": true, "lib": false})
 
 
-## A release with one uploaded asset wins over the tree unless /source asks for the tree, and the
-## same repo can't be asked for both ways. Release zips ship no export_ignore, so they declare nothing.
+## Plain builds from the tree even when a release exists, so the tree's own requirements join the
+## selection; /release takes the sealed asset (declaring nothing) and fails without one. The same
+## repo can't be asked for both ways.
 static func _test_kinds() -> void:
 	var f = FakeFetcher.new()
 	var t = f.add("me/t", "v1", {"plugin.cfg": '[plugin]\n', EX: _ex(["me/y@v2"])})
@@ -331,26 +380,48 @@ static func _test_kinds() -> void:
 
 	var r = DepResolver.new(f)
 	var lock = r.resolve(t, "v1", "res://addons/t")
-	_check("release: resolved " + str(r.errors), lock.is_empty(), false)
+	_check("plain: resolved " + str(r.errors), lock.is_empty(), false)
 	if not lock.is_empty():
 		var y = _dep(lock, "github.com/me/y")
-		_check("release: entry", [y.kind, y.asset, y.package, y.path], ["release", "pkg.zip", "y-2/lib/y", "res://addons/lib/y"])
-		_check("release: declares nothing", _dep(lock, "github.com/me/z").is_empty(), true)
+		_check("plain: tree despite a release", [y.kind, y.asset, y.package, y.path], ["source", "", "addons/lib/y", "res://addons/lib/y"])
+		_check("plain: nested export config followed", _dep(lock, "github.com/me/z").is_empty(), false)
 
-	var t2 = f.add("me/t2", "v1", {"plugin.cfg": '[plugin]\n', EX: _ex(["me/y/source@v2"])})
+	var t2 = f.add("me/t2", "v1", {"plugin.cfg": '[plugin]\n', EX: _ex(["me/y/release@v2"])})
 	var r2 = DepResolver.new(f)
 	var lock2 = r2.resolve(t2, "v1", "res://addons/t2")
-	_check("source: resolved " + str(r2.errors), lock2.is_empty(), false)
+	_check("release: resolved " + str(r2.errors), lock2.is_empty(), false)
 	if not lock2.is_empty():
 		var y2 = _dep(lock2, "github.com/me/y")
-		_check("source: entry", [y2.kind, y2.asset, y2.package, y2.path], ["source", "", "addons/lib/y", "res://addons/lib/y"])
-		_check("source: nested export config followed", _dep(lock2, "github.com/me/z").is_empty(), false)
+		_check("release: entry", [y2.kind, y2.asset, y2.package, y2.path], ["release", "pkg.zip", "y-2/lib/y", "res://addons/lib/y"])
+		_check("release: declares nothing", _dep(lock2, "github.com/me/z").is_empty(), true)
 
-	var t3 = f.add("me/t3", "v1", {"plugin.cfg": '[plugin]\n', EX: _ex(["me/y@v2", "me/w@v1"])})
-	f.add("me/w", "v1", {"plugin.cfg": '[plugin]\npath="addons/w"\n', EX: _ex(["me/y/source@v2"])})
+	var t3 = f.add("me/t3", "v1", {"plugin.cfg": '[plugin]\n', EX: _ex(["me/z/release@v1"])})
 	var r3 = DepResolver.new(f)
-	_check("kind conflict: empty lock", r3.resolve(t3, "v1", "res://addons/t3"), {})
-	_check("kind conflict: named " + str(r3.errors), r3.errors.size() == 1 and "required as both auto and source" in r3.errors[0], true)
+	_check("release without asset: empty lock", r3.resolve(t3, "v1", "res://addons/t3"), {})
+	_check("release without asset: named " + str(r3.errors), r3.errors.size() == 1 and "no usable tag v1 (no release asset)" in r3.errors[0], true)
+
+	var t4 = f.add("me/t4", "v1", {"plugin.cfg": '[plugin]\n', EX: _ex(["me/y/release@v2", "me/w@v1"])})
+	f.add("me/w", "v1", {"plugin.cfg": '[plugin]\npath="addons/w"\n', EX: _ex(["me/y@v2"])})
+	var r4 = DepResolver.new(f)
+	_check("kind conflict: empty lock", r4.resolve(t4, "v1", "res://addons/t4"), {})
+	_check("kind conflict: named " + str(r4.errors), r4.errors.size() == 1 and "required as both release and source" in r4.errors[0], true)
+
+
+## The library case the build model is for: L@v1's source asks for U@v1.0, the target asks for
+## U@v1.2 - both build against one U at v1.2, from source, with no release asset in the lock even
+## though L publishes one with its own U bundled.
+static func _test_library_from_source() -> void:
+	var f = FakeFetcher.new()
+	var t = f.add("me/t", "v1", {"plugin.cfg": '[plugin]\n', EX: _ex(["me/l@v1.0.0", "me/u@v1.2.0"])})
+	f.add("me/l", "v1.0.0", {"version.cfg": '[plugin]\npath="addons/_lib/l"\n', "_export_ignore/plugin_export.yml": _ex(["me/u@v1.0.0"])})
+	f.add_release("me/l", "v1.0.0", {"addons/_lib/l/version.cfg": '[plugin]\npath="addons/_lib/l"\n', "addons/_lib/l/src/remote/u.gd": ""})
+	f.add("me/u", "v1.0.0", {"version.cfg": '[plugin]\npath="addons/_lib/u"\n'})
+	f.add("me/u", "v1.2.0", {"version.cfg": '[plugin]\npath="addons/_lib/u"\n'})
+	var r = DepResolver.new(f)
+	var lock = r.resolve(t, "v1", "res://addons/t")
+	_check("library: resolved " + str(r.errors), lock.is_empty(), false)
+	_check("library: one U at the highest minimum, all source", lock.get("deps", []).map(func(e): return [e.repo_id, e.tag, e.kind]),
+		[["github.com/me/l", "v1.0.0", "source"], ["github.com/me/u", "v1.2.0", "source"]])
 
 
 ## The target goes through the same placement, and has to land where this project keeps it.
