@@ -81,8 +81,8 @@ See [optimizer settings](export_ignore/doc/export_settings.md#gdscript-optimizer
 Validation:
 
 ```sh
-godot --headless --path . --script res://tests/plugin_exporter/run_headless.gd
-python3 tests/plugin_exporter/optimizer_export_smoke.py --godot /path/to/godot
+godot --headless --path . --script res://addons/plugin_exporter/export_ignore/test/run_headless.gd
+python3 addons/plugin_exporter/export_ignore/test/optimizer_export_smoke.py --godot /path/to/godot
 ```
 
 The smoke test exports the fixture plugin with optimizer and packaging variants, then
