@@ -8,6 +8,7 @@ extends EditorScript
 ##     load("res://addons/package_exporter/export_ignore/test/require_update_test.gd").run_tests()
 
 const RequireUpdate = preload("res://addons/package_exporter/src/class/release/require_update.gd")
+const DepResolver = RequireUpdate.DepResolver
 
 static var _failures:Array[String] = []
 static var _passed:int = 0
@@ -27,6 +28,8 @@ static func run_tests() -> Dictionary:
 	_test_untouched()
 	_test_repin()
 	_test_apply_require_ref()
+	_test_apply_cfg()
+	_test_verbose_refs()
 
 	var output:Array[String] = []
 	output.append("require_update: %d passed, %d failed" % [_passed, _failures.size()])
@@ -165,7 +168,7 @@ static func _test_apply_require_ref() -> void:
 					if not _write(path, head + "build_require: " + marker + "\n" + tail):
 						continue
 					var label = "apply %s overwrite=%s prune=%s deps=%s" % [marker, overwrite, prune, has_deps]
-					var result = RequireUpdate.apply(report, overwrite, prune)
+					var result = RequireUpdate.apply(report, overwrite, prune, true)
 					_check(label + " errors", result.errors, [])
 					_check(label + " changed", result.changed, true)
 					var expected = 'build_require:\n  - "a/b@v1.2.3"\n' if has_deps else "build_require: []\n"
@@ -174,6 +177,87 @@ static func _test_apply_require_ref() -> void:
 	_check("apply leaves plugin.cfg untouched", FileAccess.get_file_as_string(cfg_path), cfg_text)
 	DirAccess.remove_absolute(path)
 	DirAccess.remove_absolute(cfg_path)
+	DirAccess.remove_absolute(root)
+
+
+## The default destination: the cfg's require=, written multi-line, with the same add / re-pin /
+## prune rules as build_require. compile_require peers stay out, since @require would bundle them.
+static func _test_apply_cfg() -> void:
+	var root = ProjectSettings.globalize_path("user://pe_require_update_cfg")
+	for d in ["", "ab", "ef", "peer"]:
+		DirAccess.make_dir_recursive_absolute(root.path_join(d))
+	var target = root.path_join("")
+	var cfg_path = root.path_join("plugin.cfg")
+	var config_path = root.path_join("plugin_export.yml")
+	_write(root.path_join("ab/version.cfg"), '[plugin]\nversion="1.0.0"\n')
+	_write(root.path_join("ef/version.cfg"), '[plugin]\nversion="2.1.0"\n')
+	_write(root.path_join("peer/version.cfg"), '[plugin]\nversion="3.0.0"\n')
+	var report = {"target": target, "config_path": config_path, "groups": {target: {"rows": [
+		{"id": "github.com/a/b", "dir": root.path_join("ab"), "via": "cfg", "declared": "build"},
+		{"id": "github.com/e/f", "dir": root.path_join("ef"), "via": "cfg", "declared": ""},
+		{"id": "github.com/p/peer", "dir": root.path_join("peer"), "via": "cfg", "declared": "compile"},
+	]}}}
+	var cfg_head = '[plugin]\nname="t"\nversion="0.1.0"\n'
+	var cfg_tail = '\n[namespace]\npath=""\n'
+	var listed = 'require=["a/b@v0.9.0", "x/y@v1"]\n'
+	var config = 'export_root: "x"\nexports: []\n'
+
+	_write(cfg_path, cfg_head + listed + cfg_tail)
+	_write(config_path, config)
+	var result = RequireUpdate.apply(report, false, false)
+	_check("cfg: no errors", result.errors, [])
+	_check("cfg: adds what's missing, keeps the rest, skips the peer", [result.added, result.kept],
+		[["e/f@v2.1.0"], ["a/b@v0.9.0", "x/y@v1"]])
+	_check("cfg: written multi-line, other sections untouched", FileAccess.get_file_as_string(cfg_path),
+		cfg_head + 'require=[\n"a/b@v0.9.0",\n"x/y@v1",\n"e/f@v2.1.0",\n]' + "\n" + cfg_tail)
+	_check("cfg: export config untouched", FileAccess.get_file_as_string(config_path), config)
+	_check("cfg: no bypass warning without build_require", result.warnings.filter(func(w): return "without" in w), [])
+
+	_write(cfg_path, cfg_head + listed + cfg_tail)
+	result = RequireUpdate.apply(report, true, true)
+	_check("cfg: --overwrite re-pins, --prune drops", [result.repinned, result.pruned, result.added],
+		[["a/b@v1.0.0"], ["x/y@v1"], ["e/f@v2.1.0"]])
+	_check("cfg: re-read through cfg_require", DepResolver.cfg_require(FileAccess.get_file_as_string(cfg_path)), ["a/b@v1.0.0", "e/f@v2.1.0"])
+
+	var settled = cfg_head + 'require=["a/b@v1.0.0", "e/f@v2.1.0"]\n' + cfg_tail
+	_write(cfg_path, settled)
+	result = RequireUpdate.apply(report, false, false)
+	_check("cfg: nothing to change leaves its formatting alone", [result.changed, FileAccess.get_file_as_string(cfg_path)], [false, settled])
+
+	_write(config_path, 'export_root: "x"\nbuild_require: ["z/z@v1"]\nexports: []\n')
+	result = RequireUpdate.apply(report, false, false)
+	_check("cfg: an explicit build_require warns", result.warnings.any(func(w): return "without @require" in w), true)
+	_write(config_path, 'export_root: "x"\nbuild_require:\n  - "@require"\n  - "z/z@v1"\nexports: []\n')
+	result = RequireUpdate.apply(report, false, false)
+	_check("cfg: build_require naming @require doesn't", result.warnings.any(func(w): return "without @require" in w), false)
+
+	for f in [cfg_path, config_path, root.path_join("ab/version.cfg"), root.path_join("ef/version.cfg"), root.path_join("peer/version.cfg")]:
+		DirAccess.remove_absolute(f)
+	for d in ["ab", "ef", "peer", ""]:
+		DirAccess.remove_absolute(root.path_join(d))
+
+
+## --verbose: every reference behind a require, where it is and what it says, under its spec.
+static func _test_verbose_refs() -> void:
+	var refs = [
+		{"from": "res://addons/t/src/a.gd", "line": 3, "kind": "preload", "raw": "uid://abc", "to": "res://addons/lib/src/x.gd"},
+		{"from": "res://addons/t/src/b.gd", "line": 0, "kind": "global_class", "raw": "Lib", "to": "res://addons/lib/lib.gd"},
+		{"from": "res://other/c.gd", "line": 9, "kind": "extends_path", "raw": "../lib.gd", "to": "res://elsewhere/y.gd"},
+	]
+	_check("ref lines: relative paths, line only when known, raw as written", RequireUpdate.ref_lines(refs, "res://addons/t", "res://addons/lib", "  "), [
+		"  src/a.gd:3  preload  uid://abc  -> src/x.gd",
+		"  src/b.gd  global_class  Lib  -> lib.gd",
+		"  res://other/c.gd:9  extends_path  ../lib.gd  -> res://elsewhere/y.gd"])
+	var root = ProjectSettings.globalize_path("user://pe_require_verbose")
+	DirAccess.make_dir_recursive_absolute(root.path_join("lib"))
+	_write(root.path_join("lib/version.cfg"), '[plugin]\nversion="1.0.0"\n')
+	var report = {"target": "res://addons/t", "groups": {"res://addons/t": {"rows": [
+		{"id": "github.com/a/lib", "dir": root.path_join("lib"), "via": "cfg", "declared": "", "refs": refs.slice(0, 1)}]}}}
+	_check("self list unchanged without verbose", RequireUpdate.self_list(report), ["a/lib@v1.0.0"])
+	_check("self list verbose: refs under their spec", RequireUpdate.self_list(report, true),
+		["a/lib@v1.0.0", "    src/a.gd:3  preload  uid://abc  -> res://addons/lib/src/x.gd"])
+	DirAccess.remove_absolute(root.path_join("lib/version.cfg"))
+	DirAccess.remove_absolute(root.path_join("lib"))
 	DirAccess.remove_absolute(root)
 
 

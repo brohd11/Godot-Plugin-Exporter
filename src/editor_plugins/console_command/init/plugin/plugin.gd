@@ -4,11 +4,11 @@ const PluginExporter = preload("res://addons/package_exporter/src/class/plugin_e
 const PECommandUtils = preload("res://addons/package_exporter/src/editor_plugins/console_command/command_utils.gd")
 
 const _HELP = \
-"Open export folder of plugin
-Usage: package_exporter open_export_folder <plugin_name>"
+"Initialize plugin folder with required files
+Usage: package_exporter init plugin <plugin_name>"
 
 static func get_command_name() -> String:
-	return "open_export_folder"
+	return "plugin"
 
 static func get_self_command_data() -> Dictionary:
 	return _command_data({
@@ -17,9 +17,9 @@ static func get_self_command_data() -> Dictionary:
 	})
 
 func _get_completions(ctx:Completion):
-	return PECommandUtils.plugin_name_completion(self, ctx, PECommandUtils.TargetAddons.VALID)
+	return PECommandUtils.plugin_name_completion(self, ctx, PECommandUtils.TargetAddons.NOT_VALID)
 
 func _execute(ctx:Context):
 	var plugin_name = positional_args[0]
-	PluginExporter.open_export_folder(plugin_name)
+	PluginExporter.plugin_init(plugin_name)
 	return ExitCode.OK

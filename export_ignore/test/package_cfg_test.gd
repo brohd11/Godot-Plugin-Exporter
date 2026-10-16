@@ -82,6 +82,12 @@ static func _test_set_require() -> void:
 		'[plugin]\nname="p"\nversion="1"\nrequire=["a/b@v1"]\n\n[namespace]\npath=""\n')
 	_check("[addon] version: added there", PackageCfg.set_require('[plugin]\nname="p"\n[addon]\nversion="1"\n', ["a/b@v1"]),
 		'[plugin]\nname="p"\n[addon]\nversion="1"\nrequire=["a/b@v1"]\n')
+	_check("multiline replaces a one-line list", PackageCfg.set_require('[plugin]\nrequire=["a/b@v1"]\nversion="1"\n', ["a/b@v2", "c/d@v1"], true),
+		'[plugin]\nrequire=[\n"a/b@v2",\n"c/d@v1",\n]\nversion="1"\n')
+	_check("multiline adds a missing key", PackageCfg.set_require('[plugin]\nversion="1"\n', ["a/b@v1"], true),
+		'[plugin]\nversion="1"\nrequire=[\n"a/b@v1",\n]\n')
+	_check("multiline empty stays one line", PackageCfg.set_require(multi, [], true),
+		'[plugin]\nname="p"\nversion="1.0.0"\n\nrequire=[]\n\n[namespace]\npath=""\n')
 
 
 static func _write(relative:String, text:String) -> void:

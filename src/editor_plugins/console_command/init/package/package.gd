@@ -7,13 +7,13 @@ const UString = PluginExporter.UtilsRemote.UString
 
 const _HELP = \
 "Initialize a folder as a library package: a package cfg, git init, src/, then plugin_init
-Usage: package_exporter package_init [--name=addon|plugin|version] <folder>
+Usage: package_exporter init package [--name=addon|plugin|version] <folder>
   --name=NAME  Cfg file to write, NAME.cfg (default: addon)."
 
 var name_flag := "addon"
 
 static func get_command_name() -> String:
-	return "package_init"
+	return "package"
 
 static func get_self_command_data() -> Dictionary:
 	return _command_data({

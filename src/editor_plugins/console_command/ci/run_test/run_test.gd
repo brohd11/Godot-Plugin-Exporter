@@ -6,13 +6,13 @@ const PECommandUtils = preload("res://addons/package_exporter/src/editor_plugins
 const _HELP = \
 "Run a package's tests as test CI does: its tree against its requires at their tags, in a
 workspace without the rest of this project - so a pass means its declared requires are enough.
-Usage: package_exporter test_ci [--local] [--refresh] <plugin_name>"
+Usage: package_exporter ci run_test [--local] [--refresh] <plugin_name>"
 
 var refresh_flag := false
 var local_flag := false
 
 static func get_command_name() -> String:
-	return "test_ci"
+	return "run_test"
 
 static func get_self_command_data() -> Dictionary:
 	return _command_data({

@@ -6,7 +6,7 @@ const PECommandUtils = preload("res://addons/package_exporter/src/editor_plugins
 const _HELP = \
 "Opt a package into test CI: writes .github/workflows/test.yml at its repo root, running its
 suites on every push against its requires at their tags. Never overwrites an existing file.
-Usage: package_exporter test_workflow <plugin_name>"
+Usage: package_exporter ci test_workflow <plugin_name>"
 
 static func get_command_name() -> String:
 	return "test_workflow"

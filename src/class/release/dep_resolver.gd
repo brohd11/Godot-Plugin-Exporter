@@ -565,6 +565,14 @@ func _entry(id:String, pkg:Dictionary, verify:bool) -> Dictionary:
 	return entry
 
 
+## The tag `dep` resolves to the way a build would fetch it (v toggled, its /release asset pin
+## applied), or "" with the fetcher's last_error saying why.
+func find_tag(dep:Dep) -> String:
+	_assets[dep.repo_id] = dep.asset
+	var url = url_overrides.get(dep.repo_id, dep.repo_url)
+	return _find_tag(url, dep.tag, dep.kind, dep.repo_url, dep.asset)
+
+
 ## The dep's own spelling first, then with the leading v toggled - gdaddon's tagEqual.
 ## On failure the fetcher's last_error is the first spelling's, the one the config wrote: a
 ## missing toggled tag would otherwise hide why that one was refused.

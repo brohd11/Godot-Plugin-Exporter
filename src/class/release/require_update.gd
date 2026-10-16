@@ -1,10 +1,10 @@
 @tool
 extends RefCounted
-## Writes what the crawl found into a plugin's own build_require, in place. A tag comes from the
-## required package's cfg version=, checked against its checkout's tags - a version nobody tagged yet
-## is a warning, since tagging comes after the update. The cfg's require= is never read or
-## written: it is gdaddon's install-time list and may name optional deps that were never built
-## against, so a "@require" in build_require is dropped rather than expanded.
+## Writes what the crawl found into a package's own require list, in place: the cfg's require= by
+## default (build_require and test_require default to it), or the export config's build_require.
+## A tag comes from the required package's cfg version=, checked against its checkout's tags - a
+## version nobody tagged yet is a warning, since tagging comes after the update. In build_require a
+## "@require" is dropped rather than expanded: writing there means an explicit list.
 ## Only DepResolver is imported - reaching for the export pipeline here would break headless callers.
 
 const DepResolver = preload("res://addons/package_exporter/src/class/release/dep_resolver.gd")
@@ -14,7 +14,8 @@ const CFG_NAMES = DepResolver.CFG_NAMES
 const REQUIRE_REF = DepResolver.REQUIRE_REF
 
 
-## {specs: [{id, dir, tag, spec}], warnings, errors} for the target package's own rows, sorted by id.
+## {specs: [{id, dir, tag, spec, refs}], warnings, errors} for the target package's own rows, sorted
+## by id.
 ## A spec carries "@tag" only when the tag resolved, so it stays printable while `errors` says
 ## nothing may be written.
 static func resolve_target(report:Dictionary) -> Dictionary:
@@ -31,40 +32,72 @@ static func resolve_target(report:Dictionary) -> Dictionary:
 		var version = cfg_value(row.dir, "version")
 		if version == "" or DepResolver.version_parts(version).is_empty():
 			out.errors.append("%s: cfg version=\"%s\" is nothing to pin a tag to" % [row.dir, version])
-			out.specs.append({"id": row.id, "dir": row.dir, "tag": "", "spec": short})
+			out.specs.append({"id": row.id, "dir": row.dir, "tag": "", "spec": short, "refs": row.get("refs", [])})
 			continue
 		var tag = "v" + version.trim_prefix("v").trim_prefix("V")
 		if row.via != "git":
 			out.warnings.append("%s is no checkout, %s comes from its cfg version= unverified" % [row.dir, tag])
 		elif not DepResolver.local_tag_exists(row.dir, tag):
 			out.warnings.append("%s is not tagged %s yet - a release export will fail on it" % [row.dir, tag])
-		out.specs.append({"id": row.id, "dir": row.dir, "tag": tag, "spec": "%s@%s" % [short, tag]})
+		out.specs.append({"id": row.id, "dir": row.dir, "tag": tag, "spec": "%s@%s" % [short, tag], "refs": row.get("refs", [])})
 	out.specs.sort_custom(func(a, b): return a.id < b.id)
 	return out
 
 
+## One line per reference: where it is (relative to `from_dir`, the referencing package), its kind,
+## the text as written - what to search for - and the file it lands on, relative to `to_dir`.
+static func ref_lines(refs:Array, from_dir:String, to_dir:String, indent:String) -> Array[String]:
+	var out:Array[String] = []
+	for r in refs:
+		var where = _relative(r.from, from_dir)
+		if r.line > 0:
+			where += ":%d" % r.line
+		out.append("%s%s  %s  %s  -> %s" % [indent, where, r.kind, r.raw, _relative(r.to, to_dir)])
+	return out
+
+
+static func _relative(path:String, dir:String) -> String:
+	if dir == "" or not path.begins_with(dir.trim_suffix("/") + "/"):
+		return path
+	return path.trim_prefix(dir.trim_suffix("/") + "/")
+
+
 ## Just the target's specs, one per line, for piping. An unresolvable tag prints bare rather than
-## stopping the listing - nothing is written here.
-static func self_list(report:Dictionary) -> Array:
-	return resolve_target(report).specs.map(func(s): return s.spec)
+## stopping the listing - nothing is written here. `verbose` follows each with where it's referenced.
+static func self_list(report:Dictionary, verbose:bool = false) -> Array:
+	var out = []
+	for s in resolve_target(report).specs:
+		out.append(s.spec)
+		if verbose:
+			out.append_array(ref_lines(s.refs, report.get("target", ""), s.dir, "    "))
+	return out
 
 
-## {path, changed, added, repinned, kept, pruned, warnings, errors}. `overwrite` re-pins entries the
-## config already lists, `prune` drops the ones the crawl did not find. Nothing is written when
-## `errors` is filled - a half-pinned build_require is worse than none.
-static func apply(report:Dictionary, overwrite:bool, prune:bool) -> Dictionary:
-	var result = {"path": report.get("config_path", ""), "changed": false, "added": [], "repinned": [],
+## {path, changed, added, repinned, kept, pruned, warnings, errors}. Writes the target's cfg
+## require=, or with `export_config` its export config's build_require. `overwrite` re-pins entries
+## already listed, `prune` drops the ones the crawl did not find. Nothing is written when `errors`
+## is filled - a half-pinned list is worse than none.
+static func apply(report:Dictionary, overwrite:bool, prune:bool, export_config:bool = false) -> Dictionary:
+	var config_path = report.get("config_path", "")
+	var path = config_path if export_config else DepResolver.PackageCfg.find(report.get("target", ""))
+	var result = {"path": path, "changed": false, "added": [], "repinned": [],
 		"kept": [], "pruned": [], "warnings": [], "errors": []}
 	var resolved = resolve_target(report)
 	result.warnings = resolved.warnings
 	if not resolved.errors.is_empty():
 		result.errors = resolved.errors
 		return result
-	if not FileAccess.file_exists(result.path):
-		result.errors.append("no export config at " + result.path)
+	if path == "" or not FileAccess.file_exists(path):
+		result.errors.append(("no export config at " + config_path) if export_config else
+			"%s has no package cfg (%s)" % [report.get("target", ""), "/".join(CFG_NAMES)])
 		return result
-	var text = FileAccess.get_file_as_string(result.path)
-	var ext = String(result.path).get_extension()
+	var text = FileAccess.get_file_as_string(path)
+	var ext = String(path).get_extension()
+	if not export_config and FileAccess.file_exists(config_path):
+		var config_text = FileAccess.get_file_as_string(config_path)
+		if bypasses_cfg(config_text, config_path.get_extension()):
+			result.warnings.append("%s lists build_require without %s, so builds won't read the cfg list written here; use --export-config, or put %s in it" % [
+				config_path, REQUIRE_REF, REQUIRE_REF])
 
 	var needed = {} # repo_id -> tag
 	for s in resolved.specs:
@@ -76,7 +109,7 @@ static func apply(report:Dictionary, overwrite:bool, prune:bool) -> Dictionary:
 
 	var out:Array = []
 	var seen = {}
-	for spec in read_build_require(text, ext):
+	for spec in (read_build_require(text, ext) if export_config else DepResolver.cfg_require(text)):
 		var dep = DepResolver.parse_dep(spec)
 		if dep == null: # not a spec this can judge, so it is left exactly as written
 			out.append(spec)
@@ -106,7 +139,11 @@ static func apply(report:Dictionary, overwrite:bool, prune:bool) -> Dictionary:
 		out.append(s.spec)
 		result.added.append(s.spec)
 
-	var new_text = rewrite(text, ext, out)
+	var new_text = text
+	if export_config:
+		new_text = rewrite(text, ext, out)
+	elif out != DepResolver.cfg_require(text): # same list: leave a hand-formatted cfg alone
+		new_text = DepResolver.PackageCfg.set_require(text, out, true)
 	result.changed = new_text != text
 	if result.changed:
 		var file = FileAccess.open(result.path, FileAccess.WRITE)
@@ -141,6 +178,24 @@ static func cfg_value(dir:String, key:String) -> String:
 
 
 #region Config text
+
+## Whether the export config lists build_require explicitly without "@require", so the cfg's
+## require= takes no part in builds.
+static func bypasses_cfg(text:String, ext:String) -> bool:
+	var raw = ""
+	if ext == "json":
+		var at = _locate_json(text)
+		if not at.found:
+			return false
+		raw = text.substr(at.from, at.to - at.from)
+	else:
+		var lines = text.split("\n")
+		var at = _locate_yaml(lines)
+		if not at.found:
+			return false
+		raw = "\n".join(lines.slice(at.from, at.to))
+	return not REQUIRE_REF in raw
+
 
 ## The specs the config lists under build_require, exactly as written, "@require" dropped.
 static func read_build_require(text:String, ext:String) -> Array:

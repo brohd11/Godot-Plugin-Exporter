@@ -5,15 +5,16 @@ const RequireUpdate = preload("res://addons/package_exporter/src/class/release/r
 const PECommandUtils = preload("res://addons/package_exporter/src/editor_plugins/console_command/command_utils.gd")
 
 const _HELP = \
-"Write the packages the crawl found into the target's own build_require, in its _export_ignore (or
-export_ignore) plugin_export config. Each tag is the required package's cfg version=, and a version
-that isn't tagged in its checkout yet only warns. A \"@require\" in build_require is dropped rather
-than expanded: the cfg's require= is gdaddon's install-time list and may name optional deps.
-Only the target is written; other packages stay reported by `require`.
-Usage: package_exporter require update <plugin_name>"
+"Write the packages the export crawl found into the target's own require list: its cfg require= by
+default, which build_require and test_require read through their @require default. Each tag is the
+required package's cfg version=, and a version not tagged in its checkout yet only warns. Packages
+under compile_require are left out - they install beside the package, not inside it.
+  --export-config  write the export config's build_require instead (an explicit list, @require dropped)
+Usage: package_exporter require update [--overwrite] [--prune] [--export-config] <plugin_name>"
 
 var overwrite_flag := false
 var prune_flag := false
+var export_config_flag := false
 
 static func get_command_name() -> String:
 	return "update"
@@ -28,6 +29,7 @@ func _get_flags() -> Dictionary:
 	var options = Options.new()
 	options.add_option("--overwrite", {&"help": "Re-pin entries the config already lists to their current tag."})
 	options.add_option("--prune", {&"help": "Drop entries the crawl did not find."})
+	options.add_option("--export-config", {&"help": "Write the export config's build_require instead of the cfg's require=."})
 	return options.get_options()
 
 func _get_completions(ctx:Completion):
@@ -42,7 +44,7 @@ func _execute(ctx:Context):
 			ctx.append_error(e)
 		return ExitCode.FAIL
 
-	var result = RequireUpdate.apply(report, overwrite_flag, prune_flag)
+	var result = RequireUpdate.apply(report, overwrite_flag, prune_flag, export_config_flag)
 	var lines:Array[String] = []
 	for w in result.warnings:
 		lines.append("warning: " + w)

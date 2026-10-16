@@ -14,13 +14,16 @@ const DependencyTags = UtilsLocal.DependencyTags
 const DepScanner = UtilsRemote.DepScanner
 const DepEdge = DepScanner.DepEdge
 const DepResolver = preload("res://addons/package_exporter/src/class/release/dep_resolver.gd")
+const RequireUpdate = preload("res://addons/package_exporter/src/class/release/require_update.gd")
 
 const CFG_NAMES = DepResolver.CFG_NAMES
 
 
 ## {target, plugin_name, config_path, groups: {from_package: {config, rows: [{dir, id, via, files,
-## declared}]}}, loose: {dir: files}, unused: {from_package: [id]}, errors}. `declared` is "build",
-## "compile" or "". A from_package of "" is a dependent outside any package.
+## declared, refs}]}}, loose: {dir: files}, unused: {from_package: [id]}, errors}. `declared` is
+## "build", "compile" or "". `refs` is every reference behind the row, {from, line, kind, raw, to},
+## sorted - `files` counts distinct targets, refs where each is made. A from_package of "" is a
+## dependent outside any package.
 static func build(plugin_name:String) -> Dictionary:
 	var report = {"target": "", "plugin_name": "", "config_path": "", "groups": {}, "loose": {},
 		"unused": {}, "errors": []}
@@ -43,6 +46,7 @@ static func build(plugin_name:String) -> Dictionary:
 	var target = _package_dir(package_dir.path_join("plugin.cfg"), cache)
 	report.target = target
 	var needed = {target: {}} # from package -> {required package -> file count}
+	var refs = {} # "from package|required package" -> [{from, line, kind, raw, to}]
 
 	var roots = {}
 	for export in data.exports:
@@ -62,6 +66,11 @@ static func build(plugin_name:String) -> Dictionary:
 		var from = _package_dir(edge.from, cache)
 		if package == from and package != "":
 			continue
+		if package != "":
+			var ref_key = "%s|%s" % [from, package]
+			if not refs.has(ref_key):
+				refs[ref_key] = []
+			refs[ref_key].append({"from": edge.from, "line": edge.line_no, "kind": edge.kind_name(), "raw": edge.raw, "to": edge.to})
 		var key = "%s|%s" % [edge.to, from]
 		if counted.has(key):
 			continue
@@ -84,7 +93,10 @@ static func build(plugin_name:String) -> Dictionary:
 			var identity = identities[package]
 			needed_ids[identity.id] = true
 			var state = "compile" if declared.compile.has(identity.id) else ("build" if declared.build.has(identity.id) else "")
-			rows.append({"dir": package, "id": identity.id, "via": identity.via, "files": needed[from][package], "declared": state})
+			var row_refs:Array = refs.get("%s|%s" % [from, package], [])
+			row_refs.sort_custom(func(a, b): return a.from < b.from if a.from != b.from else a.line < b.line)
+			rows.append({"dir": package, "id": identity.id, "via": identity.via, "files": needed[from][package],
+				"declared": state, "refs": row_refs})
 		rows.sort_custom(func(a, b): return a.id < b.id if a.id != b.id else a.dir < b.dir)
 		report.groups[from] = {"config": declared.config, "rows": rows}
 		# Only the target: this crawl reaches just part of any other package, so its declarations
@@ -109,7 +121,8 @@ static func package_identity(dir:String) -> Dictionary:
 	return {"id": from_url, "via": "url=" if from_url != "" else ""}
 
 
-static func format(report:Dictionary) -> String:
+## `verbose` lists each row's references under it (RequireUpdate.ref_lines).
+static func format(report:Dictionary, verbose:bool = false) -> String:
 	var lines:Array[String] = []
 	var froms = report.groups.keys()
 	froms.sort()
@@ -132,6 +145,8 @@ static func format(report:Dictionary) -> String:
 				state = "declared (%s)" % r.declared if r.declared != "" else "MISSING"
 			lines.append("    %-40s %-18s %3d file%s  %s%s" % [name, state, r.files, " " if r.files == 1 else "s",
 				r.dir, "  [url=]" if r.via == "url=" else ""])
+			if verbose:
+				lines.append_array(RequireUpdate.ref_lines(r.get("refs", []), from, r.dir, "        "))
 
 	if not report.loose.is_empty():
 		lines.append("Files outside any %s package:" % "/".join(CFG_NAMES))

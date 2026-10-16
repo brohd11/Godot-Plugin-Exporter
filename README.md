@@ -26,31 +26,31 @@ You can open a package exporter instance from the project menu. In the instance 
 
 The default export location is "_export_ignore/exports". The folder itself is never copied into an export, whatever the exclude list says. A .gdignore file is created in "exports" so that the files are not imported into your project.
 
-Alternatively, you can run this setup from the [editor console plugin](https://github.com/brohd11/Godot-Editor-Console) that is bundled with this plugin. With or without the GUI open, run: `PackageExporter call -- plugin_init my_plugin_folder`
+Alternatively, you can run this setup from the [editor console plugin](https://github.com/brohd11/Godot-Editor-Console) that is bundled with this plugin. With or without the GUI open, run: `package_exporter init plugin my_plugin_folder`
 
 With the setup complete, you can click "Read" in the GUI tool menu. This will create a tree that displays all the files that will be exported including the files outside of the plugin. These will be labeled with the file's relationship to the plugin.
  - remote file - global class or "#! remote" files
  - dependency - file found in a remote file when scanned
 
-Console command: `PackageExporter call -- gui_open my_plugin_folder` will open a GUI instance and read the export file.
+Console command: `package_exporter open gui my_plugin_folder` will open a GUI instance and read the export file.
 
 ### Export
 
 You can export through the GUI by clicking "Export" in the tool menu.
 
-Console command: `PackageExporter call -- export my_plugin_folder`
+Console command: `package_exporter export my_plugin_folder`
 
 
 ### Package targets
 
-Existing-package commands (`export`, `plugin_init`, `gui_open`, `open_export_folder`,
-`require`, `license`, and `min_version`) accept paths relative to `res://addons/`,
+Existing-package commands (`export`, `init plugin`, `init license`, `open gui`, `open export_dir`,
+`ci ...`, `require ...` and `min_version`) accept paths relative to `res://addons/`,
 explicit `res://` paths, or absolute filesystem paths inside the current project.
 For example:
 
 ```text
 package_exporter export _lib/brohd
-package_exporter plugin_init res://lib/my_package
+package_exporter init plugin res://lib/my_package
 package_exporter export res://lib/my_package
 package_exporter export --release --local res://lib/my_package
 ```
@@ -62,7 +62,7 @@ to scaffold editor plugins under `addons/`.
 
 A package cfg is the first of `plugin.cfg`, `addon.cfg` or `version.cfg` in the folder, the same
 order gdaddon uses. Package keys (`version`, `path`, `url`, `require`, ...) are read from an
-`[addon]` section key by key, falling back to `[plugin]`. `package_init <folder>` writes
+`[addon]` section key by key, falling back to `[plugin]`. `init package <folder>` writes
 `addon.cfg`; `--name=plugin` or `--name=version` picks the other names.
 
 New configs use `export.yml`. Legacy `plugin_export.yml`, `plugin_export.yaml`, and

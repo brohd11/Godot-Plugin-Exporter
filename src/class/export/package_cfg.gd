@@ -61,11 +61,15 @@ static func dir_value(dir:String, key:String, default = null):
 	return get_value(cfg, key, default)
 
 
-## `text` with every package section's `require` (or legacy `deps`) list set to `specs`, a
-## multi-line array collapsed to one line; everything else is left byte for byte. With neither key,
-## an empty `specs` changes nothing and a non-empty one is added to the section holding version=.
-static func set_require(text:String, specs:Array) -> String:
-	var value = "[%s]" % ", ".join(specs.map(func(s): return '"%s"' % s))
+## `text` with every package section's `require` (or legacy `deps`) list set to `specs`; everything
+## else is left byte for byte. One line by default; `multiline` writes one spec per line with a
+## trailing comma, gdaddon's style, for hand-kept lists. With neither key, an empty `specs` changes
+## nothing and a non-empty one is added to the section holding version=.
+static func set_require(text:String, specs:Array, multiline:bool = false) -> String:
+	var quoted = specs.map(func(s): return '"%s"' % s)
+	var value = "[%s]" % ", ".join(quoted)
+	if multiline and not specs.is_empty():
+		value = "[\n%s,\n]" % ",\n".join(quoted)
 	var out:Array[String] = []
 	var current = ""
 	var replaced = false

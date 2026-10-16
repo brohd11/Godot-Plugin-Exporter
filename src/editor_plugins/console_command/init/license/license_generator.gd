@@ -1,4 +1,4 @@
-const LicenseText = preload("res://addons/package_exporter/src/editor_plugins/console_command/license/license_text.gd")
+const LicenseText = preload("res://addons/package_exporter/src/editor_plugins/console_command/init/license/license_text.gd")
 const ExportPaths = preload("res://addons/package_exporter/src/class/export/export_paths.gd")
 
 # Never overwrites an existing LICENSE (prints an error and returns false instead).
